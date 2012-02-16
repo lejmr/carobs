@@ -1,0 +1,3 @@
+package carobs;
+
+@license(LGPL);
