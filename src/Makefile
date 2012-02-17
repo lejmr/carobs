@@ -125,7 +125,8 @@ depend:
 $O/OBSLaunch.o: OBSLaunch.cc \
 	OBSLaunch.h
 $O/aggregationPool.o: aggregationPool.cc \
-	aggregationPool.h
+	aggregationPool.h \
+	messages/Payload_m.h
 $O/generator.o: generator.cc \
 	generator.h \
 	messages/Payload_m.h

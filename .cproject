@@ -42,6 +42,7 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<fileInfo id="org.omnetpp.cdt.gnu.config.debug.1990211392.521119090" name="aggregationPool.ned" rcbsApplicability="disable" resourcePath="src/modules/aggregationPool.ned" toolsToInvoke=""/>
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="src"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="simulations"/>
@@ -109,5 +110,8 @@
 		<scannerConfigBuildInfo instanceId="org.omnetpp.cdt.gnu.config.release.383935316">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.omnetpp.cdt.OmnetppGCCPerProjectProfile"/>
 		</scannerConfigBuildInfo>
+	</storageModule>
+	<storageModule moduleId="refreshScope" versionNumber="1">
+		<resource resourceType="PROJECT" workspacePath="/carobs"/>
 	</storageModule>
 </cproject>

@@ -13,28 +13,26 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
+package carobs.simulations;
 
-//
-// TODO auto-generated module
-//
-simple AggregationPool
-{
-    parameters:
-        int disjointNodes = default(1);
-        double bufferLengthT = default(0.1); // ms
-        double bufferLengthB = default(9000); // Bytes
-         
-    @display("i=block/join");
-    gates:
-        input in;
-        output out;
-}
+import carobs.modules.Endnode;
 
-simple Merge
+
+network EndnodeTest
 {
-    @display("i=block/join");
-    gates:
-        input in[];
-        output out;
+    @display("bgb=281,156");
+    submodules:
+        endnode: Endnode {
+            @display("p=57,112");
+        }
+        endnode1: Endnode {
+            @display("p=147,35");
+        }
+        endnode2: Endnode {
+            @display("p=224,112");
+        }
+    connections:
+        endnode.gate++ <--> endnode1.gate++;
+        endnode2.gate++ <--> endnode1.gate++;
+        endnode.gate++ <--> endnode2.gate++;
 }

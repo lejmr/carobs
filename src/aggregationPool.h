@@ -18,14 +18,20 @@
 
 #include <omnetpp.h>
 
-/**
- * TODO - Generated class
- */
 class AggregationPool : public cSimpleModule
 {
   protected:
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
+
+  private:
+    simtime_t bufferLengthT;
+    int64_t bufferLengthB;
+    std::map<int, cQueue> queues;
+    std::map<int, cQueue>::iterator it;
+    std::map<int, cMessage*> scheduled;
+
+    virtual void releaseBuffer(int dst);
 };
 
 #endif
