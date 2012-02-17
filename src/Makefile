@@ -28,11 +28,19 @@ PROJECTRELATIVE_PATH = src
 O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 
 # Object files for local .cc and .msg files
-OBJS = $O/aggregationPool.o $O/generator.o $O/OBSLaunch.o $O/sink.o $O/messages/OpticalLayer_m.o
+OBJS = \
+    $O/aggregationPool.o \
+    $O/generator.o \
+    $O/merge.o \
+    $O/OBSLaunch.o \
+    $O/sink.o \
+    $O/messages/OpticalLayer_m.o \
+    $O/messages/Payload_m.o
 
 # Message files
 MSGFILES = \
-    messages/OpticalLayer.msg
+    messages/OpticalLayer.msg \
+    messages/Payload.msg
 
 #------------------------------------------------------------------------------
 
@@ -119,9 +127,14 @@ $O/OBSLaunch.o: OBSLaunch.cc \
 $O/aggregationPool.o: aggregationPool.cc \
 	aggregationPool.h
 $O/generator.o: generator.cc \
-	generator.h
+	generator.h \
+	messages/Payload_m.h
+$O/merge.o: merge.cc \
+	merge.h
 $O/sink.o: sink.cc \
 	sink.h
 $O/messages/OpticalLayer_m.o: messages/OpticalLayer_m.cc \
 	messages/OpticalLayer_m.h
+$O/messages/Payload_m.o: messages/Payload_m.cc \
+	messages/Payload_m.h
 

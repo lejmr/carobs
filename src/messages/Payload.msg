@@ -13,21 +13,10 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef __CAROBS_GENERATOR_H_
-#define __CAROBS_GENERATOR_H_
-
-#include <omnetpp.h>
-
-class Generator : public cSimpleModule
-{
-  protected:
-    virtual void initialize();
-    virtual void handleMessage(cMessage *msg);
-
-  private:
-    int myMinID;
-    int myMaxID;
-    int MaxID;
-};
-
-#endif
+//
+// TODO generated message class
+//
+packet Payload {
+    int src;
+    int dst;
+}

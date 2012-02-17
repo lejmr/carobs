@@ -19,6 +19,10 @@ package carobs.modules;
 //
 simple Sink
 {
+    parameters:
+        int myMinID;
+        int myMaxID;
+        
     @display("i=block/rx");
     gates:
         input in;
@@ -29,7 +33,16 @@ simple Sink
 //
 simple Generator
 {
-    @display("i=block/tx");
+     
+    parameters:
+        int n = default(10);
+        double l = default(1E-3);
+        int myMinID;
+        int myMaxID;
+        int maxID;
+        
+   @display("i=block/tx");
+    
     gates:
         output out;
 }
@@ -39,6 +52,11 @@ simple Generator
 //
 module Endpoint
 {
+    parameters:
+        int myMinID;
+        int myMaxID;
+        int maxID;
+        
     @display("i=misc/town");
     gates:
         inout gate;

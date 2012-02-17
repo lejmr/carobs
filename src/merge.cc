@@ -13,21 +13,16 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef __CAROBS_GENERATOR_H_
-#define __CAROBS_GENERATOR_H_
+#include "merge.h"
 
-#include <omnetpp.h>
+Define_Module(Merge);
 
-class Generator : public cSimpleModule
+void Merge::initialize()
 {
-  protected:
-    virtual void initialize();
-    virtual void handleMessage(cMessage *msg);
+    // TODO - Generated method body
+}
 
-  private:
-    int myMinID;
-    int myMaxID;
-    int MaxID;
-};
-
-#endif
+void Merge::handleMessage(cMessage *msg)
+{
+    // TODO - Generated method body
+}

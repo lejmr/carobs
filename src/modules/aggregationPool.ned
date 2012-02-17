@@ -20,13 +20,16 @@ package carobs.modules;
 //
 simple AggregationPool
 {
+    parameters:
+        int disjointNodes = default(1);
+         
     @display("i=block/join");
     gates:
         input in;
         output out;
 }
 
-simple Conctration
+simple Merge
 {
     @display("i=block/join");
     gates:
