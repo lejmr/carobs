@@ -36,7 +36,7 @@ void Generator::initialize()
             if ( rnd > myMaxID or rnd < myMinID ) break;
         }
         Payload *msg = new Payload();
-        msg->setByteLength(1500);
+        msg->setByteLength( (int) normal(1500,100) ); // Generates frames with mean size of 1500B and deviation 100 for normal distribution
         msg->setDst(rnd);
         msg->setSrc(myMinID);
         scheduleAt(simTime()+i*gap, msg);
