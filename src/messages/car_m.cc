@@ -30,25 +30,22 @@ void doUnpacking(cCommBuffer *, T& t) {
 
 
 
-Car_Base::Car_Base(const char *name, int kind) : cPacket(name,kind)
+Register_Class(Car);
+
+Car::Car(const char *name, int kind) : cPacket(name,kind)
 {
-    payload_arraysize = 0;
-    this->payload_var = 0;
 }
 
-Car_Base::Car_Base(const Car_Base& other) : cPacket(other)
+Car::Car(const Car& other) : cPacket(other)
 {
-    payload_arraysize = 0;
-    this->payload_var = 0;
     copy(other);
 }
 
-Car_Base::~Car_Base()
+Car::~Car()
 {
-    delete [] payload_var;
 }
 
-Car_Base& Car_Base::operator=(const Car_Base& other)
+Car& Car::operator=(const Car& other)
 {
     if (this==&other) return *this;
     cPacket::operator=(other);
@@ -56,79 +53,31 @@ Car_Base& Car_Base::operator=(const Car_Base& other)
     return *this;
 }
 
-void Car_Base::copy(const Car_Base& other)
+void Car::copy(const Car& other)
 {
-    delete [] this->payload_var;
-    this->payload_var = (other.payload_arraysize==0) ? NULL : new Payload[other.payload_arraysize];
-    payload_arraysize = other.payload_arraysize;
-    for (unsigned int i=0; i<payload_arraysize; i++)
-        this->payload_var[i] = other.payload_var[i];
+    this->payload_var = other.payload_var;
 }
 
-void Car_Base::parsimPack(cCommBuffer *b)
+void Car::parsimPack(cCommBuffer *b)
 {
     cPacket::parsimPack(b);
-    b->pack(payload_arraysize);
-    doPacking(b,this->payload_var,payload_arraysize);
+    doPacking(b,this->payload_var);
 }
 
-void Car_Base::parsimUnpack(cCommBuffer *b)
+void Car::parsimUnpack(cCommBuffer *b)
 {
     cPacket::parsimUnpack(b);
-    delete [] this->payload_var;
-    b->unpack(payload_arraysize);
-    if (payload_arraysize==0) {
-        this->payload_var = 0;
-    } else {
-        this->payload_var = new Payload[payload_arraysize];
-        doUnpacking(b,this->payload_var,payload_arraysize);
-    }
+    doUnpacking(b,this->payload_var);
 }
 
-void Car_Base::setPayloadArraySize(unsigned int size)
+cQueue& Car::getPayload()
 {
-    Payload *payload_var2 = (size==0) ? NULL : new Payload[size];
-    unsigned int sz = payload_arraysize < size ? payload_arraysize : size;
-    for (unsigned int i=0; i<sz; i++)
-        payload_var2[i] = this->payload_var[i];
-    payload_arraysize = size;
-    delete [] this->payload_var;
-    this->payload_var = payload_var2;
+    return payload_var;
 }
 
-unsigned int Car_Base::getPayloadArraySize() const
+void Car::setPayload(const cQueue& payload)
 {
-    return payload_arraysize;
-}
-
-Payload& Car_Base::getPayload(unsigned int k)
-{
-    if (k>=payload_arraysize) throw cRuntimeError("Array of size %d indexed by %d", payload_arraysize, k);
-    return payload_var[k];
-}
-
-void Car_Base::setPayload(unsigned int k, const Payload& payload)
-{
-    if (k>=payload_arraysize) throw cRuntimeError("Array of size %d indexed by %d", payload_arraysize, k);
-    this->payload_var[k] = payload;
-}
-
-void Car::insertPayload(Payload *payload)
-{
-    take(payload);
-    unsigned int k = this->getPayloadArraySize();
-    this->setPayloadArraySize(k+1);
-    if (k>=payload_arraysize) throw cRuntimeError("Array of size %d indexed by %d", payload_arraysize, k);
-    this->payload_var[k] = *payload;
-    this->setByteLength( this->getByteLength() + payload->getByteLength() );
-}
-
-Payload* Car::popPayload(){
-    unsigned int k = this->getPayloadArraySize();
-    Payload *pl = &payload_var[k-1];
-    this->setPayloadArraySize(k-1);
-    //drop(pl);
-    return pl;
+    this->payload_var = payload;
 }
 
 class CarDescriptor : public cClassDescriptor
@@ -166,12 +115,11 @@ CarDescriptor::~CarDescriptor()
 
 bool CarDescriptor::doesSupport(cObject *obj) const
 {
-    return dynamic_cast<Car_Base *>(obj)!=NULL;
+    return dynamic_cast<Car *>(obj)!=NULL;
 }
 
 const char *CarDescriptor::getProperty(const char *propertyname) const
 {
-    if (!strcmp(propertyname,"customize")) return "true";
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     return basedesc ? basedesc->getProperty(propertyname) : NULL;
 }
@@ -191,7 +139,7 @@ unsigned int CarDescriptor::getFieldTypeFlags(void *object, int field) const
         field -= basedesc->getFieldCount(object);
     }
     static unsigned int fieldTypeFlags[] = {
-        FD_ISARRAY | FD_ISCOMPOUND,
+        FD_ISCOMPOUND,
     };
     return (field>=0 && field<1) ? fieldTypeFlags[field] : 0;
 }
@@ -227,7 +175,7 @@ const char *CarDescriptor::getFieldTypeString(void *object, int field) const
         field -= basedesc->getFieldCount(object);
     }
     static const char *fieldTypeStrings[] = {
-        "Payload",
+        "cQueue",
     };
     return (field>=0 && field<1) ? fieldTypeStrings[field] : NULL;
 }
@@ -253,9 +201,8 @@ int CarDescriptor::getArraySize(void *object, int field) const
             return basedesc->getArraySize(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    Car_Base *pp = (Car_Base *)object; (void)pp;
+    Car *pp = (Car *)object; (void)pp;
     switch (field) {
-        case 0: return pp->getPayloadArraySize();
         default: return 0;
     }
 }
@@ -268,9 +215,9 @@ std::string CarDescriptor::getFieldAsString(void *object, int field, int i) cons
             return basedesc->getFieldAsString(object,field,i);
         field -= basedesc->getFieldCount(object);
     }
-    Car_Base *pp = (Car_Base *)object; (void)pp;
+    Car *pp = (Car *)object; (void)pp;
     switch (field) {
-        case 0: {std::stringstream out; out << pp->getPayload(i); return out.str();}
+        case 0: {std::stringstream out; out << pp->getPayload(); return out.str();}
         default: return "";
     }
 }
@@ -283,7 +230,7 @@ bool CarDescriptor::setFieldAsString(void *object, int field, int i, const char 
             return basedesc->setFieldAsString(object,field,i,value);
         field -= basedesc->getFieldCount(object);
     }
-    Car_Base *pp = (Car_Base *)object; (void)pp;
+    Car *pp = (Car *)object; (void)pp;
     switch (field) {
         default: return false;
     }
@@ -298,7 +245,7 @@ const char *CarDescriptor::getFieldStructName(void *object, int field) const
         field -= basedesc->getFieldCount(object);
     }
     static const char *fieldStructNames[] = {
-        "Payload",
+        "cQueue",
     };
     return (field>=0 && field<1) ? fieldStructNames[field] : NULL;
 }
@@ -311,9 +258,9 @@ void *CarDescriptor::getFieldStructPointer(void *object, int field, int i) const
             return basedesc->getFieldStructPointer(object, field, i);
         field -= basedesc->getFieldCount(object);
     }
-    Car_Base *pp = (Car_Base *)object; (void)pp;
+    Car *pp = (Car *)object; (void)pp;
     switch (field) {
-        case 0: return (void *)(&pp->getPayload(i)); break;
+        case 0: return (void *)(&pp->getPayload()); break;
         default: return NULL;
     }
 }

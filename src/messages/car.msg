@@ -17,13 +17,8 @@
 // TODO generated message class
 //
 
-cplusplus {{
-#include <Payload_m.h>
-}}
-
-class noncobject Payload;
+class noncobject cQueue;
 
 packet Car {
-    @customize(true);
-    Payload payload[];
+    cQueue payload;
 }
