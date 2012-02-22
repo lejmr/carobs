@@ -40,6 +40,7 @@ simple Generator
         int myMinID;
         int myMaxID;
         int maxID;
+        bool send= default(false);
         
    @display("i=block/tx");
     

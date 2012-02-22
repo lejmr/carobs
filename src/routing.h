@@ -13,25 +13,33 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef __CAROBS_AGGREGATIONPOOL_H_
-#define __CAROBS_AGGREGATIONPOOL_H_
+#ifndef __CAROBS_ROUTING_H_
+#define __CAROBS_ROUTING_H_
 
 #include <omnetpp.h>
 
-class AggregationPool : public cSimpleModule
+/**
+ * TODO - Generated class
+ */
+class Routing : public cSimpleModule
 {
   protected:
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
 
-  private:
-    simtime_t bufferLengthT;
-    int64_t bufferLengthB;
-    std::map<int, cQueue> queues;
-    std::map<int, cQueue>::iterator it;
-    std::map<int, cMessage*> scheduled;
+  public:
+    /**
+     * Function calculates minumum offset time needed for OBS system to work.
+     * It sums all delays introduced by fibers, CoreNodes,.. along a flow
+     * @param destination - refers to address of destination nodde
+     * @return offset time ot^c - which stands for processing time of all intermediate nodes ot^c=l^c*d^H [8.2.3 - Coutelen DT]
+     */
+    virtual simtime_t getOffsetTime(int destination);
 
-    virtual void releaseBuffer(int dst);
+
+
+  private:
+    std::map<int, simtime_t> OT;   // First step development, later it obsoletes by cTopolog
 };
 
 #endif

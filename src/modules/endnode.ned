@@ -19,35 +19,38 @@ package carobs.modules;
 //
 module Endnode
 {
-    @display("bgb=277,193;i=abstract/router");
+    @display("bgb=277,252;i=abstract/router");
     gates:
         inout gate[];
 
     submodules:
         endpoint: Endpoint {
-            @display("p=38,81");
+            @display("p=38,137");
         }
-        AP: AggregationPool {
-            @display("p=134,124");
+        AQ: AggregationQueues {
+            @display("p=134,180");
         }
-        iface: OBSLaunch {
-            @display("p=215,124");
+        TA: TrainAssembler {
+            @display("p=215,180");
             gates:
                 out[sizeof(gate)];
         }
         co: Merge {
-            @display("p=215,65");
+            @display("p=215,121");
             gates:
                 in[sizeof(gate)];
         }
 
+        routing: Routing {
+            @display("p=215,34");
+        }
     connections:
-        endpoint.gate$o --> AP.in;
-        AP.out --> iface.in;
+        endpoint.gate$o --> AQ.in;
+        AQ.out --> TA.in;
         co.out --> endpoint.gate$i;
 
         for i=0..sizeof(gate)-1 {
-            iface.out[i] --> gate$o[i];
+            TA.out[i] --> gate$o[i];
             gate$i[i] --> co.in[i];
         }
 

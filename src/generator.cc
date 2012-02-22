@@ -28,18 +28,20 @@ void Generator::initialize()
     long amount = par("n").longValue();
     double gap = par("l").doubleValue();
 
-    int rnd;
-    for(int i=0; i < amount;i++){
-        // Generate random destination, but must take care of not generating for myself
-        while(true){
-            rnd= rand() / double(RAND_MAX) * maxID;
-            if ( rnd > myMaxID or rnd < myMinID ) break;
+    if( par("send").boolValue() ){
+        int rnd;
+        for(int i=0; i < amount;i++){
+            // Generate random destination, but must take care of not generating for myself
+            while(true){
+                rnd= rand() / double(RAND_MAX) * maxID;
+                if ( rnd > myMaxID or rnd < myMinID ) break;
+            }
+            Payload *msg = new Payload();
+            msg->setByteLength( (int) normal(1500,100) ); // Generates frames with mean size of 1500B and deviation 100 for normal distribution
+            msg->setDst(rnd);
+            msg->setSrc(myMinID);
+            scheduleAt(simTime()+i*gap, msg);
         }
-        Payload *msg = new Payload();
-        msg->setByteLength( (int) normal(1500,100) ); // Generates frames with mean size of 1500B and deviation 100 for normal distribution
-        msg->setDst(rnd);
-        msg->setSrc(myMinID);
-        scheduleAt(simTime()+i*gap, msg);
     }
 }
 

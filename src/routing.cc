@@ -13,28 +13,30 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
+#include "routing.h"
 
-//
-// TODO auto-generated module
-//
-simple AggregationPool
+Define_Module(Routing);
+
+void Routing::initialize()
 {
-    parameters:
-        int disjointNodes = default(1);
-        double bufferLengthT = default(0.1); // ms
-        double bufferLengthB = default(9000); // Bytes
-         
-    @display("i=block/join");
-    gates:
-        input in;
-        output out;
+    // Obsoletes with cTopology routing decisions
+    for(int i=0; i<=100;i++){
+        OT[i]=(simtime_t) intuniform(1, 10);
+    }
+    WATCH_MAP(OT);
 }
 
-simple Merge
+void Routing::handleMessage(cMessage *msg)
 {
-    @display("i=block/join");
-    gates:
-        input in[];
-        output out;
+    // TODO - Generated method body
+}
+
+simtime_t Routing::getOffsetTime(int destination)
+{
+    // Check whether destination is in the network, otherwise return -1.0
+    // which means drop the burst, cause such destination doesn't exist
+    if( OT.find(destination) == OT.end() )
+        return (simtime_t) -1;
+
+    return OT[destination];
 }

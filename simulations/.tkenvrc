@@ -1,0 +1,3 @@
+# Partial Tkenv config file -- see $HOME/.tkenvrc as well
+inspector "EndnodeTest.endnode.AQ." "Car2" "1" "460x314+44+44:normal"
+

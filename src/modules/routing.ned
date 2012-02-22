@@ -13,16 +13,12 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include "OBSLaunch.h"
+package carobs.modules;
 
-Define_Module(OBSLaunch);
-
-void OBSLaunch::initialize()
+//
+// TODO auto-generated module
+//
+simple Routing
 {
-    // TODO - Generated method body
-}
-
-void OBSLaunch::handleMessage(cMessage *msg)
-{
-    // TODO - Generated method body
+    @display("i=block/network2");
 }

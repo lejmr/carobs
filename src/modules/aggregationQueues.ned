@@ -13,19 +13,28 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef __CAROBS_OBSLAUNCH_H_
-#define __CAROBS_OBSLAUNCH_H_
+package carobs.modules;
 
-#include <omnetpp.h>
-
-/**
- * TODO - Generated class
- */
-class OBSLaunch : public cSimpleModule
+//
+// Queues manager with ability to make Aggregation of queues (AQs) 
+//
+simple AggregationQueues
 {
-  protected:
-    virtual void initialize();
-    virtual void handleMessage(cMessage *msg);
-};
+    parameters:
+        int disjointNodes = default(1);
+        double bufferLengthT = default(0.1); // ms
+        double bufferLengthB = default(9000); // Bytes
 
-#endif
+        @display("i=block/classifier");
+    gates:
+        input in;
+        output out;
+}
+
+simple Merge
+{
+    @display("i=block/join");
+    gates:
+        input in[];
+        output out;
+}
