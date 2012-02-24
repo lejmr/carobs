@@ -17,10 +17,10 @@
 #define __CAROBS_TRAINASSEMBLER_H_
 
 #include <omnetpp.h>
+#include <messages/car_m.h>
+#include <routing.h>
 
-/**
- * TODO - Generated class
- */
+
 class TrainAssembler : public cSimpleModule
 {
   protected:
@@ -50,7 +50,8 @@ class TrainAssembler : public cSimpleModule
      *  Size of the pool when is to be released
      */
     int64_t poolTreshold;
-
+    std::map<int, cQueue> scheduler;
+    Routing *R;
 
   public:
     /**

@@ -14,12 +14,14 @@
 // 
 
 package carobs.modules;
+
+
 //
 // TODO documentation
 //
 module Endnode
 {
-    @display("bgb=277,252;i=abstract/router");
+    @display("bgb=361,254;i=abstract/router");
     gates:
         inout gate[];
 
@@ -32,8 +34,6 @@ module Endnode
         }
         TA: TrainAssembler {
             @display("p=215,180");
-            gates:
-                out[sizeof(gate)];
         }
         co: Merge {
             @display("p=215,121");
@@ -44,13 +44,16 @@ module Endnode
         routing: Routing {
             @display("p=215,34");
         }
+        TS: TrainScheduler {
+            @display("p=299,180");
+        }
     connections:
         endpoint.gate$o --> AQ.in;
         AQ.out --> TA.in;
         co.out --> endpoint.gate$i;
-
+		TA.out --> TS.in;
         for i=0..sizeof(gate)-1 {
-            TA.out[i] --> gate$o[i];
+            TS.out[i] --> gate$o[i];
             gate$i[i] --> co.in[i];
         }
 

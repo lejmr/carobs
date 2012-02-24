@@ -34,8 +34,8 @@ class AggregationQueues : public cSimpleModule
     std::map<int, cQueue> AQ;
     std::map<int, cQueue>::iterator it;
     std::map<int, cMessage*> scheduled;
+    std::map<int, int64_t> AQSizeCache;
 
-    TrainAssembler *TA;
     virtual void releaseBuffer(int dst);
 
     /**
@@ -49,9 +49,14 @@ class AggregationQueues : public cSimpleModule
      *  @param msg - is cMessage of Payload packet
      */
     virtual void handlePayload(cMessage *msg);
+    virtual void countAggregationQueueSize(int AQId);
 
   public:
-    virtual int64_t countAggregationQueueSize(int AQId);
+
+    /**
+     *
+     */
+    virtual int64_t getAggregationQueueSize(int AQId);
 
     /**
      *  Function releaseAggregationQueues is remotely called by TA
@@ -65,6 +70,8 @@ class AggregationQueues : public cSimpleModule
      *               are these cars assigned, the tag is removed at TA
      */
     virtual void releaseAggregationQueues( std::set<int> queues, int tag );
+    virtual void initAggregationQueuesRelease( std::set<int> queues, int tag );
+
 };
 
 #endif

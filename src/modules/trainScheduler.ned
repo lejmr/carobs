@@ -16,24 +16,11 @@
 package carobs.modules;
 
 //
-// Train assembler based on chapter 8.2.3 - Offset Time Computation of Coutelen DT
-// This implementation sorts based on ot^c size
+// TODO auto-generated module
 //
-simple TrainAssembler
+simple TrainScheduler
 {
-    parameters:
-        int poolTreshold = default(9000); // Bytes
-        
-    @display("i=block/join,#FF8000");
-    gates:
-        input in;
-        output out;
-}
-
-
-simple CurbedTrainAssembler
-{
-    @display("i=block/join,#008000");
+    @display("i=block/tx");
     gates:
         input in;
         output out[];

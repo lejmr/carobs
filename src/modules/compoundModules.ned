@@ -14,27 +14,36 @@
 // 
 
 package carobs.modules;
-
 //
-// Train assembler based on chapter 8.2.3 - Offset Time Computation of Coutelen DT
-// This implementation sorts based on ot^c size
+// TODO documentation
 //
-simple TrainAssembler
+module AggregationPool
 {
-    parameters:
-        int poolTreshold = default(9000); // Bytes
-        
-    @display("i=block/join,#FF8000");
+    @display("i=block/subqueue;bgb=260,103");
     gates:
-        input in;
-        output out;
-}
-
-
-simple CurbedTrainAssembler
-{
-    @display("i=block/join,#008000");
-    gates:
-        input in;
+        input in[];
         output out[];
+
+    submodules:
+        AQ: AggregationQueues {
+            @display("p=46,47");
+        }
+        TA: TrainAssembler {
+            @display("p=127,47");
+        }
+        TS: TrainScheduler {
+            @display("p=211,47");
+            gates:
+                out[sizeof(out)];
+        }
+    connections:
+        AQ.out --> TA.in;
+        TA.out --> TS.in;
+        for i=0..sizeof(out)-1 {
+            TS.out[i] --> out[i];
+        }
+        for i=0..sizeof(in)-1 {
+            in[i] --> AQ[i];
+        }
 }
+

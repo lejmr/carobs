@@ -13,28 +13,16 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
+#include "trainScheduler.h"
 
-//
-// Train assembler based on chapter 8.2.3 - Offset Time Computation of Coutelen DT
-// This implementation sorts based on ot^c size
-//
-simple TrainAssembler
+Define_Module(TrainScheduler);
+
+void TrainScheduler::initialize()
 {
-    parameters:
-        int poolTreshold = default(9000); // Bytes
-        
-    @display("i=block/join,#FF8000");
-    gates:
-        input in;
-        output out;
+    // TODO - Generated method body
 }
 
-
-simple CurbedTrainAssembler
+void TrainScheduler::handleMessage(cMessage *msg)
 {
-    @display("i=block/join,#008000");
-    gates:
-        input in;
-        output out[];
+    // TODO - Generated method body
 }

@@ -29,16 +29,19 @@ O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 
 # Object files for local .cc and .msg files
 OBJS = \
-    $O/aggregationPool.o \
+    $O/aggregationQueues.o \
     $O/generator.o \
     $O/merge.o \
-    $O/OBSLaunch.o \
+    $O/routing.o \
     $O/sink.o \
+    $O/trainAssembler.o \
+    $O/messages/car_m.o \
     $O/messages/OpticalLayer_m.o \
     $O/messages/Payload_m.o
 
 # Message files
 MSGFILES = \
+    messages/car.msg \
     messages/OpticalLayer.msg \
     messages/Payload.msg
 
@@ -122,20 +125,29 @@ depend:
 	$(MAKEDEPEND) $(INCLUDE_PATH) -f Makefile -P\$$O/ -- $(MSG_CC_FILES)  ./*.cc messages/*.cc modules/*.cc
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
-$O/OBSLaunch.o: OBSLaunch.cc \
-	OBSLaunch.h
-$O/aggregationPool.o: aggregationPool.cc \
-	aggregationPool.h \
-	messages/Payload_m.h
+$O/aggregationQueues.o: aggregationQueues.cc \
+	aggregationQueues.h \
+	messages/Payload_m.h \
+	messages/car_m.h \
+	trainAssembler.h
 $O/generator.o: generator.cc \
 	generator.h \
 	messages/Payload_m.h
 $O/merge.o: merge.cc \
 	merge.h
+$O/routing.o: routing.cc \
+	routing.h
 $O/sink.o: sink.cc \
 	sink.h
+$O/trainAssembler.o: trainAssembler.cc \
+	aggregationQueues.h \
+	messages/Payload_m.h \
+	messages/car_m.h \
+	trainAssembler.h
 $O/messages/OpticalLayer_m.o: messages/OpticalLayer_m.cc \
 	messages/OpticalLayer_m.h
 $O/messages/Payload_m.o: messages/Payload_m.cc \
 	messages/Payload_m.h
+$O/messages/car_m.o: messages/car_m.cc \
+	messages/car_m.h
 

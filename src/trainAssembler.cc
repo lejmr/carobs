@@ -16,6 +16,7 @@
 #include "trainAssembler.h"
 #include <aggregationQueues.h>
 
+
 Define_Module(TrainAssembler);
 
 void TrainAssembler::initialize()
@@ -51,6 +52,8 @@ void TrainAssembler::initialize()
 
 
 
+    cModule *calleeModule = getParentModule()->getSubmodule("routing");
+    R = check_and_cast<Routing *>(calleeModule);
     //WATCH_MAP(AP);
 }
 
@@ -59,8 +62,29 @@ void TrainAssembler::handleMessage(cMessage *msg)
 {
     // TODO - Generated method body
     EV << "Zpracovvama zpravu" << endl;
-    EV << "Vyplivnu jednu zpravu" << endl;
-    Car *car = dynamic_cast<Car *>(msg);
+    bool deleted=false;
+
+    if( msg->hasPar("initialiseTimeBasedSending") ){
+        // Message for TimeBaseSending proces initialisation
+        int AQId= msg->par("initialiseTimeBasedSending").longValue();
+        EV << "initialiseTimeBasedSending" << endl;
+        this->initialiseTimeBasedSending(AQId);
+        delete msg;deleted=true;
+    }
+
+    if( not deleted and msg->hasPar("aggregationQueuesNotificationInterface") ){
+        // Informative message about queue change
+        int AQId= msg->par("aggregationQueuesNotificationInterface").longValue();
+        this->aggregationQueuesNotificationInterface(AQId);
+        delete msg;deleted=true;
+    }
+
+    if( not deleted and dynamic_cast<Car *>(msg) != NULL){
+        // Car scheduling
+        Car *car= dynamic_cast<Car *> (msg);
+        car->par("AP");
+    }
+
 }
 
 
@@ -76,7 +100,7 @@ int64_t TrainAssembler::aggregationPoolSize(int poolId){
     ////EV << "aggregationPoolSize 3/3" << endl;
     for ( it=AP[poolId].begin() ; it != AP[poolId].end(); it++ ){
         //EV << "Zjistuji velikost "<< *it << " = ";
-        size += AQ->countAggregationQueueSize(*it);
+        size += AQ->getAggregationQueueSize(*it);
         //EV << AQ->countAggregationQueueSize(*it) << endl;
     }
 
@@ -115,7 +139,7 @@ void TrainAssembler::initialiseTimeBasedSending(int AQId){
     cModule *calleeModule = getParentModule()->getSubmodule("AQ");
     AggregationQueues *AQ = check_and_cast<AggregationQueues *>(calleeModule);
 
-    int biggestPool, biggestSize=0, tmpSize=0;
+    int biggestPool=-1, biggestSize=0, tmpSize=0;
     for (int i=0; i<AP.size(); i++){
         // If AQId is not part of a path-pool, then is the pool skipped
         if (AP[i].find(AQId) == AP[i].end())
@@ -131,5 +155,6 @@ void TrainAssembler::initialiseTimeBasedSending(int AQId){
         EV << "AP"<<i<<" je velke "<<tmpSize << " nejvetsi je AP"<<biggestPool<<" s "<< biggestSize << endl;
     }
     EV << " Biggest AP="<< biggestPool << " size="<<biggestSize << endl;
-    AQ->releaseAggregationQueues( AP[biggestPool], biggestPool );
+
+    if( biggestPool >=0 and biggestPool <= AP.size() ) AQ->releaseAggregationQueues( AP[biggestPool], biggestPool );
 }

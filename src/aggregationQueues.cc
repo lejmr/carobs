@@ -23,26 +23,29 @@ void AggregationQueues::initialize()
     bufferLengthT = par("bufferLengthT").doubleValue();
     bufferLengthB = par("bufferLengthB").longValue();
 
-    cModule *calleeModule = getParentModule()->getSubmodule("TA");
-    TA = check_and_cast<TrainAssembler *>(calleeModule);
 
     WATCH_MAP( scheduled );
+    WATCH_MAP( AQSizeCache );
 }
 
 void AggregationQueues::handleMessage(cMessage *msg)
 {
-    /*
-     *  Self-messages
-     *  Self-messages are used for AggregationPool controlling
-     *
-     */
-    if (dynamic_cast<Payload *>(msg) == NULL and msg->isSelfMessage() ){
-        EV << "Initialising the time based sending procedure for AQ "<< msg->par("dst").longValue() << endl;
-        TA->initialiseTimeBasedSending(msg->par("dst").longValue());
-        delete msg;
+bool deleted=false;
+
+//EV << endl << "MSG 2";
+    if( not deleted and msg->hasPar("initTBSDst") and msg->isSelfMessage() ){
+//        EV << "entered";
+        EV << "Initialising the time based sending procedure for AQ "<< msg->par("initTBSDst").longValue() << endl;
+        cMessage *imsg = new cMessage();
+        imsg->addPar("initialiseTimeBasedSending");
+        imsg->par("initialiseTimeBasedSending") = msg->par("initTBSDst").longValue();
+        send(imsg, "out");
+        delete msg;deleted=true;
     }
-    else{
-        /*  Payload packets controlling  */
+
+//EV << endl << "MSG 3";
+    if ( not deleted and dynamic_cast<Payload *>(msg) != NULL){
+//        EV << "entered";
         handlePayload(msg);
     }
 }
@@ -53,7 +56,6 @@ void AggregationQueues::handlePayload(cMessage *msg){
 
     if (AQ.find(pmsg->getDst()) == AQ.end()) {
         // There is not a buffer for such destination must be created
-        //EV << "pro " << pmsg->getDst() << " nutno zalozit" << endl;
         char buffer_name[50];
         sprintf(buffer_name, "Buffer %d", pmsg->getDst());
         AQ[pmsg->getDst()] = cQueue();
@@ -61,17 +63,25 @@ void AggregationQueues::handlePayload(cMessage *msg){
 
         // Buffer release scheduling
         cMessage *snd = new cMessage();
-        snd->addPar("dst");
-        snd->par("dst").setLongValue(pmsg->getDst());
-        scheduleAt(simTime() + bufferLengthT, snd);
+        snd->addPar("initTBSDst");
+        snd->par("initTBSDst").setLongValue(pmsg->getDst());
         scheduled[pmsg->getDst()] = snd;
+        scheduleAt(simTime() + bufferLengthT, snd);
+
+        EV << "**** Schdul " << snd->isScheduled() << "self " << snd->isSelfMessage() << endl;
     }
 
     // Add packet to its output Buffer #
     AQ[pmsg->getDst()].insert(pmsg);
 
-    // Inform TA about a new incoming packet
-    TA->aggregationQueuesNotificationInterface(pmsg->getDst());
+    // Update AQSizeCache
+    this->countAggregationQueueSize(pmsg->getDst());
+
+    // Inform TA about AQ change
+    cMessage *imsg = new cMessage("AQnotify");
+    imsg->addPar("aggregationQueuesNotificationInterface");
+    imsg->par("aggregationQueuesNotificationInterface")=pmsg->getDst();
+    send(imsg, "out");
 }
 
 void AggregationQueues::releaseBuffer(int dst){
@@ -80,11 +90,15 @@ void AggregationQueues::releaseBuffer(int dst){
 }
 
 
-int64_t AggregationQueues::countAggregationQueueSize(int AQId){
-    Enter_Method("countAggregationQueueSize()");
+int64_t AggregationQueues::getAggregationQueueSize(int AQId){
+    Enter_Method("getAggregationQueueSize()");
+    if( AQSizeCache.find(AQId) == AQSizeCache.end() ) return 0;
+    return AQSizeCache[AQId];
+}
 
+void AggregationQueues::countAggregationQueueSize(int AQId){
     // If such AQ has not been created, it returns 0
-    if( AQ.find(AQId) == AQ.end() ) return 0;
+    if( AQ.find(AQId) == AQ.end() ) AQSizeCache[AQId]=0;
 
     // Such AQ exists thus I will count its size
     cQueue queue= AQ[ AQId ];
@@ -94,34 +108,72 @@ int64_t AggregationQueues::countAggregationQueueSize(int AQId){
         //EV << pl->getSrc() << " --> " << pl->getDst() << ": " << pl->getByteLength() << endl;
         size += pl->getByteLength();
     }
-    return size;
+
+    AQSizeCache[AQId]=size;
 }
+
+
 
 void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag ){
     Enter_Method("releaseAggregationQueues()");
     std::set<int>::iterator it;
-    EV << "taguji pro AP="<<tag <<endl;
 
     // Walk through all designated queues, convert them into a car and send them to TA
     for ( it=queues.begin() ; it != queues.end(); it++ ){
-
+        EV << " "<< *it;
         // If designated queue is empty we can skip it
         if( AQ.find(*it) == AQ.end()) continue;
 
         // Create a car for queue and fill it by Payload packets from AQ#
-        Car *car = new Car();
+        char buffer_name[50];
+        sprintf(buffer_name, "AQ %d", *it);
+        Car *car = new Car(buffer_name);
         while(!AQ[*it].empty()){
             Payload *pl = (Payload *) AQ[*it].pop();
             car->addByteLength(pl->getByteLength());
             car->getPayload().insert(pl);
+
+
+            // Add tag to identify which pool demands this AQ, this is volatile parameter
+            car->addPar("AP");
+            car->par("AP").setLongValue(tag);
         }
 
         // Drop the queue and its scheduled initiation
         AQ.erase(*it);
+        AQSizeCache.erase(*it);
+
+        cMessage *msg= scheduled[*it];
+        if ( msg != NULL and msg->isSelfMessage() and msg->isScheduled() ){
+            EV << "Schdul " << msg->isScheduled() << "self " << msg->isSelfMessage() << endl;
+            delete cancelEvent(msg);
+        }
         scheduled.erase(*it);
+
+
+
+        // Update AQSizeCache
+        countAggregationQueueSize(*it);
 
         // Sends car of the queue to TA
         send(car,"out");
     }
-    */
+}
+
+
+
+void AggregationQueues::initAggregationQueuesRelease( std::set<int> queues, int tag ){
+    Enter_Method("releaseAggregationQueues()");
+        std::set<int>::iterator it;
+
+        // Walk through all designated queues, convert them into a car and send them to TA
+        for ( it=queues.begin() ; it != queues.end(); it++ ){
+            EV << "hjgjh"<< *it << endl;
+            cMessage *imsg = new cMessage();
+            imsg->addPar("releaseAggregationQueue");
+            imsg->addPar("queue");
+            imsg->par("releaseAggregationQueue") = tag;
+            imsg->par("queue")= *it;
+            scheduleAt(simTime(), imsg);
+        }
 }
