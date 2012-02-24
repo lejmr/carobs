@@ -14,6 +14,7 @@
 // 
 
 #include "aggregationQueues.h"
+#include <aggregationPoolManager.h>
 
 
 Define_Module(AggregationQueues);
@@ -21,33 +22,25 @@ Define_Module(AggregationQueues);
 void AggregationQueues::initialize()
 {
     bufferLengthT = par("bufferLengthT").doubleValue();
-    bufferLengthB = par("bufferLengthB").longValue();
-
-
     WATCH_MAP( scheduled );
     WATCH_MAP( AQSizeCache );
 }
 
 void AggregationQueues::handleMessage(cMessage *msg)
 {
-bool deleted=false;
 
-//EV << endl << "MSG 2";
-    if( not deleted and msg->hasPar("initTBSDst") and msg->isSelfMessage() ){
-//        EV << "entered";
-        EV << "Initialising the time based sending procedure for AQ "<< msg->par("initTBSDst").longValue() << endl;
-        cMessage *imsg = new cMessage();
-        imsg->addPar("initialiseTimeBasedSending");
-        imsg->par("initialiseTimeBasedSending") = msg->par("initTBSDst").longValue();
-        send(imsg, "out");
-        delete msg;deleted=true;
-    }
-
-//EV << endl << "MSG 3";
-    if ( not deleted and dynamic_cast<Payload *>(msg) != NULL){
-//        EV << "entered";
+    if ( dynamic_cast<Payload *>(msg) != NULL){
         handlePayload(msg);
     }
+
+    if( msg->hasPar("initTBSDst") and msg->isSelfMessage() ){
+        EV << "Initialising the time based sending procedure for AQ "<< msg->par("initTBSDst").longValue() << endl;
+        cModule *calleeModule = getParentModule()->getSubmodule("APm");
+        AggregationPoolManager *APm = check_and_cast<AggregationPoolManager *>(calleeModule);
+        APm->initialiseTimeBasedSending(msg->par("initTBSDst").longValue());
+        delete msg;
+    }
+
 }
 
 void AggregationQueues::handlePayload(cMessage *msg){
@@ -55,7 +48,8 @@ void AggregationQueues::handlePayload(cMessage *msg){
     //EV << pmsg->getSrc() << " --> " << pmsg->getDst() << endl;
 
     if (AQ.find(pmsg->getDst()) == AQ.end()) {
-        // There is not a buffer for such destination must be created
+        // There is not a buffer for such destination thus must be created
+        // And once it is created there is scheduled releasing process later
         char buffer_name[50];
         sprintf(buffer_name, "Buffer %d", pmsg->getDst());
         AQ[pmsg->getDst()] = cQueue();
@@ -67,28 +61,19 @@ void AggregationQueues::handlePayload(cMessage *msg){
         snd->par("initTBSDst").setLongValue(pmsg->getDst());
         scheduled[pmsg->getDst()] = snd;
         scheduleAt(simTime() + bufferLengthT, snd);
-
-        EV << "**** Schdul " << snd->isScheduled() << "self " << snd->isSelfMessage() << endl;
     }
 
-    // Add packet to its output Buffer #
+    // Add packet to its output AQueue#
     AQ[pmsg->getDst()].insert(pmsg);
 
-    // Update AQSizeCache
+    // AQSizeCache Update
     this->countAggregationQueueSize(pmsg->getDst());
 
     // Inform TA about AQ change
-    cMessage *imsg = new cMessage("AQnotify");
-    imsg->addPar("aggregationQueuesNotificationInterface");
-    imsg->par("aggregationQueuesNotificationInterface")=pmsg->getDst();
-    send(imsg, "out");
+    cModule *calleeModule = getParentModule()->getSubmodule("APm");
+    AggregationPoolManager *TA = check_and_cast<AggregationPoolManager *>(calleeModule);
+    TA->aggregationQueueNotificationInterface(pmsg->getDst());
 }
-
-void AggregationQueues::releaseBuffer(int dst){
-    EV << "Vyprazdnuji buffer "<< dst << endl;
-    // Packets are send to different location, thus buffer can be erased
-}
-
 
 int64_t AggregationQueues::getAggregationQueueSize(int AQId){
     Enter_Method("getAggregationQueueSize()");
@@ -109,10 +94,9 @@ void AggregationQueues::countAggregationQueueSize(int AQId){
         size += pl->getByteLength();
     }
 
+    // set the current value
     AQSizeCache[AQId]=size;
 }
-
-
 
 void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag ){
     Enter_Method("releaseAggregationQueues()");
@@ -120,9 +104,9 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
 
     // Walk through all designated queues, convert them into a car and send them to TA
     for ( it=queues.begin() ; it != queues.end(); it++ ){
-        EV << " "<< *it;
         // If designated queue is empty we can skip it
         if( AQ.find(*it) == AQ.end()) continue;
+        if( AQ[*it].empty() ) continue;
 
         // Create a car for queue and fill it by Payload packets from AQ#
         char buffer_name[50];
@@ -132,7 +116,6 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
             Payload *pl = (Payload *) AQ[*it].pop();
             car->addByteLength(pl->getByteLength());
             car->getPayload().insert(pl);
-
 
             // Add tag to identify which pool demands this AQ, this is volatile parameter
             car->addPar("AP");
@@ -145,12 +128,9 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
 
         cMessage *msg= scheduled[*it];
         if ( msg != NULL and msg->isSelfMessage() and msg->isScheduled() ){
-            EV << "Schdul " << msg->isScheduled() << "self " << msg->isSelfMessage() << endl;
             delete cancelEvent(msg);
         }
         scheduled.erase(*it);
-
-
 
         // Update AQSizeCache
         countAggregationQueueSize(*it);
@@ -158,22 +138,4 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
         // Sends car of the queue to TA
         send(car,"out");
     }
-}
-
-
-
-void AggregationQueues::initAggregationQueuesRelease( std::set<int> queues, int tag ){
-    Enter_Method("releaseAggregationQueues()");
-        std::set<int>::iterator it;
-
-        // Walk through all designated queues, convert them into a car and send them to TA
-        for ( it=queues.begin() ; it != queues.end(); it++ ){
-            EV << "hjgjh"<< *it << endl;
-            cMessage *imsg = new cMessage();
-            imsg->addPar("releaseAggregationQueue");
-            imsg->addPar("queue");
-            imsg->par("releaseAggregationQueue") = tag;
-            imsg->par("queue")= *it;
-            scheduleAt(simTime(), imsg);
-        }
 }

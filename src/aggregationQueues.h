@@ -17,9 +17,9 @@
 #define __CAROBS_AGGREGATIONPOOL_H_
 
 #include <omnetpp.h>
-#include <trainAssembler.h>
 #include <messages/car_m.h>
 #include "messages/Payload_m.h"
+
 
 
 class AggregationQueues : public cSimpleModule
@@ -29,14 +29,27 @@ class AggregationQueues : public cSimpleModule
     virtual void handleMessage(cMessage *msg);
 
   private:
+    /**
+     *  Maximum time for a queue to be filled by incoming packets
+     */
     simtime_t bufferLengthT;
-    int64_t bufferLengthB;
+
+    /**
+     *  Structure for incoming Payload packet storing, it is basically
+     *  a array of arrays .. 2D array
+     */
     std::map<int, cQueue> AQ;
-    std::map<int, cQueue>::iterator it;
+
+    /**
+     *  List of scheduled self-messages for time-based AQ release
+     */
     std::map<int, cMessage*> scheduled;
+
+    /**
+     *  Cache for AQ size counting, it is updated by countAggregationQueueSize
+     */
     std::map<int, int64_t> AQSizeCache;
 
-    virtual void releaseBuffer(int dst);
 
     /**
      *  Function handlePayload is for handling of new incoming payload
@@ -49,12 +62,18 @@ class AggregationQueues : public cSimpleModule
      *  @param msg - is cMessage of Payload packet
      */
     virtual void handlePayload(cMessage *msg);
+
+    /**
+     *  Function countAggregationQueueSize updates the cache of AQ sizes
+     *  AQSizeCache to reduce computational demand with every request from
+     *  AggregationPoolManager.
+     */
     virtual void countAggregationQueueSize(int AQId);
 
   public:
 
     /**
-     *
+     *  Function getAggregationQueueSize only return size of AQ in Bytes
      */
     virtual int64_t getAggregationQueueSize(int AQId);
 
@@ -70,8 +89,6 @@ class AggregationQueues : public cSimpleModule
      *               are these cars assigned, the tag is removed at TA
      */
     virtual void releaseAggregationQueues( std::set<int> queues, int tag );
-    virtual void initAggregationQueuesRelease( std::set<int> queues, int tag );
-
 };
 
 #endif
