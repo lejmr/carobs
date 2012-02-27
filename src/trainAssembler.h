@@ -17,8 +17,13 @@
 #define __CAROBS_TRAINASSEMBLER_H_
 
 #include <omnetpp.h>
-#include <messages/car_m.h>
 #include <routing.h>
+#include <messages/car_m.h>
+#include <messages/Payload_m.h>
+#include <messages/schedulerUnit_m.h>
+#include <CAROBSCarHeader_m.h>
+#include <CAROBSHeader_m.h>
+#include <MACContainer_m.h>
 
 
 class TrainAssembler : public cSimpleModule
@@ -28,52 +33,38 @@ class TrainAssembler : public cSimpleModule
     virtual void handleMessage(cMessage *msg);
 
   private:
-    /**
-     *  Aggregation pool definition based on std library. It aggregates
-     *  AQs into pools APs such that:
-     *  Pool X is defined as AP[x] = [AQ#, AQ#, ... ] where AQ#, denotes
-     *  Aggregation queue for a given destination #
-     */
-    std::map<int, std::set<int> > AP;
+    std::map<int, cQueue> schedulerCAR;
 
     /**
-     *  Function aggregationPoolSize counts size of AggregationPool.
-     *  Todo so it asks AggregationQueues for size of each Queue and
-     *  sums these sizes together
-     *
-     *  @param poolId - ID of pool, pools are counted from 0
-     *  @return int64_t - return total sum of all buffer sizes
+     *  Pointer to Routing module for Offset time adjustment
      */
-    virtual int64_t aggregationPoolSize(int poolId);
-
-    /**
-     *  Size of the pool when is to be released
-     */
-    int64_t poolTreshold;
-    std::map<int, cQueue> scheduler;
     Routing *R;
 
-  public:
-    /**
-     *  Function AggregationQueuesNotificationInterface is used as an interface
-     *  for passing informations from AggregationQueues module about a queue
-     *  change such that aggregationPoolSize gets changed
-     *
-     *  Function does not return anything but can initiate train assembly
-     *
-     *  @param AQId - stands for AQ#
-     */
-    virtual void aggregationQueuesNotificationInterface(int AQId);
+    virtual void prepareTrain(int TSId);
 
     /**
-     *  Function initialiseTimeBasedSending serves as an interface for AQ module
-     *  to inform TA that a queue bhas reached its time to be send onto the network.
-     *  So the function finds the most filled AggregationPool and initialise its sending
+     *  Function bubbleSort sorts a vector of Cars according to their
+     *  increasing offset time OT. It behaves as a procedure
      *
-     *  @param AQId - stands for AQ# which reached its time limit
+     *  @param num - is a pointer to vector containing cars in SchedulerUnit
      */
-    virtual void initialiseTimeBasedSending(int AQId);
+    virtual void bubbleSort(std::vector<SchedulerUnit *> &num);
 
+    /**
+     *  BHP processing time at a BCP of a CoreNode
+     *  It might be good be changable among CoreNodes in a network and
+     *  consider such a variation in the OT calculation .. currently
+     *  we are going static - hardcoded.
+     */
+    simtime_t d_p;
+
+    /**
+     *  Funtion smoothTheTrain takes sorted vector of cars encapsulated into
+     *  SchedulerUnit which carries information about start, stop,... time events
+     *  and changes the start, stop so the cars go one by one with time difference
+     *  given by processing time of BHP at any CoreNode along the path.
+     */
+    virtual void smoothTheTrain(std::vector<SchedulerUnit *> &num);
 };
 
 #endif

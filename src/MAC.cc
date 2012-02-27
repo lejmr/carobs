@@ -13,19 +13,16 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef __CAROBS_TRAINSCHEDULER_H_
-#define __CAROBS_TRAINSCHEDULER_H_
+#include "MAC.h"
 
-#include <omnetpp.h>
+Define_Module(MAC);
 
-/**
- * TODO - Generated class
- */
-class TrainScheduler : public cSimpleModule
+void MAC::initialize()
 {
-  protected:
-    virtual void initialize();
-    virtual void handleMessage(cMessage *msg);
-};
+    // TODO - Generated method body
+}
 
-#endif
+void MAC::handleMessage(cMessage *msg)
+{
+    // TODO - Generated method body
+}

@@ -13,15 +13,11 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
-
 //
-// TODO auto-generated module
+// TODO generated message class
 //
-simple TrainScheduler
-{
-    @display("i=block/tx");
-    gates:
-        input in;
-        output out[];
+packet CAROBSCarHeader {
+    int dst;
+    simtime_t d_c;
+    int size;
 }

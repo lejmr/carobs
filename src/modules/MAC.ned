@@ -14,26 +14,14 @@
 // 
 
 package carobs.modules;
+
 //
-// TODO documentation
+// TODO auto-generated module
 //
-module AggregationPool
+simple MAC
 {
-    @display("i=block/subqueue;bgb=260,103");
+    @display("i=block/tx");
     gates:
-        input in[];
+        input in;
         output out[];
-
-    submodules:
-        AQ: AggregationQueues {
-            @display("p=46,47");
-        }
-        TA: TrainAssembler {
-            @display("p=127,47");
-        }
-    connections:
-        AQ.out --> TA.in;
-        //TA.out --> TS.in;
-     
 }
-

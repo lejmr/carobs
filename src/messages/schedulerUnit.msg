@@ -11,29 +11,16 @@
 // 
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/.
-// 
+//
 
-package carobs.modules;
-//
-// TODO documentation
-//
-module AggregationPool
+packet SchedulerUnit
 {
-    @display("i=block/subqueue;bgb=260,103");
-    gates:
-        input in[];
-        output out[];
-
-    submodules:
-        AQ: AggregationQueues {
-            @display("p=46,47");
-        }
-        TA: TrainAssembler {
-            @display("p=127,47");
-        }
-    connections:
-        AQ.out --> TA.in;
-        //TA.out --> TS.in;
-     
+    int dst;			// Car destination
+    simtime_t ot;		// Minumum offset time that must have been sattisfied
+ 	simtime_t start;	// car's time of the start
+    simtime_t end; 		// car's time of the end
+    simtime_t length; 	// In seconds
+    int lengthB; 		// In Bytes
+    
+    simtime_t EOT;		//Artificial variable for statistics mainly
 }
-

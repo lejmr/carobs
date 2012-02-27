@@ -23,18 +23,12 @@ simple TrainAssembler
 {
     parameters:
         int poolTreshold = default(9000); // Bytes
+        double d_p = default(10us) @unit(s); // Default is 10microseconds
         
     @display("i=block/join,#FF8000");
     gates:
         input in;
-        output out[];
+        output out;
 }
 
 
-simple CurbedTrainAssembler
-{
-    @display("i=block/join,#008000");
-    gates:
-        input in;
-        output out[];
-}

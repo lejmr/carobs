@@ -21,7 +21,7 @@ package carobs.modules;
 //
 module Endnode
 {
-    @display("bgb=278,259;i=abstract/router");
+    @display("bgb=372,259;i=abstract/router");
     gates:
         inout gate[];
 
@@ -34,11 +34,9 @@ module Endnode
         }
         TA: TrainAssembler {
             @display("p=215,180");
-            gates:
-                out[sizeof(gate)];
         }
         co: Merge {
-            @display("p=215,121");
+            @display("p=301,117");
             gates:
                 in[sizeof(gate)];
         }
@@ -50,16 +48,22 @@ module Endnode
         APm: AggregationPoolManager {
             @display("p=134,34");
         }
+        MAC: MAC {
+            @display("p=301,180");
+            gates:
+                out[sizeof(gate)];
+        }
     connections:
         endpoint.gate$o --> AQ.in;
         AQ.out --> TA.in;
         co.out --> endpoint.gate$i;
         for i=0..sizeof(gate)-1 {
-            TA.out[i] --> gate$o[i];
+            MAC.out[i] --> gate$o[i];
             gate$i[i] --> co.in[i];
         }
 
 
 
+        TA.out --> MAC.in;
 }
 

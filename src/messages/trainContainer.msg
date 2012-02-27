@@ -13,16 +13,12 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include "trainScheduler.h"
-
-Define_Module(TrainScheduler);
-
-void TrainScheduler::initialize()
-{
-    // TODO - Generated method body
-}
-
-void TrainScheduler::handleMessage(cMessage *msg)
-{
-    // TODO - Generated method body
+//
+// TODO generated message class
+//
+packet TrainContainer {
+    int someField;
+    string anotherField;
+    double arrayField1[];
+    double arrayField2[10];
 }

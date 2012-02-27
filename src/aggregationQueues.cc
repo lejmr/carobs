@@ -31,6 +31,7 @@ void AggregationQueues::handleMessage(cMessage *msg)
 
     if ( dynamic_cast<Payload *>(msg) != NULL){
         handlePayload(msg);
+        return;
     }
 
     if( msg->hasPar("initTBSDst") and msg->isSelfMessage() ){
@@ -101,6 +102,7 @@ void AggregationQueues::countAggregationQueueSize(int AQId){
 void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag ){
     Enter_Method("releaseAggregationQueues()");
     std::set<int>::iterator it;
+    int TSId= uniform(1e3, 1e4);
 
     // Walk through all designated queues, convert them into a car and send them to TA
     for ( it=queues.begin() ; it != queues.end(); it++ ){
@@ -118,8 +120,11 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
             car->getPayload().insert(pl);
 
             // Add tag to identify which pool demands this AQ, this is volatile parameter
-            car->addPar("AP");
-            car->par("AP").setLongValue(tag);
+            car->addPar("AQ");
+            car->par("AQ").setLongValue(*it);
+
+            car->addPar("TSId");
+            car->par("TSId").setLongValue(TSId);
         }
 
         // Drop the queue and its scheduled initiation
@@ -138,4 +143,9 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
         // Sends car of the queue to TA
         send(car,"out");
     }
+
+    cMessage *snd = new cMessage();
+    snd->addPar("allCarsHaveBeenSend");
+    snd->par("allCarsHaveBeenSend").setLongValue(TSId);
+    send(snd,"out");
 }

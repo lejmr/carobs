@@ -14,147 +14,178 @@
 // 
 
 #include "trainAssembler.h"
-#include <aggregationQueues.h>
-
+#include <iostream>
+#include <algorithm>
+#include <vector>
 
 Define_Module(TrainAssembler);
 
 void TrainAssembler::initialize()
 {
+    // set d_p
+    d_p = (simtime_t) par("d_p").doubleValue();
+    d_p = 0;
 
-    // Loading the parameters
-    poolTreshold = par("poolTreshold").longValue();
-
-
-    /**
-     *  obsoletes by cTopology logic, currently it prepares assigns AQs to APs
-     */
-    EV << "prirazuji" << endl;
-    for(int i=0; i<16; i++){
-        AP[(int)i/8].insert(i);
-    }
-
-    // Mutual AQs
-    AP[0].insert(12);
-    AP[0].insert(13);
-    AP[1].insert(5);
-    AP[1].insert(1);
-
-    std::set<int>::iterator it;
-    for( int i=0; i<2;i++){
-        EV << "AP["<<i<<"]: ";
-        for (it=AP[i].begin(); it!=AP[i].end(); it++){
-            EV << " " << *it;
-        }
-        EV << endl;
-    }
-    // END
-
-
-
+    // Making link for communication with Routing module
     cModule *calleeModule = getParentModule()->getSubmodule("routing");
     R = check_and_cast<Routing *>(calleeModule);
-    //WATCH_MAP(AP);
+
+    // Structure watchers in TK
+    WATCH_MAP(schedulerCAR);
 }
 
 
 void TrainAssembler::handleMessage(cMessage *msg)
 {
-    // TODO - Generated method body
-    EV << "Zpracovvama zpravu" << endl;
-    bool deleted=false;
+    int C = 10e9; // data rate in bps -- currently hardcoded but will be resolved from channel rate
 
-    if( msg->hasPar("initialiseTimeBasedSending") ){
-        // Message for TimeBaseSending proces initialisation
-        int AQId= msg->par("initialiseTimeBasedSending").longValue();
-        EV << "initialiseTimeBasedSending" << endl;
-        this->initialiseTimeBasedSending(AQId);
-        delete msg;deleted=true;
+    if ( dynamic_cast<Car *>(msg) != NULL){
+        Car *tcar= dynamic_cast<Car *>(msg);
+        int TSId=msg->par("TSId").longValue();
+        int AQ=msg->par("AQ").longValue();
+
+        EV << "A new car has arrived" << " with random ID="<<TSId << " and AQ="<<AQ;
+
+        simtime_t ot= R->getOffsetTime( AQ );
+        EV << " with distance ot=" << ot;
+
+        /**
+         *  Preparion of artificial unit having accurate parameters for scheduling purpose
+         *  It is destination, start, end, offset time and length
+         */
+        SchedulerUnit *su = new SchedulerUnit();
+        su->setDst(AQ);
+        su->setOt(ot);
+
+        // In the first step (definition) Start, End, Length are
+        simtime_t tlength = (simtime_t) tcar->getBitLength() / C;
+        su->setStart(ot);
+        su->setLength(tlength);
+        su->setLengthB( tcar->getByteLength() );
+        su->setEnd(ot + tlength);
+        su->setEOT(0);
+
+        su->encapsulate(tcar);
+        schedulerCAR[TSId].insert(su);
+
+        char buffer_name[50];
+        sprintf(buffer_name, "Queue %d", TSId);
+        schedulerCAR[TSId].setName(buffer_name);
+
+        EV << endl;
     }
 
-    if( not deleted and msg->hasPar("aggregationQueuesNotificationInterface") ){
-        // Informative message about queue change
-        int AQId= msg->par("aggregationQueuesNotificationInterface").longValue();
-        this->aggregationQueuesNotificationInterface(AQId);
-        delete msg;deleted=true;
+    if( msg->hasPar("allCarsHaveBeenSend")){
+        // Initialise process of ordering and sending
+        int TSId= msg->par("allCarsHaveBeenSend").longValue();
+        EV << "Prisel uvolnovaci paket " << TSId << endl;
+        prepareTrain(TSId);
+        delete msg;
     }
-
-    if( not deleted and dynamic_cast<Car *>(msg) != NULL){
-        // Car scheduling
-        Car *car= dynamic_cast<Car *> (msg);
-        car->par("AP");
-    }
-
 }
 
+void TrainAssembler::prepareTrain(int TSId){
+    std::vector<SchedulerUnit *> dst;
+    std::vector<SchedulerUnit *>::iterator it;
 
-int64_t TrainAssembler::aggregationPoolSize(int poolId){
-    //EV << "aggregationPoolSize 1/3" << endl;
-    cModule *calleeModule = getParentModule()->getSubmodule("AQ");
-    AggregationQueues *AQ = check_and_cast<AggregationQueues *>(calleeModule);
-
-    //EV << "aggregationPoolSize 2/3" << endl;
-    std::set<int>::iterator it;
-    int64_t size=0;
-
-    ////EV << "aggregationPoolSize 3/3" << endl;
-    for ( it=AP[poolId].begin() ; it != AP[poolId].end(); it++ ){
-        //EV << "Zjistuji velikost "<< *it << " = ";
-        size += AQ->getAggregationQueueSize(*it);
-        //EV << AQ->countAggregationQueueSize(*it) << endl;
+    // conversion for cQueue into std::vector because of sorting
+    for( cQueue::Iterator iter(schedulerCAR[TSId],0); !iter.end(); iter++){
+        SchedulerUnit *msg = (SchedulerUnit *) iter();
+        dst.push_back(msg);
     }
 
-    //EV << "aggregationPoolSize size="<< size << endl;
-    return size;
+    // Sort cars according the OT for further car assignement into a train
+    bubbleSort(dst);
+
+    // Make the train dense
+    smoothTheTrain(dst);
+
+    /**
+     *  Prepare CAROBS header
+     */
+    int N = dst.size();
+    simtime_t OT= dst[0]->getStart();
+    int dt= dst[dst.size()-1]->getDst();
+
+    // Train Section
+    CAROBSHeader *H= new CAROBSHeader();
+    H->setDst( dt );
+    H->setOT( OT );
+    H->setN( N );
+
+    // Car section
+    for(int i=0; i<dst.size();i++){
+        CAROBSCarHeader *ch= new CAROBSCarHeader();
+        ch->setDst( dst[i]->getDst() );
+        ch->setSize( dst[i]->getLengthB() );
+        ch->setD_c( dst[i]->getStart() - OT );
+        H->getCars().insert(ch);
+    }
+
+    /**
+     *  Put CAROBS Header and cars into storage container MACContainer which
+     *  is send onto output interface waiting there until outgoing port is empty
+     */
+    MACContainer *MAC= new MACContainer();
+    MAC->setDst(dt);
+    MAC->encapsulate(H);    //  Storing CAROBS header into MAC packet
+
+    // Storing scheduled units with encapsulated cars into MAC->cars
+    while (!dst.empty())
+     {
+        SchedulerUnit *tmp=dst.back();
+        dst.pop_back();
+        schedulerCAR[TSId].remove(tmp);
+        MAC->getCars().insert( tmp );
+    }
+
+    // Sending MAC Packet to MAC controller which will take care of sending
+    send(MAC, "out");
 }
 
+// Think about std::sort instead of this hand-made function
+void TrainAssembler::bubbleSort(std::vector<SchedulerUnit *> &num){
+      int i, j, flag = 1;    // set flag to 1 to start first pass
+      SchedulerUnit *temp;             // holding variable
+      int numLength = num.size( );
+      for(i = 1; (i <= numLength) && flag; i++)
+     {
+          flag = 0;
+          for (j=0; j < (numLength -1); j++)
+         {
+               if (num[j+1]->getOt() < num[j]->getOt())      // ascending order simply changes to <
+              {
+                    temp = num[j];             // swap elements
+                    num[j] = num[j+1];
+                    num[j+1] = temp;
+                    flag = 1;               // indicates that a swap occurred.
+               }
+          }
+     }
+     return;   //arrays are passed to functions by address; nothing is returned
+}
 
-void TrainAssembler::aggregationQueuesNotificationInterface(int AQId){
-    Enter_Method("aggregationQueuesNotificationInterface()");
-    int poolSize=0;
-    // Make a link for communication with AQ for releasing AQs from a AP
-    cModule *calleeModule = getParentModule()->getSubmodule("AQ");
-    AggregationQueues *AQ = check_and_cast<AggregationQueues *>(calleeModule);
+void TrainAssembler::smoothTheTrain(std::vector<SchedulerUnit *> &dst){
+    for (int i = 0; i < dst.size()-1; i++) {
+        if( dst[i]->getEnd() < dst[i+1]->getStart()-d_p ){
+            // Big gap between c_1 <----> c_2 -- c_1 must be given by EOT
+            dst[i]->setEnd( dst[i+1]->getStart()-d_p );
+            dst[i]->setStart( dst[i+1]->getStart()-d_p - dst[i]->getLength() );
+            dst[i]->setEOT( dst[i]->getStart() - dst[i]->getOt() );
+            if( i>0 ){
+                for (int j = i; j >= 0 ; j--) {
+                    dst[j]->setEnd(dst[j + 1]->getStart() - d_p);
+                    dst[j]->setStart(dst[j + 1]->getStart() - d_p - dst[j]->getLength());
+                    dst[j]->setEOT(dst[j]->getStart() -d_p - dst[j]->getOt());
+                }
+            }
+        }
 
-    // Test all the pools managed by this module for its size
-    for (int i=0; i<AP.size(); i++){
-        // If AQId is not part of a path-pool, then is the pool skipped
-        if( AP[i].find(AQId) == AP[i].end() ) continue;
-
-        // AQId is part of the pool i, so lets count current size of the buffer
-        // Test whether any pool containing AQId is full enough to be scheduled
-        poolSize= aggregationPoolSize(i);
-        if( poolSize >= poolTreshold ){
-            EV << "AggregationPool "<< i << "is full" << endl;
-            AQ->releaseAggregationQueues( AP[i], i );
+        if( dst[i]->getEnd() > dst[i+1]->getStart()-d_p ){
+            // The gap is not big enough c_1 <----> c_2 -- c_1 must be given by EOT
+            dst[i+1]->setStart(dst[i]->getEnd() + d_p );
+            dst[i+1]->setEnd(  dst[i]->getEnd() + d_p + dst[i+1]->getLength() );
+            dst[i+1]->setEOT(  dst[i+1]->getStart() - dst[i+1]->getOt() );
         }
     }
-}
-
-
-void TrainAssembler::initialiseTimeBasedSending(int AQId){
-    Enter_Method("initialiseTimeBasedSending()");
-    EV << "QA chce vyprazdnovat nejlepsi pool pro AQId="<<AQId << endl;
-
-    cModule *calleeModule = getParentModule()->getSubmodule("AQ");
-    AggregationQueues *AQ = check_and_cast<AggregationQueues *>(calleeModule);
-
-    int biggestPool=-1, biggestSize=0, tmpSize=0;
-    for (int i=0; i<AP.size(); i++){
-        // If AQId is not part of a path-pool, then is the pool skipped
-        if (AP[i].find(AQId) == AP[i].end())
-            continue;
-
-        // AQId is part of the pool i, so lets count current size of the buffer
-        // Test whether any pool containing AQId is biggest and then schedule.
-        tmpSize= aggregationPoolSize(i);
-        if( tmpSize > biggestSize){
-            biggestSize= tmpSize;
-            biggestPool = i;
-        }
-        EV << "AP"<<i<<" je velke "<<tmpSize << " nejvetsi je AP"<<biggestPool<<" s "<< biggestSize << endl;
-    }
-    EV << " Biggest AP="<< biggestPool << " size="<<biggestSize << endl;
-
-    if( biggestPool >=0 and biggestPool <= AP.size() ) AQ->releaseAggregationQueues( AP[biggestPool], biggestPool );
 }

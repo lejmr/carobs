@@ -29,21 +29,33 @@ O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 
 # Object files for local .cc and .msg files
 OBJS = \
+    $O/aggregationPoolManager.o \
     $O/aggregationQueues.o \
     $O/generator.o \
+    $O/MAC.o \
     $O/merge.o \
     $O/routing.o \
     $O/sink.o \
     $O/trainAssembler.o \
     $O/messages/car_m.o \
+    $O/messages/CAROBSCarHeader_m.o \
+    $O/messages/CAROBSHeader_m.o \
+    $O/messages/MACContainer_m.o \
     $O/messages/OpticalLayer_m.o \
-    $O/messages/Payload_m.o
+    $O/messages/Payload_m.o \
+    $O/messages/schedulerUnit_m.o \
+    $O/messages/trainContainer_m.o
 
 # Message files
 MSGFILES = \
     messages/car.msg \
+    messages/CAROBSCarHeader.msg \
+    messages/CAROBSHeader.msg \
+    messages/MACContainer.msg \
     messages/OpticalLayer.msg \
-    messages/Payload.msg
+    messages/Payload.msg \
+    messages/schedulerUnit.msg \
+    messages/trainContainer.msg
 
 #------------------------------------------------------------------------------
 
@@ -125,11 +137,18 @@ depend:
 	$(MAKEDEPEND) $(INCLUDE_PATH) -f Makefile -P\$$O/ -- $(MSG_CC_FILES)  ./*.cc messages/*.cc modules/*.cc
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
-$O/aggregationQueues.o: aggregationQueues.cc \
+$O/MAC.o: MAC.cc \
+	MAC.h
+$O/aggregationPoolManager.o: aggregationPoolManager.cc \
+	aggregationPoolManager.h \
 	aggregationQueues.h \
 	messages/Payload_m.h \
-	messages/car_m.h \
-	trainAssembler.h
+	messages/car_m.h
+$O/aggregationQueues.o: aggregationQueues.cc \
+	aggregationPoolManager.h \
+	aggregationQueues.h \
+	messages/Payload_m.h \
+	messages/car_m.h
 $O/generator.o: generator.cc \
 	generator.h \
 	messages/Payload_m.h
@@ -140,14 +159,28 @@ $O/routing.o: routing.cc \
 $O/sink.o: sink.cc \
 	sink.h
 $O/trainAssembler.o: trainAssembler.cc \
-	aggregationQueues.h \
+	messages/CAROBSCarHeader_m.h \
+	messages/CAROBSHeader_m.h \
+	messages/MACContainer_m.h \
 	messages/Payload_m.h \
 	messages/car_m.h \
+	messages/schedulerUnit_m.h \
+	routing.h \
 	trainAssembler.h
+$O/messages/CAROBSCarHeader_m.o: messages/CAROBSCarHeader_m.cc \
+	messages/CAROBSCarHeader_m.h
+$O/messages/CAROBSHeader_m.o: messages/CAROBSHeader_m.cc \
+	messages/CAROBSHeader_m.h
+$O/messages/MACContainer_m.o: messages/MACContainer_m.cc \
+	messages/MACContainer_m.h
 $O/messages/OpticalLayer_m.o: messages/OpticalLayer_m.cc \
 	messages/OpticalLayer_m.h
 $O/messages/Payload_m.o: messages/Payload_m.cc \
 	messages/Payload_m.h
 $O/messages/car_m.o: messages/car_m.cc \
 	messages/car_m.h
+$O/messages/schedulerUnit_m.o: messages/schedulerUnit_m.cc \
+	messages/schedulerUnit_m.h
+$O/messages/trainContainer_m.o: messages/trainContainer_m.cc \
+	messages/trainContainer_m.h
 

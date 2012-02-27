@@ -13,27 +13,11 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
-//
-// TODO documentation
-//
-module AggregationPool
-{
-    @display("i=block/subqueue;bgb=260,103");
-    gates:
-        input in[];
-        output out[];
 
-    submodules:
-        AQ: AggregationQueues {
-            @display("p=46,47");
-        }
-        TA: TrainAssembler {
-            @display("p=127,47");
-        }
-    connections:
-        AQ.out --> TA.in;
-        //TA.out --> TS.in;
-     
+class noncobject cQueue;
+
+packet MACContainer {
+    int dst;
+
+	cQueue cars;
 }
-
