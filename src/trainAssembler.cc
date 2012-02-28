@@ -22,9 +22,8 @@ Define_Module(TrainAssembler);
 
 void TrainAssembler::initialize()
 {
-    // set d_p
-    d_p = (simtime_t) par("d_p").doubleValue();
-    d_p = 0;
+    d_p = (simtime_t) par("d_p").doubleValue(); // set d_p
+    d_s = (simtime_t) par("d_s").doubleValue(); // set d_s
 
     // Making link for communication with Routing module
     cModule *calleeModule = getParentModule()->getSubmodule("routing");
@@ -167,24 +166,24 @@ void TrainAssembler::bubbleSort(std::vector<SchedulerUnit *> &num){
 
 void TrainAssembler::smoothTheTrain(std::vector<SchedulerUnit *> &dst){
     for (int i = 0; i < dst.size()-1; i++) {
-        if( dst[i]->getEnd() < dst[i+1]->getStart()-d_p ){
+        if( dst[i]->getEnd() < dst[i+1]->getStart()-d_s ){
             // Big gap between c_1 <----> c_2 -- c_1 must be given by EOT
-            dst[i]->setEnd( dst[i+1]->getStart()-d_p );
-            dst[i]->setStart( dst[i+1]->getStart()-d_p - dst[i]->getLength() );
+            dst[i]->setEnd( dst[i+1]->getStart()-d_s );
+            dst[i]->setStart( dst[i+1]->getStart()-d_s - dst[i]->getLength() );
             dst[i]->setEOT( dst[i]->getStart() - dst[i]->getOt() );
             if( i>0 ){
                 for (int j = i; j >= 0 ; j--) {
-                    dst[j]->setEnd(dst[j + 1]->getStart() - d_p);
-                    dst[j]->setStart(dst[j + 1]->getStart() - d_p - dst[j]->getLength());
-                    dst[j]->setEOT(dst[j]->getStart() -d_p - dst[j]->getOt());
+                    dst[j]->setEnd(dst[j + 1]->getStart() - d_s);
+                    dst[j]->setStart(dst[j + 1]->getStart() - d_s - dst[j]->getLength());
+                    dst[j]->setEOT(dst[j]->getStart() -d_s - dst[j]->getOt());
                 }
             }
         }
 
-        if( dst[i]->getEnd() > dst[i+1]->getStart()-d_p ){
+        if( dst[i]->getEnd() > dst[i+1]->getStart()-d_s ){
             // The gap is not big enough c_1 <----> c_2 -- c_1 must be given by EOT
-            dst[i+1]->setStart(dst[i]->getEnd() + d_p );
-            dst[i+1]->setEnd(  dst[i]->getEnd() + d_p + dst[i+1]->getLength() );
+            dst[i+1]->setStart(dst[i]->getEnd() + d_s );
+            dst[i+1]->setEnd(  dst[i]->getEnd() + d_s + dst[i+1]->getLength() );
             dst[i+1]->setEOT(  dst[i+1]->getStart() - dst[i+1]->getOt() );
         }
     }

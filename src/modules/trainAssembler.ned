@@ -23,7 +23,8 @@ simple TrainAssembler
 {
     parameters:
         int poolTreshold = default(9000); // Bytes
-        double d_p = default(10us) @unit(s); // Default is 10microseconds
+        double d_p = default(10us) @unit(s); // Default is 10microseconds - processing time
+        double d_s = default(10us) @unit(s); // Default is 10microseconds - switching time
         
     @display("i=block/join,#FF8000");
     gates:

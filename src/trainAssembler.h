@@ -59,6 +59,12 @@ class TrainAssembler : public cSimpleModule
     simtime_t d_p;
 
     /**
+     *  Switching time of a SOA switches along a flow. For now it is hard-coded
+     *  but correctly it should by a parameter of CAROBS CoreNode
+     */
+    simtime_t d_s;
+
+    /**
      *  Funtion smoothTheTrain takes sorted vector of cars encapsulated into
      *  SchedulerUnit which carries information about start, stop,... time events
      *  and changes the start, stop so the cars go one by one with time difference
