@@ -31,15 +31,30 @@ class Routing : public cSimpleModule
     /**
      * Function calculates minumum offset time needed for OBS system to work.
      * It sums all delays introduced by fibers, CoreNodes,.. along a flow
-     * @param destination - refers to address of destination nodde
+     * @param destination - refers to address of destination node
      * @return offset time ot^c - which stands for processing time of all intermediate nodes ot^c=l^c*d^H [8.2.3 - Coutelen DT]
      */
     virtual simtime_t getOffsetTime(int destination);
 
-
+    /**
+     * Function getOutputPort resolves best path for a given CAROBS train
+     *
+     * @param destination - refers to address of destination node
+     * @return number of output port
+     */
+    virtual int getOutputPort(int destination);
 
   private:
     std::map<int, simtime_t> OT;   // First step development, later it obsoletes by cTopolog
+    std::map<int, int> DestMap;
+
+    /**
+     *  Routing decision variable
+     */
+    cTopology topo;
+    simtime_t d_p;
+
+    std::set<int> terminatingIDs;
 };
 
 #endif
