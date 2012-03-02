@@ -32,6 +32,7 @@ class SOAManager : public cSimpleModule
     Routing *R;
     SOA *soa;
     simtime_t d_p;
+    bool JET;
 };
 
 #endif

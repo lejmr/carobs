@@ -22,6 +22,9 @@ void SOAManager::initialize()
     // Obtaining processing time parametr d_p
     d_p = par("d_p").doubleValue();
 
+    // Obtaining processing time parametr JET
+    JET = par("JET").doubleValue();
+
     // Making link with Routing module
     cModule *calleeModule = getParentModule()->getSubmodule("routing");
     R = check_and_cast<Routing *>(calleeModule);
@@ -56,8 +59,8 @@ void SOAManager::handleMessage(cMessage *msg)
     SOAEntry *se = new SOAEntry(inPort, inWl, outPort, inWl);
 
     // Assign this SOAEntry to SOA
-    soa->assignSwitchingTableEntry(se, H->getOT(), H->getLength() );  //JET
-    //soa->assignSwitchingTableEntry(se, 0 , H->getLength() );    // JIT
+    if( JET ) soa->assignSwitchingTableEntry(se, H->getOT(), H->getLength() );  //JET
+    else soa->assignSwitchingTableEntry(se, 0 , H->getOT()+H->getLength() );    // JIT
 
     // Put the headers  back to OpticalLayer E-O conversion
     ol->encapsulate(H);
