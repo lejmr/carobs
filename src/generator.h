@@ -17,6 +17,7 @@
 #define __CAROBS_GENERATOR_H_
 
 #include <omnetpp.h>
+#include <routingTable.h>
 
 class Generator : public cSimpleModule
 {
@@ -28,6 +29,11 @@ class Generator : public cSimpleModule
     int myMinID;
     int myMaxID;
     int MaxID;
+
+    long amount;
+    double gap;
+
+    RoutingTable *RT;
 };
 
 #endif

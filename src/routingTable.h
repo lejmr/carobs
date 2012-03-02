@@ -13,23 +13,30 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
+#ifndef __CAROBS_ROUTINGTABLE_H_
+#define __CAROBS_ROUTINGTABLE_H_
 
-//
-// Train assembler based on chapter 8.2.3 - Offset Time Computation of Coutelen DT
-// This implementation sorts based on ot^c size
-//
-simple TrainAssembler
+#include <omnetpp.h>
+
+/**
+ * TODO - Generated class
+ */
+class RoutingTable : public cSimpleModule
 {
-    parameters:
-        int poolTreshold = default(9000); // Bytes
-        double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
-        double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
-        
-    @display("i=block/join,#FF8000");
-    gates:
-        input in;
-        output out;
-}
+  protected:
+    virtual void initialize();
 
+  private:
+    std::map<int,int> routingTable;
+    std::set<int> localIDs;
+    std::set<int> remoteIDs;
+    int min, max;
 
+  public:
+    virtual std::set<int> getLocalIDs();
+    virtual void giveMyLocalIds(std::set<int> localIDs);
+    virtual int getNthRemoteAddress( int n);
+    virtual int dimensionOfRemoteAddressSet();
+};
+
+#endif

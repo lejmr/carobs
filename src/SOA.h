@@ -13,23 +13,36 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
+#ifndef __CAROBS_SOA_H_
+#define __CAROBS_SOA_H_
 
-//
-// Train assembler based on chapter 8.2.3 - Offset Time Computation of Coutelen DT
-// This implementation sorts based on ot^c size
-//
-simple TrainAssembler
+#include <omnetpp.h>
+#include <SOAEntry.h>
+#include <messages/OpticalLayer_m.h>
+//#include <messages/swe_m.h>
+
+/**
+ * TODO - Generated class
+ */
+class SOA : public cSimpleModule
 {
-    parameters:
-        int poolTreshold = default(9000); // Bytes
-        double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
-        double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
-        
-    @display("i=block/join,#FF8000");
-    gates:
-        input in;
-        output out;
-}
+  protected:
+    virtual void initialize();
+    virtual void handleMessage(cMessage *msg);
+  private:
+    cArray *switchingTable;
+    /**
+     *  switching time
+     */
+    simtime_t d_s;
+
+    virtual SOAEntry * findOutput(int inPort, int inWl);
 
 
+  public:
+    virtual void assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len);
+    virtual void dropSwitchingTableEntry(SOAEntry *e);
+
+};
+
+#endif

@@ -21,9 +21,7 @@ package carobs.modules;
 simple AggregationQueues
 {
     parameters:
-        int disjointNodes = default(1);
         double bufferLengthT = default(0.1); // ms
-        double bufferLengthB = default(9000); // Bytes
 
         @display("i=block/classifier");
     gates:

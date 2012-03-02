@@ -22,31 +22,63 @@ using namespace std;
 
 void Generator::initialize()
 {
-    long myMinID = par("myMinID").longValue();
-    long myMaxID = par("myMaxID").longValue();
-    long maxID = par("maxID").longValue();
-    long amount = par("n").longValue();
-    double gap = par("l").doubleValue();
+    myMinID = par("myMinID").longValue();
+    myMaxID = par("myMaxID").longValue();
+    amount = par("n").longValue();
+    gap = par("l").doubleValue();
 
+
+    cModule *calleeModule = getParentModule()->getSubmodule("routingTable");
+    RT = check_and_cast<RoutingTable *>(calleeModule);
+
+    cMessage *init= new cMessage();
+    if( par("send").boolValue() )
+        scheduleAt(0, init);
+
+    /*
     if( par("send").boolValue() ){
         int rnd;
         for(int i=0; i < amount;i++){
             // Generate random destination, but must take care of not generating for myself
             while(true){
-                rnd= rand() / double(RAND_MAX) * maxID;
-                if ( rnd > myMaxID or rnd < myMinID ) break;
+                dst= RT->getNthRemoteAddress( uniform(0, RT->dimensionOfRemoteAddressSet()) );
+                if ( dst > myMaxID or dst < myMinID ) break;
             }
+            src= uniform(myMinID, myMaxID);
             Payload *msg = new Payload();
             msg->setByteLength( (int) normal(1500,100) ); // Generates frames with mean size of 1500B and deviation 100 for normal distribution
-            msg->setDst(rnd);
-            msg->setSrc(myMinID);
+            msg->setDst(dst);
+            msg->setSrc( src );
             scheduleAt(simTime()+i*gap, msg);
+            EV << src << " - " << dst << " : " << simTime()+i*gap << endl;
         }
-    }
+    }*/
 }
 
 void Generator::handleMessage(cMessage *msg)
 {
-    // TODO - Generated method body
-    send(msg, "out");
+
+    if ( dynamic_cast<Payload *>(msg) == NULL){
+        int dst, src;
+        int rnd;
+        for (int i = 0; i < amount; i++) {
+            // Generate random destination, but must take care of not generating for myself
+            while (true) {
+                dst = RT->getNthRemoteAddress( uniform(0, RT->dimensionOfRemoteAddressSet()));
+                if (dst > myMaxID or dst < myMinID)
+                    break;
+            }
+            src = uniform(myMinID, myMaxID);
+            Payload *msg = new Payload();
+            msg->setByteLength((int) normal(1500, 100)); // Generates frames with mean size of 1500B and deviation 100 for normal distribution
+            msg->setDst(dst);
+            msg->setSrc(src);
+            scheduleAt(simTime() + i * gap, msg);
+            EV << src << " - " << dst << " : " << simTime() + i * gap << endl;
+        }
+
+    }else{
+        send(msg, "out");
+    }
+
 }

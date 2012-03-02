@@ -31,11 +31,18 @@ O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 OBJS = \
     $O/aggregationPoolManager.o \
     $O/aggregationQueues.o \
+    $O/deMux.o \
     $O/generator.o \
     $O/MAC.o \
     $O/merge.o \
+    $O/payloadInterface.o \
+    $O/portManager.o \
     $O/routing.o \
+    $O/routingTable.o \
     $O/sink.o \
+    $O/SOA.o \
+    $O/SOAEntry.o \
+    $O/SOAManager.o \
     $O/trainAssembler.o \
     $O/messages/car_m.o \
     $O/messages/CAROBSCarHeader_m.o \
@@ -138,7 +145,26 @@ depend:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 $O/MAC.o: MAC.cc \
-	MAC.h
+	MAC.h \
+	messages/CAROBSHeader_m.h \
+	messages/MACContainer_m.h \
+	messages/OpticalLayer_m.h \
+	messages/car_m.h \
+	messages/schedulerUnit_m.h \
+	routing.h
+$O/SOA.o: SOA.cc \
+	SOA.h \
+	SOAEntry.h \
+	messages/OpticalLayer_m.h
+$O/SOAEntry.o: SOAEntry.cc \
+	SOAEntry.h
+$O/SOAManager.o: SOAManager.cc \
+	SOA.h \
+	SOAEntry.h \
+	SOAManager.h \
+	messages/CAROBSHeader_m.h \
+	messages/OpticalLayer_m.h \
+	routing.h
 $O/aggregationPoolManager.o: aggregationPoolManager.cc \
 	aggregationPoolManager.h \
 	aggregationQueues.h \
@@ -149,13 +175,25 @@ $O/aggregationQueues.o: aggregationQueues.cc \
 	aggregationQueues.h \
 	messages/Payload_m.h \
 	messages/car_m.h
+$O/deMux.o: deMux.cc \
+	deMux.h \
+	messages/OpticalLayer_m.h
 $O/generator.o: generator.cc \
 	generator.h \
-	messages/Payload_m.h
+	messages/Payload_m.h \
+	routingTable.h
 $O/merge.o: merge.cc \
 	merge.h
+$O/payloadInterface.o: payloadInterface.cc \
+	messages/Payload_m.h \
+	payloadInterface.h \
+	portManager.h
+$O/portManager.o: portManager.cc \
+	portManager.h
 $O/routing.o: routing.cc \
 	routing.h
+$O/routingTable.o: routingTable.cc \
+	routingTable.h
 $O/sink.o: sink.cc \
 	sink.h
 $O/trainAssembler.o: trainAssembler.cc \

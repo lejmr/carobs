@@ -33,7 +33,7 @@ class AggregationPoolManager : public cSimpleModule
 
      /**
       *  Function aggregationPoolSize counts size of AggregationPool.
-      *  Todo so it asks AggregationQueues for size of each Queue and
+      *  Todoso it asks AggregationQueues for size of each Queue and
       *  sums these sizes together
       *
       *  @param poolId - ID of pool, pools are counted from 0

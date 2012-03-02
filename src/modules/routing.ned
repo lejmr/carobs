@@ -20,5 +20,9 @@ package carobs.modules;
 //
 simple Routing
 {
+    parameters:
+        int maxrand;
+        double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
+        
     @display("i=block/network2");
 }

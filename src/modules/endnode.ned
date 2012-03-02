@@ -16,54 +16,72 @@
 package carobs.modules;
 
 
-//
-// TODO documentation
-//
 module Endnode
 {
-    @display("bgb=372,259;i=abstract/router");
+    parameters:
+        int address= default( uniform(1, 1000));	// TODO: watchout mi overlap
+    @display("bgb=300,278;i=abstract/router");
     gates:
         inout gate[];
+        inout edge[];
 
     submodules:
-        endpoint: Endpoint {
-            @display("p=38,137");
-        }
         AQ: AggregationQueues {
-            @display("p=134,180");
+            @display("p=56,194");
         }
         TA: TrainAssembler {
-            @display("p=215,180");
+            @display("p=137,194");
         }
         co: Merge {
-            @display("p=301,117");
+            @display("p=223,125");
             gates:
                 in[sizeof(gate)];
         }
-
         routing: Routing {
-            @display("p=215,34");
+            @display("p=223,48");
         }
 
         APm: AggregationPoolManager {
-            @display("p=134,34");
+            @display("p=137,48");
         }
         MAC: MAC {
-            @display("p=301,180");
+            @display("p=223,194");
             gates:
                 out[sizeof(gate)];
         }
+        INT: PayloadInterface {
+            @display("p=56,125");
+            gates:
+                in[sizeof(edge)];
+        }
+        PM: PortManager {
+            @display("p=56,48");
+        }
+    //        endpoint1: Endpoint {
+    //            @display("p=39,180");
+    //        }
+    //        endpoint: Endpoint {
+    //            @display("p=39,111");
+    //        }
     connections:
-        endpoint.gate$o --> AQ.in;
+        INT.outgoing --> AQ.in;
         AQ.out --> TA.in;
-        co.out --> endpoint.gate$i;
+        co.out --> INT.incoming;
         for i=0..sizeof(gate)-1 {
             MAC.out[i] --> gate$o[i];
             gate$i[i] --> co.in[i];
         }
 
 
+        for i=0..sizeof(edge)-1 {
+            edge[i] <--> INT.in[i];
+        }
+
+//        endpoint.gate <--> INT.in++;
+//endpoint1.gate <--> INT.in++;
+
 
         TA.out --> MAC.in;
+
 }
 

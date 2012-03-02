@@ -19,10 +19,62 @@ Define_Module(MAC);
 
 void MAC::initialize()
 {
-    // TODO - Generated method body
+    // Making link for communication with Routing module
+    cModule *calleeModule = getParentModule()->getSubmodule("routing");
+    R = check_and_cast<Routing *>(calleeModule);
 }
 
 void MAC::handleMessage(cMessage *msg)
 {
-    // TODO - Generated method body
+    // MACContainer is incoming message
+    if ( dynamic_cast<MACContainer *>(msg) != NULL){
+
+        // Cast general incoming message cMessage into MACContainer
+        MACContainer *MAC= dynamic_cast<MACContainer *>(msg);
+
+        // Dencapsulate CARBOSHeader
+        CAROBSHeader *H= dynamic_cast<CAROBSHeader *>(MAC->decapsulate());
+
+        // Sending parameters
+        int dst= H->getDst();
+        int out= R->getOutputPort( dst );
+        int wl = getOutputWavelength( out );
+        simtime_t t0 = timeEgressIsReady(dst,out);
+
+        // Set Wavelength to CARBOS Header once we know it
+        H->setWL( wl );
+
+        // Schedule CAROBS Header to send onto network desc. by port&wl
+        // Such a CAROBS Header must be encapsulated into OpticalLayer 1st
+        char buffer_name[50]; sprintf(buffer_name, "Header %d", dst);
+        OpticalLayer *OH = new OpticalLayer(buffer_name);
+        OH->setWavelengthNo(0);     //Signalisation is always on the first channel
+        OH->encapsulate(H);
+        sendDelayed(OH, t0, "out", out);
+        EV << "Header at"<< t0 << endl;
+        // Schedule associate cars
+        while(!MAC->getCars().empty()){
+            SchedulerUnit *su = (SchedulerUnit *)MAC->getCars().pop();
+            Car *tcar= (Car *) su->decapsulate();
+
+            // Encapsulate Car into OpticalLayer
+            char buffer_name[50]; sprintf(buffer_name, "Car %d", su->getDst() );
+            OpticalLayer *OC = new OpticalLayer(buffer_name);
+            OC->setWavelengthNo( wl );
+            OC->encapsulate(tcar);
+
+            // Send the car onto proper wl at proper time
+            sendDelayed(OC, t0 + su->getStart(), "out", out);
+            EV << "car "<< su->getDst() <<" at"<< t0+su->getStart() << " length: " << su->getLength() << endl;
+        }
+
+    }
+}
+
+int MAC::getOutputWavelength(int port){
+    return 10;
+}
+
+simtime_t MAC::timeEgressIsReady(int port, int wl){
+    return 2.0;
 }

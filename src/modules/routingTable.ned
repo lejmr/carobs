@@ -16,20 +16,13 @@
 package carobs.modules;
 
 //
-// Train assembler based on chapter 8.2.3 - Offset Time Computation of Coutelen DT
-// This implementation sorts based on ot^c size
+// TODO auto-generated module
 //
-simple TrainAssembler
+simple RoutingTable
 {
+    // Doing this to make simulation easier
     parameters:
-        int poolTreshold = default(9000); // Bytes
-        double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
-        double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
-        
-    @display("i=block/join,#FF8000");
-    gates:
-        input in;
-        output out;
+        int myMinID;
+        int myMaxID;
+    @display("i=block/table2");
 }
-
-

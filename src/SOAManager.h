@@ -13,23 +13,25 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
+#ifndef __CAROBS_SOAMANAGER_H_
+#define __CAROBS_SOAMANAGER_H_
 
-//
-// Train assembler based on chapter 8.2.3 - Offset Time Computation of Coutelen DT
-// This implementation sorts based on ot^c size
-//
-simple TrainAssembler
+#include <omnetpp.h>
+#include <routing.h>
+#include <SOA.h>
+#include <messages/CAROBSHeader_m.h>
+#include <messages/OpticalLayer_m.h>
+
+class SOAManager : public cSimpleModule
 {
-    parameters:
-        int poolTreshold = default(9000); // Bytes
-        double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
-        double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
-        
-    @display("i=block/join,#FF8000");
-    gates:
-        input in;
-        output out;
-}
+  protected:
+    virtual void initialize();
+    virtual void handleMessage(cMessage *msg);
 
+  private:
+    Routing *R;
+    SOA *soa;
+    simtime_t d_p;
+};
 
+#endif

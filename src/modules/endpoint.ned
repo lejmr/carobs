@@ -22,8 +22,8 @@ simple Sink
     parameters:
         int myMinID;
         int myMaxID;
-        
-    @display("i=block/rx");
+
+        @display("i=block/rx");
     gates:
         input in;
 }
@@ -33,17 +33,16 @@ simple Sink
 //
 simple Generator
 {
-     
     parameters:
         int n = default(10);
         double l = default(1E-3);
         int myMinID;
         int myMaxID;
         int maxID;
-        bool send= default(false);
-        
-   @display("i=block/tx");
-    
+        bool send = default(false);
+
+        @display("i=block/tx");
+
     gates:
         output out;
 }
@@ -57,14 +56,32 @@ module Endpoint
         int myMinID;
         int myMaxID;
         int maxID;
-        
-    @display("i=misc/town");
+
+        @display("i=misc/town;bgb=270,103");
     gates:
         inout gate;
 
     submodules:
-        sink: Sink;
-        generator: Generator;
+        sink: Sink {
+            parameters:
+                myMinID = myMinID;
+                myMaxID = myMaxID;
+
+                @display("p=58,51");
+        }
+        generator: Generator {
+            parameters:
+                myMinID = myMinID;
+                myMaxID = myMaxID;
+                maxID = maxID;
+                @display("p=215,51");
+        }
+        routingTable: RoutingTable {
+            parameters:
+                myMinID = myMinID;
+                myMaxID = myMaxID;
+                @display("p=133,51");
+        }
     connections:
         generator.out --> gate$o;
         sink.in <-- gate$i;
