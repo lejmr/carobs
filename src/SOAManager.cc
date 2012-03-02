@@ -23,7 +23,7 @@ void SOAManager::initialize()
     d_p = par("d_p").doubleValue();
 
     // Obtaining processing time parametr JET
-    JET = par("JET").doubleValue();
+    JET = par("JET").boolValue();
 
     // Making link with Routing module
     cModule *calleeModule = getParentModule()->getSubmodule("routing");
