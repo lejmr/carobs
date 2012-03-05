@@ -185,7 +185,10 @@ $O/generator.o: generator.cc \
 	messages/Payload_m.h \
 	routingTable.h
 $O/merge.o: merge.cc \
-	merge.h
+	merge.h \
+	messages/OpticalLayer_m.h \
+	messages/Payload_m.h \
+	messages/car_m.h
 $O/payloadInterface.o: payloadInterface.cc \
 	messages/Payload_m.h \
 	payloadInterface.h \

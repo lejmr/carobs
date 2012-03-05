@@ -86,7 +86,7 @@ void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
     cMessage *amsg2 = new cMessage("DeactivateSTE");
     amsg2->addPar("DeactivateSwitchingTableEntry");
     amsg2->par("DeactivateSwitchingTableEntry") = e;
-    scheduleAt(simTime() + ot + len, amsg2);
+    scheduleAt(simTime() + d_s + ot + len, amsg2);
 }
 
 void SOA::dropSwitchingTableEntry(SOAEntry *e) {

@@ -21,6 +21,7 @@ void SOAManager::initialize()
 {
     // Obtaining processing time parametr d_p
     d_p = par("d_p").doubleValue();
+    d_s = par("d_s").doubleValue();
 
     // Obtaining processing time parametr JET
     JET = par("JET").boolValue();
@@ -62,7 +63,7 @@ void SOAManager::handleMessage(cMessage *msg)
     SOAEntry *se = new SOAEntry(inPort, inWl, outPort, inWl);
 
     // Assign this SOAEntry to SOA
-    if( JET ) soa->assignSwitchingTableEntry(se, tmpOT-1e-18, H->getLength()+1e-18 );  //JET
+    if( JET ) soa->assignSwitchingTableEntry(se, tmpOT-d_s, H->getLength() );  //JET
     else soa->assignSwitchingTableEntry(se, 0 , tmpOT+H->getLength() );    // JIT
 
     // Put the headers  back to OpticalLayer E-O conversion

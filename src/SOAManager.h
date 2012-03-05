@@ -31,7 +31,7 @@ class SOAManager : public cSimpleModule
   private:
     Routing *R;
     SOA *soa;
-    simtime_t d_p;
+    simtime_t d_p, d_s;
     bool JET;
 };
 
