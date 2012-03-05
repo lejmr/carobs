@@ -30,9 +30,9 @@ void PayloadInterface::handleMessage(cMessage *msg)
     Payload *pl = dynamic_cast<Payload *>(msg);
 
     // Payload packet disassembled from a car
-    if ( msg->getArrivalGate()->getName() == "incoming" ) {
+    if ( !strcmp(msg->getArrivalGate()->getName(), "incoming") ) {
         int port = PM->getOutputPort( pl->getDst() );
-        send(msg, "in", port);
+        send(msg, "in$o", port);
         return;
     }
 

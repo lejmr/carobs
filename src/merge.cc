@@ -17,12 +17,24 @@
 
 Define_Module(Merge);
 
-void Merge::initialize()
-{
-    // TODO - Generated method body
-}
+void Merge::initialize(){}
 
 void Merge::handleMessage(cMessage *msg)
 {
-    // TODO - Generated method body
+
+    // Receice optical layer message
+    OpticalLayer *ol=  dynamic_cast<OpticalLayer *>(msg);
+
+    // Convet it into a Car
+    Car *car= (Car *)ol->decapsulate();
+
+    // Withraw all Payload packets from Car and send it to Payload router
+    cQueue q = car->getPayload();
+    while(!q.empty()){
+        Payload *p= (Payload *) q.pop();
+        send(p, "out");
+    }
+
+    // Drop empty container
+    delete msg;
 }

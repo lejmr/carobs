@@ -17,6 +17,9 @@
 #define __CAROBS_MERGE_H_
 
 #include <omnetpp.h>
+#include <messages/OpticalLayer_m.h>
+#include <messages/Payload_m.h>
+#include <messages/car_m.h>
 
 /**
  * TODO - Generated class
