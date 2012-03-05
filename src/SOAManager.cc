@@ -54,17 +54,21 @@ void SOAManager::handleMessage(cMessage *msg)
     // Resolving output port
     int outPort = R->getOutputPort( dst );
 
+    // Update OT
+    simtime_t tmpOT= H->getOT();
+    H->setOT( H->getOT() - d_p );
+
     // Prepare SOA switching table entry
     SOAEntry *se = new SOAEntry(inPort, inWl, outPort, inWl);
 
     // Assign this SOAEntry to SOA
-    if( JET ) soa->assignSwitchingTableEntry(se, H->getOT(), H->getLength() );  //JET
-    else soa->assignSwitchingTableEntry(se, 0 , H->getOT()+H->getLength() );    // JIT
+    if( JET ) soa->assignSwitchingTableEntry(se, tmpOT-1e-18, H->getLength()+1e-18 );  //JET
+    else soa->assignSwitchingTableEntry(se, 0 , tmpOT+H->getLength() );    // JIT
 
     // Put the headers  back to OpticalLayer E-O conversion
     ol->encapsulate(H);
 
     // Resending CAROBS Header to next CoreNode
-    sendDelayed(ol, simTime()+d_p, "control$o", outPort );
+    sendDelayed(ol, d_p, "control$o", outPort );
 
 }

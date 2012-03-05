@@ -30,23 +30,19 @@ void SOA::handleMessage(cMessage *msg) {
 
     if (msg->isSelfMessage() and msg->hasPar("ActivateSwitchingTableEntry")) {
         // Add switchingTableEntry
-        SOAEntry *tse = (SOAEntry *) msg->par("ActivateSwitchingTableEntry").pointerValue();
+        SOAEntry *tse =
+                (SOAEntry *) msg->par("ActivateSwitchingTableEntry").pointerValue();
         switchingTable->add(tse);
-        EV << " ADD " << tse->info() << endl ;
-
-        // Scheduling to drop SwitchingTableEntry
-        cMessage *amsg = new cMessage("DeactivateSTE");
-        amsg->addPar("DeactivateSwitchingTableEntry");
-        amsg->par("DeactivateSwitchingTableEntry") = tse;
-        simtime_t len= msg->par("CarTrainLength").longValue();
-        scheduleAt(simTime()+len , amsg);
-        delete msg;return;
+        EV << " ADD " << tse->info() << endl;
+        delete msg;
+        return;
     }
 
     if (msg->isSelfMessage() and msg->hasPar("DeactivateSwitchingTableEntry")) {
         SOAEntry *tse = (SOAEntry *) msg->par("DeactivateSwitchingTableEntry").pointerValue();
-        dropSwitchingTableEntry( tse );
-        delete msg; return;
+        dropSwitchingTableEntry(tse);
+        delete msg;
+        return;
     }
 
     // Obtain informations about optical signal -- wavelength and incoming port
@@ -84,15 +80,19 @@ void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
     cMessage *amsg = new cMessage("ActivateSTE");
     amsg->addPar("ActivateSwitchingTableEntry");
     amsg->par("ActivateSwitchingTableEntry") = e;
-    amsg->addPar("CarTrainLength");
-    amsg->par("CarTrainLength").setDoubleValue(len.dbl());
     scheduleAt(simTime() + d_s + ot, amsg);
+
+    // Scheduling to drop SwitchingTableEntry
+    cMessage *amsg2 = new cMessage("DeactivateSTE");
+    amsg2->addPar("DeactivateSwitchingTableEntry");
+    amsg2->par("DeactivateSwitchingTableEntry") = e;
+    scheduleAt(simTime() + ot + len, amsg2);
 }
 
 void SOA::dropSwitchingTableEntry(SOAEntry *e) {
     Enter_Method("dropSwitchingTableEntry()");
-    EV << " DROP " << e->info() << endl ;
-    //delete switchingTable->remove(se);
+    EV << " DROP " << e->info() << endl;
+    delete switchingTable->remove(e);
 }
 
 SOAEntry * SOA::findOutput(int inPort, int inWl) {

@@ -40,8 +40,7 @@ void TrainAssembler::handleMessage(cMessage *msg) {
         int TSId = msg->par("TSId").longValue();
         int AQ = msg->par("AQ").longValue();
 
-        EV << "A new car has arrived" << " with random ID=" << TSId
-                  << " and AQ=" << AQ;
+        EV << "A new car has arrived" << " with random ID=" << TSId << " and AQ=" << AQ;
 
         simtime_t ot = R->getOffsetTime(AQ);
         EV << " with distance ot=" << ot;
@@ -91,50 +90,6 @@ void TrainAssembler::prepareTrain(int TSId) {
         dst.push_back(msg);
     }
 
-/*
-    int C = 10e9;
-    simtime_t ot=1;
-    simtime_t tlength = 0.6;
-    SchedulerUnit *su1 = new SchedulerUnit();
-    su1->setDst(1);
-    su1->setOt(ot);
-    su1->setStart(ot);
-    su1->setEnd(ot + tlength);
-    su1->setLength(tlength);
-    su1->setEOT(0);
-    dst.push_back(su1);
-    ot=2;
-    tlength = 5;
-    SchedulerUnit *su2 = new SchedulerUnit();
-    su2->setDst(2);
-    su2->setOt(ot);
-    su2->setStart(ot);
-    su2->setEnd(ot + tlength);
-    su2->setLength(tlength);
-    su2->setEOT(0);
-    dst.push_back(su2);
-    ot=3;
-    tlength = 2.2;
-    SchedulerUnit *su3 = new SchedulerUnit();
-    su3->setDst(3);
-    su3->setOt(ot);
-    su3->setStart(ot);
-    su3->setEnd(ot + tlength);
-    su3->setLength(tlength);
-    su3->setEOT(0);
-    dst.push_back(su3);
-    ot=4;
-    tlength = 0.3;
-    SchedulerUnit *su4 = new SchedulerUnit();
-    su4->setDst(4);
-    su4->setOt(ot);
-    su4->setStart(ot);
-    su4->setEnd(ot + tlength);
-    su4->setLength(tlength);
-    su4->setEOT(0);
-    dst.push_back(su4);
-*/
-
     // Sort cars according the OT for further car assignement into a train
     bubbleSort(dst);
 
@@ -177,9 +132,11 @@ void TrainAssembler::prepareTrain(int TSId) {
     MAC->encapsulate(H); //  Storing CAROBS header into MAC packet
 
     // Storing scheduled units with encapsulated cars into MAC->cars
+    EV << " Scheduler verification: " << endl;
     while (!dst.empty()) {
         SchedulerUnit *tmp = dst.back();
         dst.pop_back();
+        EV << " + " <<tmp->getDst()<<"OT="<<tmp->getOt()<<" starts: "<<tmp->getStart()<<"-"<<tmp->getEnd()<<"="<<tmp->getLength()<<"("<<tmp->getLengthB()<<"B)"<<endl;
         schedulerCAR[TSId].remove(tmp);
         MAC->getCars().insert(tmp);
     }

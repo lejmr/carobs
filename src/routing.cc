@@ -29,11 +29,9 @@ void Routing::initialize() {
         for (int i = 0; i < getParentModule()->gateSize("edge"); i++) {
             cGate *g = getParentModule()->gate("edge$o", i);
             int min =
-                    g->getPathEndGate()->getOwnerModule()->getParentModule()->par(
-                            "myMinID").longValue();
+                    g->getPathEndGate()->getOwnerModule()->getParentModule()->par("myMinID").longValue();
             int max =
-                    g->getPathEndGate()->getOwnerModule()->getParentModule()->par(
-                            "myMaxID").longValue();
+                    g->getPathEndGate()->getOwnerModule()->getParentModule()->par("myMaxID").longValue();
             for (int j = min; j < max; j++)
                 terminatingIDs.insert(j);
         }
@@ -106,6 +104,13 @@ simtime_t Routing::getOffsetTime(int destination) {
     return OT[destination];
 }
 
+simtime_t Routing::getNetworkOffsetTime(int dst) {
+    if (DestMap.find(dst) == DestMap.end())
+        return  (simtime_t) -1.0;
+
+    return getOffsetTime(DestMap[dst]);
+}
+
 int Routing::getOutputPort(int destination) {
     // Check whether destination is in the DestMap, otherwise return -1.0
     // which means drop the burst, cause such destination doesn't exist
@@ -115,12 +120,7 @@ int Routing::getOutputPort(int destination) {
     return outPort[destination];
 }
 
-simtime_t Routing::getNetworkOffsetTime(int dst) {
-    if (DestMap.find(dst) == DestMap.end())
-        return  (simtime_t) -1.0;
 
-    return getOffsetTime(DestMap[dst]);
-}
 
 void Routing::doNetworkTranslationDiscovery() {
     topo.extractByNedTypeName( cStringTokenizer("carobs.modules.CoreNode carobs.modules.Endnode").asVector());
@@ -154,28 +154,28 @@ void Routing::doNetworkTranslationDiscovery() {
             DestMap[*it] = address;
     }
 
-    EV << " ----------------------" << endl;
+//    EV << " ----------------------" << endl;
     for (int i = 0; i < topo.getNumNodes(); i++) {
         cTopology::Node *dstnode = topo.getNode(i);
 
         if (dstnode->getModule() == getParentModule()) {
             continue;
         }
-        EV << "Node " << i << ": " << dstnode->getModule()->getFullPath() << " ";
+//        EV << "Node " << i << ": " << dstnode->getModule()->getFullPath() << " ";
 
         topo.calculateUnweightedSingleShortestPathsTo( dstnode );
 
         cTopology::Node *node = topo.getNodeFor(getParentModule());
         //EV << node->getModule()->getFullPath() << " - " << dstnode->getModule()->getFullPath() << " = " << node->getDistanceToTarget() << endl;
 
-        EV << dstnode->getModule()->par("address").longValue() << " ("<<dstnode->getModule()->getFullPath()<<") = "<< node->getDistanceToTarget() ;
+//        EV << dstnode->getModule()->par("address").longValue() << " ("<<dstnode->getModule()->getFullPath()<<") = "<< node->getDistanceToTarget() ;
 
         int ad= dstnode->getModule()->par("address").longValue();
         OT[ad] = node->getDistanceToTarget()*d_p;
 
         cTopology::LinkOut *path = node->getPath(0);
-        EV << " gate="<<path->getLocalGate()->getFullName();
-        EV << " " << path->getLocalGate()->getIndex() << endl;
+//        EV << " gate="<<path->getLocalGate()->getFullName();
+//        EV << " " << path->getLocalGate()->getIndex() << endl;
 
         outPort[ad]= path->getLocalGate()->getIndex();
 
