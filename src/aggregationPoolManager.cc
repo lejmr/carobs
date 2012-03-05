@@ -44,11 +44,8 @@ void AggregationPoolManager::handleMessage(cMessage *msg) {
 }
 
 void AggregationPoolManager::initiateAggregationPools() {
-    EV << " AP ---------------- " << endl;
     cTopology EPtopo, topo;
-    //std::map< int, std::set<int> > tst;
     std::map< int, std::set<int> >::iterator it;
-    int j = 0;
     EPtopo.extractByNedTypeName(cStringTokenizer("carobs.modules.Endnode").asVector());
     topo.extractByNedTypeName(cStringTokenizer("carobs.modules.Endnode carobs.modules.CoreNode").asVector());
     for (int i = 0; i < EPtopo.getNumNodes(); i++) {
@@ -57,25 +54,21 @@ void AggregationPoolManager::initiateAggregationPools() {
         // Skip finding pool for myself - AP is for different nodes not same ones
         if( endnode->getModule() == getParentModule() ) continue;
 
+        // Obtain Endnode address
         int ENaddress= endnode->getModule()->par("address").longValue();
 
-        EV << " To node: " << ENaddress << " -> " ;
-
-
+        // Calculate path from THIS -> Far Endnode and prepare path-pool[FarEndnode#]
         topo.calculateUnweightedSingleShortestPathsTo(topo.getNodeFor( endnode->getModule() ));
         cTopology::Node *node = topo.getNodeFor(getParentModule());
         while (node != topo.getTargetNode()) {
-            node->getModule()->getFullPath();
             cTopology::LinkOut *path = node->getPath(0);
             node = path->getRemoteNode();
-            EV << node->getModule()->par("address").longValue() << " ";
+//            EV << node->getModule()->par("address").longValue() << " ";
             AP[ENaddress].insert( node->getModule()->par("address").longValue() );
         }
-        j++;
-        EV << endl ;
     }
 
-    EV << "*******" << endl;
+    // Print Path-pools
     std::set<int>::iterator it2;
     for( it = AP.begin(); it != AP.end(); it++ ){
         EV << "AP["<< (*it).first <<"]:";

@@ -68,7 +68,11 @@ void SOAManager::handleMessage(cMessage *msg)
     // Put the headers  back to OpticalLayer E-O conversion
     ol->encapsulate(H);
 
-    // Resending CAROBS Header to next CoreNode
-    sendDelayed(ol, d_p, "control$o", outPort );
-
+    // Test whether this is last CoreNode on the path is so CAROBS Header is not passed towards
+    if( R->canForwardHeader(H->getDst()) ){
+        // Resending CAROBS Header to next CoreNode
+        sendDelayed(ol, d_p, "control$o", outPort );
+    }else{
+        delete msg; return;
+    }
 }

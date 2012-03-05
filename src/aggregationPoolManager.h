@@ -52,7 +52,9 @@ class AggregationPoolManager : public cSimpleModule
      AggregationQueues *AQ;
 
      /**
-      *
+      *  Function initiateAggregationPools is a worker of self-message which is
+      *  initiated in during initialize() to prepare Aggregation Pools based on
+      *  logical topology of current network
       */
      virtual void initiateAggregationPools();
 

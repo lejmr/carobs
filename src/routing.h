@@ -60,6 +60,10 @@ class Routing : public cSimpleModule
      */
     virtual int getTerminationNodeAddress(int dst);
 
+    /**
+     *
+     */
+    virtual bool canForwardHeader(int destination);
   private:
     std::map<int, simtime_t> OT;   // First step development, later it obsoletes by cTopolog
     std::map<int, int> outPort;
@@ -96,7 +100,7 @@ class Routing : public cSimpleModule
      *   - 2nd step: Add all discovered IDs into DestMap such that DestID -> EdgeNode address
      */
     virtual void doNetworkTranslationDiscovery();
-    virtual void calculateNetworkOT();
+
 };
 
 #endif

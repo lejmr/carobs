@@ -52,15 +52,10 @@ void Routing::initialize() {
     mp->addPar("NetworkTranslationDiscovery");
     scheduleAt(simTime(), mp);
 
-    /*
-     cMessage *mp2 = new cMessage("OTs");
-     mp2->addPar("CalculateNetworkOT");
-     scheduleAt(simTime(), mp2);
-     */
-
+    // Read given parameter d_p - processing time of SOAmanager
     d_p = par("d_p").doubleValue();
-    // Obsoletes with cTopology routing decisions
 
+    // Create watchers
     WATCH_MAP(OT);
     WATCH_MAP(DestMap);
     WATCH_MAP(outPort);
@@ -73,32 +68,12 @@ void Routing::handleMessage(cMessage *msg) {
         delete msg;
         return;
     }
-
-    if (msg->isSelfMessage() and msg->hasPar("CalculateNetworkOT")) {
-        calculateNetworkOT();
-        delete msg;
-        return;
-    }
-
-}
-
-void Routing::calculateNetworkOT() {
-    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.CoreNode carobs.modules.Endnode").asVector());
-    std::map<int, cTopology::Node *>::iterator it;
-    for (it = NodeList.begin(); it != NodeList.end(); it++)
-        EV << (*it).first << " => " << (*it).second << endl;
-    topo.calculateUnweightedSingleShortestPathsTo((*it).second);
-
-    cTopology::Node *node = topo.getNodeFor(getParentModule());
-
-    EV << "numpaths= " << node->getNumPaths() << endl;
-
 }
 
 simtime_t Routing::getOffsetTime(int destination) {
     // Check whether destination is in the network, otherwise return -1.0
     // which means drop the burst, cause such destination doesn't exist
-    if (NodeList.find(destination) == NodeList.end())
+    if (OT.find(destination) == OT.end())
         return (simtime_t) -1;
 
     return OT[destination];
@@ -124,6 +99,8 @@ int Routing::getOutputPort(int destination) {
 
 void Routing::doNetworkTranslationDiscovery() {
     topo.extractByNedTypeName( cStringTokenizer("carobs.modules.CoreNode carobs.modules.Endnode").asVector());
+
+    // Calculate translation of destination network vs terminating node
     for (int i = 0; i < topo.getNumNodes(); i++) {
         cTopology::Node *node = topo.getNode(i);
 
@@ -144,7 +121,6 @@ void Routing::doNetworkTranslationDiscovery() {
 
         // Get address of remote remote node to make REMOTEID <--> TerminatingID translation
         int address = node->getModule()->par("address").longValue();
-        NodeList[address] = node;
         OT[address] = -1.0;
 
         // Make the pairing
@@ -154,7 +130,7 @@ void Routing::doNetworkTranslationDiscovery() {
             DestMap[*it] = address;
     }
 
-//    EV << " ----------------------" << endl;
+    // Calculate Output port mapping
     for (int i = 0; i < topo.getNumNodes(); i++) {
         cTopology::Node *dstnode = topo.getNode(i);
 
@@ -164,10 +140,7 @@ void Routing::doNetworkTranslationDiscovery() {
 //        EV << "Node " << i << ": " << dstnode->getModule()->getFullPath() << " ";
 
         topo.calculateUnweightedSingleShortestPathsTo( dstnode );
-
         cTopology::Node *node = topo.getNodeFor(getParentModule());
-        //EV << node->getModule()->getFullPath() << " - " << dstnode->getModule()->getFullPath() << " = " << node->getDistanceToTarget() << endl;
-
 //        EV << dstnode->getModule()->par("address").longValue() << " ("<<dstnode->getModule()->getFullPath()<<") = "<< node->getDistanceToTarget() ;
 
         int ad= dstnode->getModule()->par("address").longValue();
@@ -178,10 +151,7 @@ void Routing::doNetworkTranslationDiscovery() {
 //        EV << " " << path->getLocalGate()->getIndex() << endl;
 
         outPort[ad]= path->getLocalGate()->getIndex();
-
-
     }
-
 }
 
 std::set<int> Routing::getTerminatingIDs() {
@@ -195,4 +165,20 @@ int Routing::getTerminationNodeAddress(int dst){
         return -1;
 
     return DestMap[dst];
+}
+
+bool Routing::canForwardHeader(int destination){
+    int port= getOutputPort(destination);
+
+    cGate *g= getParentModule()->gate("gate$o", port);
+    cObject *c = g->getPathEndGate()->getOwner()->getOwner();
+
+    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.Endnode").asVector());
+        // Calculate translation of destination network vs terminating node
+    for (int i = 0; i < topo.getNumNodes(); i++) {
+        cTopology::Node *node = topo.getNode(i);
+        if( node->getModule() == c ) return false;
+    }
+
+    return true;
 }
