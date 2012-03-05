@@ -51,6 +51,11 @@ class AggregationPoolManager : public cSimpleModule
       */
      AggregationQueues *AQ;
 
+     /**
+      *
+      */
+     virtual void initiateAggregationPools();
+
   protected:
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);

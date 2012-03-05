@@ -169,12 +169,14 @@ $O/aggregationPoolManager.o: aggregationPoolManager.cc \
 	aggregationPoolManager.h \
 	aggregationQueues.h \
 	messages/Payload_m.h \
-	messages/car_m.h
+	messages/car_m.h \
+	routing.h
 $O/aggregationQueues.o: aggregationQueues.cc \
 	aggregationPoolManager.h \
 	aggregationQueues.h \
 	messages/Payload_m.h \
-	messages/car_m.h
+	messages/car_m.h \
+	routing.h
 $O/deMux.o: deMux.cc \
 	deMux.h \
 	messages/OpticalLayer_m.h

@@ -37,6 +37,11 @@ class Routing : public cSimpleModule
     virtual simtime_t getOffsetTime(int destination);
 
     /**
+     *
+     */
+    virtual simtime_t getNetworkOffsetTime(int dst);
+
+    /**
      * Function getOutputPort resolves best path for a given CAROBS train
      *
      * @param destination - refers to address of destination node
@@ -44,17 +49,54 @@ class Routing : public cSimpleModule
      */
     virtual int getOutputPort(int destination);
 
-  private:
-    std::map<int, simtime_t> OT;   // First step development, later it obsoletes by cTopolog
-    std::map<int, int> DestMap;
+    /**
+     *  Function getTerminatingIDs return set of IDs which this node terminates
+     */
+    virtual std::set<int> getTerminatingIDs();
+
 
     /**
-     *  Routing decision variable
+     *
+     */
+    virtual int getTerminationNodeAddress(int dst);
+
+  private:
+    std::map<int, simtime_t> OT;   // First step development, later it obsoletes by cTopolog
+    std::map<int, int> outPort;
+
+    /**
+     *  DestMap maps dst network address and its last node address .. DestMap[dst] = #Endnode
+     */
+    std::map<int, int> DestMap;
+
+
+    std::map<int, cTopology::Node *> NodeList;
+
+    /**
+     *  Network description variable
      */
     cTopology topo;
+
+    /**
+     *  Processing time of SOA manager - it assumes d_p same for all CoreNodes
+     */
     simtime_t d_p;
 
+    /**
+     *  Set of IDs which are terminated by this Node
+     */
     std::set<int> terminatingIDs;
+
+    /**
+     *  Function doNetworkTranslationDiscovery make Network translation discovery (NTD) which is needed
+     *  for pairing of last All optical node (EdgeNode) ID and network destination address.
+     *  NTD is realized based on DestMap map variable.
+     *  Function works as follows:
+     *   - 1st step: It checks all nodes having a Routing module to obtain terminatingIDs
+     *   - 2nd step: Add all discovered IDs into DestMap such that DestID -> EdgeNode address
+     */
+    virtual void doNetworkTranslationDiscovery();
+    virtual void calculateNetworkOT();
 };
 
 #endif

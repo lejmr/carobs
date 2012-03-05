@@ -21,6 +21,10 @@ Define_Module(AggregationQueues);
 
 void AggregationQueues::initialize()
 {
+
+    cModule *calleeModule = getParentModule()->getSubmodule("routing");
+    R = check_and_cast<Routing *>(calleeModule);
+
     bufferLengthT = par("bufferLengthT").doubleValue();
     WATCH_MAP( scheduled );
     WATCH_MAP( AQSizeCache );
@@ -46,34 +50,39 @@ void AggregationQueues::handleMessage(cMessage *msg)
 
 void AggregationQueues::handlePayload(cMessage *msg){
     Payload *pmsg = dynamic_cast<Payload *>(msg);
-    //EV << pmsg->getSrc() << " --> " << pmsg->getDst() << endl;
 
-    if (AQ.find(pmsg->getDst()) == AQ.end()) {
+    int AQdst =  R->getTerminationNodeAddress( pmsg->getDst() );
+    if( AQdst == -1 ){
+        EV << "Wrong paring for dst address " << pmsg->getDst() << " !!!"<<endl;
+        return;
+    }
+
+    if (AQ.find(AQdst) == AQ.end()) {
         // There is not a buffer for such destination thus must be created
         // And once it is created there is scheduled releasing process later
         char buffer_name[50];
-        sprintf(buffer_name, "Buffer %d", pmsg->getDst());
-        AQ[pmsg->getDst()] = cQueue();
-        AQ[pmsg->getDst()].setName(buffer_name);
+        sprintf(buffer_name, "AQ %d", AQdst);
+        AQ[AQdst] = cQueue();
+        AQ[AQdst].setName(buffer_name);
 
         // Buffer release scheduling
         cMessage *snd = new cMessage();
         snd->addPar("initTBSDst");
-        snd->par("initTBSDst").setLongValue(pmsg->getDst());
-        scheduled[pmsg->getDst()] = snd;
+        snd->par("initTBSDst").setLongValue(AQdst);
+        scheduled[AQdst] = snd;
         scheduleAt(simTime() + bufferLengthT, snd);
     }
 
     // Add packet to its output AQueue#
-    AQ[pmsg->getDst()].insert(pmsg);
+    AQ[AQdst].insert(pmsg);
 
     // AQSizeCache Update
-    this->countAggregationQueueSize(pmsg->getDst());
+    this->countAggregationQueueSize(AQdst);
 
     // Inform TA about AQ change
     cModule *calleeModule = getParentModule()->getSubmodule("APm");
     AggregationPoolManager *TA = check_and_cast<AggregationPoolManager *>(calleeModule);
-    TA->aggregationQueueNotificationInterface(pmsg->getDst());
+    TA->aggregationQueueNotificationInterface(AQdst);
 }
 
 int64_t AggregationQueues::getAggregationQueueSize(int AQId){

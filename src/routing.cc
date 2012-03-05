@@ -17,71 +17,182 @@
 
 Define_Module(Routing);
 
-void Routing::initialize()
-{
-
+void Routing::initialize() {
+    /**
+     *  LAN network discovery - I am finding addresses which this Node is terminating one
+     *   - So I check for addresses of each Endpoint facing with Edge port
+     */
     // Am I really and poing facing any endpoint with edge port?
-    if( getParentModule()->hasGate("edge",0) ){
+    if (getParentModule()->hasGate("edge", 0)) {
 
         // Walk through all edge ports and discover destination addresses
-        for( int i=0; i<getParentModule()->gateSize("edge");i++ ){
+        for (int i = 0; i < getParentModule()->gateSize("edge"); i++) {
             cGate *g = getParentModule()->gate("edge$o", i);
-            int min= g->getPathEndGate()->getOwnerModule()->getParentModule()->par("myMinID").longValue();
-            int max= g->getPathEndGate()->getOwnerModule()->getParentModule()->par("myMaxID").longValue();
-            for(int j=min;j<max;j++) terminatingIDs.insert(j);
+            int min =
+                    g->getPathEndGate()->getOwnerModule()->getParentModule()->par(
+                            "myMinID").longValue();
+            int max =
+                    g->getPathEndGate()->getOwnerModule()->getParentModule()->par(
+                            "myMaxID").longValue();
+            for (int j = min; j < max; j++)
+                terminatingIDs.insert(j);
         }
 
         // Activate WATCH in case of Endpoint
-        if( terminatingIDs.size() != 0 )
+        if (terminatingIDs.size() != 0)
             WATCH_SET(terminatingIDs);
     }
 
+    /**
+     *  Network translation discovery - I need a table which adds together destination address
+     *  and terminating node address.
+     *   - So I check all nodes having a Routing module to obtain terminatingIDs (previous step)
+     *   - The exchange is done with selfMessage because all terminatingIDs are full filed after
+     *     all Routing initialisation is done
+     */
+    cMessage *mp = new cMessage("NTD");
+    mp->addPar("NetworkTranslationDiscovery");
+    scheduleAt(simTime(), mp);
 
+    /*
+     cMessage *mp2 = new cMessage("OTs");
+     mp2->addPar("CalculateNetworkOT");
+     scheduleAt(simTime(), mp2);
+     */
 
-
-    topo.extractByParameter( "address" );
-
-//    for (int i=0; i<topo.getNumNodes(); i++)
-//    {
-//    cTopology::Node *node = topo.getNode(i);
-//    ev << "Node i=" << i << " is " << node->getModule()->getFullPath() << endl;
-//    ev << " It has " << node->getNumOutLinks() << " conns to other nodes\n";
-//    ev << " and " << node->getNumInLinks() << " conns from other nodes\n";
-//    ev << " Connections to other modules are:\n";
-//    for (int j=0; j<node->getNumOutLinks(); j++)
-//    {
-//    cTopology::Node *neighbour = node->getLinkOut(j)->getRemoteNode();
-//    cGate *gate = node->getLinkOut(j)->getLocalGate();
-//    ev << " " << neighbour->getModule()->getFullPath()
-//    << " through gate " << gate->getFullName() << endl;
-//    }
-//    }
-
-
-    d_p= par("d_p").doubleValue();
+    d_p = par("d_p").doubleValue();
     // Obsoletes with cTopology routing decisions
-    for(int i=0; i<=100;i++){
-//        OT[i]= intuniform(1, par("maxrand").longValue() )*d_p ;
-        OT[i]= 3*d_p;
-    }
+
     WATCH_MAP(OT);
+    WATCH_MAP(DestMap);
+    WATCH_MAP(outPort);
 }
 
-void Routing::handleMessage(cMessage *msg)
-{
-    // TODO - Generated method body
+void Routing::handleMessage(cMessage *msg) {
+    // Initiate Network translation discovery process
+    if (msg->isSelfMessage() and msg->hasPar("NetworkTranslationDiscovery")) {
+        doNetworkTranslationDiscovery();
+        delete msg;
+        return;
+    }
+
+    if (msg->isSelfMessage() and msg->hasPar("CalculateNetworkOT")) {
+        calculateNetworkOT();
+        delete msg;
+        return;
+    }
+
 }
 
-simtime_t Routing::getOffsetTime(int destination)
-{
+void Routing::calculateNetworkOT() {
+    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.CoreNode carobs.modules.Endnode").asVector());
+    std::map<int, cTopology::Node *>::iterator it;
+    for (it = NodeList.begin(); it != NodeList.end(); it++)
+        EV << (*it).first << " => " << (*it).second << endl;
+    topo.calculateUnweightedSingleShortestPathsTo((*it).second);
+
+    cTopology::Node *node = topo.getNodeFor(getParentModule());
+
+    EV << "numpaths= " << node->getNumPaths() << endl;
+
+}
+
+simtime_t Routing::getOffsetTime(int destination) {
     // Check whether destination is in the network, otherwise return -1.0
     // which means drop the burst, cause such destination doesn't exist
-    if( OT.find(destination) == OT.end() )
+    if (NodeList.find(destination) == NodeList.end())
         return (simtime_t) -1;
 
     return OT[destination];
 }
 
-int Routing::getOutputPort(int destination){
-    return 0;
+int Routing::getOutputPort(int destination) {
+    // Check whether destination is in the DestMap, otherwise return -1.0
+    // which means drop the burst, cause such destination doesn't exist
+    if (outPort.find(destination) == outPort.end())
+        return  -1;
+
+    return outPort[destination];
+}
+
+simtime_t Routing::getNetworkOffsetTime(int dst) {
+    if (DestMap.find(dst) == DestMap.end())
+        return  (simtime_t) -1.0;
+
+    return getOffsetTime(DestMap[dst]);
+}
+
+void Routing::doNetworkTranslationDiscovery() {
+    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.CoreNode carobs.modules.Endnode").asVector());
+    for (int i = 0; i < topo.getNumNodes(); i++) {
+        cTopology::Node *node = topo.getNode(i);
+
+        // Skip this module to avoid mixing local and remote terminatingID
+        if (node->getModule() == getParentModule()) {
+            continue;
+        }
+
+        // Make a link with remote Routing module
+        cModule *calleeModule = node->getModule()->getSubmodule("routing");
+
+        // If is there a problem, just skip the module
+        if (calleeModule == NULL)
+            continue;
+
+        // Prepare calle link and then we can ask for remote terminatingIDs
+        Routing *tr = check_and_cast<Routing *>(calleeModule);
+
+        // Get address of remote remote node to make REMOTEID <--> TerminatingID translation
+        int address = node->getModule()->par("address").longValue();
+        NodeList[address] = node;
+        OT[address] = -1.0;
+
+        // Make the pairing
+        std::set<int>::iterator it;
+        std::set<int> tmp = tr->getTerminatingIDs();
+        for (it = tmp.begin(); it != tmp.end(); it++)
+            DestMap[*it] = address;
+    }
+
+    EV << " ----------------------" << endl;
+    for (int i = 0; i < topo.getNumNodes(); i++) {
+        cTopology::Node *dstnode = topo.getNode(i);
+
+        if (dstnode->getModule() == getParentModule()) {
+            continue;
+        }
+        EV << "Node " << i << ": " << dstnode->getModule()->getFullPath() << " ";
+
+        topo.calculateUnweightedSingleShortestPathsTo( dstnode );
+
+        cTopology::Node *node = topo.getNodeFor(getParentModule());
+        //EV << node->getModule()->getFullPath() << " - " << dstnode->getModule()->getFullPath() << " = " << node->getDistanceToTarget() << endl;
+
+        EV << dstnode->getModule()->par("address").longValue() << " ("<<dstnode->getModule()->getFullPath()<<") = "<< node->getDistanceToTarget() ;
+
+        int ad= dstnode->getModule()->par("address").longValue();
+        OT[ad] = node->getDistanceToTarget()*d_p;
+
+        cTopology::LinkOut *path = node->getPath(0);
+        EV << " gate="<<path->getLocalGate()->getFullName();
+        EV << " " << path->getLocalGate()->getIndex() << endl;
+
+        outPort[ad]= path->getLocalGate()->getIndex();
+
+
+    }
+
+}
+
+std::set<int> Routing::getTerminatingIDs() {
+    return terminatingIDs;
+}
+
+
+int Routing::getTerminationNodeAddress(int dst){
+    Enter_Method("getTerminationNodeAddress()");
+    if( DestMap.find(dst) == DestMap.end() )
+        return -1;
+
+    return DestMap[dst];
 }

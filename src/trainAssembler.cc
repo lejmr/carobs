@@ -91,7 +91,7 @@ void TrainAssembler::prepareTrain(int TSId) {
         dst.push_back(msg);
     }
 
-
+/*
     int C = 10e9;
     simtime_t ot=1;
     simtime_t tlength = 0.6;
@@ -133,7 +133,7 @@ void TrainAssembler::prepareTrain(int TSId) {
     su4->setLength(tlength);
     su4->setEOT(0);
     dst.push_back(su4);
-
+*/
 
     // Sort cars according the OT for further car assignement into a train
     bubbleSort(dst);

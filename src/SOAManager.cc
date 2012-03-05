@@ -52,8 +52,7 @@ void SOAManager::handleMessage(cMessage *msg)
     int dst= H->getDst();
 
     // Resolving output port
-    //int outPort = R->getOutputPort( dst );
-    int outPort = 1;
+    int outPort = R->getOutputPort( dst );
 
     // Prepare SOA switching table entry
     SOAEntry *se = new SOAEntry(inPort, inWl, outPort, inWl);

@@ -19,8 +19,9 @@ package carobs.modules;
 module Endnode
 {
     parameters:
-        int address= default( uniform(1, 1000));	// TODO: watchout mi overlap
-    @display("bgb=300,278;i=abstract/router");
+        int address= default( uniform(1, 1000));	// TODO: watchout might overlap
+        
+    @display("bgb=300,278;i=abstract/router;t=$address");
     gates:
         inout gate[];
         inout edge[];

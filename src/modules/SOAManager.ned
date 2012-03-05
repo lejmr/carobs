@@ -22,6 +22,7 @@ simple SOAManager
 {
     parameters:
         double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
+        bool JET = default(true);	// if False JIT is turned on
         
     @display("i=block/cogwheel");
     gates:

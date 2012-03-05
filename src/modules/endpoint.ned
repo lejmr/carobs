@@ -57,7 +57,7 @@ module Endpoint
         int myMaxID;
         int maxID;
 
-        @display("i=misc/town;bgb=270,103");
+        @display("i=misc/town;bgb=270,103;t=$myMinID-$myMaxID;tc=gray");
     gates:
         inout gate;
 

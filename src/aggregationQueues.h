@@ -19,6 +19,7 @@
 #include <omnetpp.h>
 #include <messages/car_m.h>
 #include "messages/Payload_m.h"
+#include <routing.h>
 
 
 
@@ -69,6 +70,11 @@ class AggregationQueues : public cSimpleModule
      *  AggregationPoolManager.
      */
     virtual void countAggregationQueueSize(int AQId);
+
+    /**
+     *  Pairing link for communication with Routing node
+     */
+    Routing *R;
 
   public:
 
