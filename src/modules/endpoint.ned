@@ -59,7 +59,7 @@ module Endpoint
 
         @display("i=misc/town;bgb=270,103;t=$myMinID-$myMaxID;tc=gray");
     gates:
-        inout gate;
+        inout gate @labels(Payload);
 
     submodules:
         sink: Sink {

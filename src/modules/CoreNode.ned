@@ -28,7 +28,7 @@ module CoreNode
 
         @display("bgb=326,349;i=abstract/switch;t=$address");
     gates:
-        inout gate[];
+        inout gate[] @labels(CAROBS);
 
 
     submodules:

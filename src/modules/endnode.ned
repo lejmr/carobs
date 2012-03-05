@@ -23,8 +23,8 @@ module Endnode
         
     @display("bgb=300,278;i=abstract/router;t=$address");
     gates:
-        inout gate[];
-        inout edge[];
+        inout gate[] @labels(CAROBS);
+        inout edge[] @labels(Payload);
 
     submodules:
         AQ: AggregationQueues {
