@@ -22,6 +22,7 @@ simple SOAManager
 {
     parameters:
         double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
+        double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
         bool JET = default(true);	// if False JIT is turned on
         
     @display("i=block/cogwheel");

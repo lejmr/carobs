@@ -26,7 +26,7 @@ module CoreNode
         double d_p @unit(s) = default(10ms);	// Processing time of SOA Manager
         double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
 
-        @display("bgb=326,349;i=abstract/switch;t=$address");
+        @display("bgb=326,349;t=$address;i=abstract/switch");
     gates:
         inout gate[] @labels(CAROBS);
 
@@ -53,6 +53,7 @@ module CoreNode
         }
         soaManager: SOAManager {
             parameters:
+                d_s = d_s;
                 d_p = d_p;
                 @display("p=228,104");
             gates:
