@@ -14,6 +14,7 @@
 // 
 
 #include "SOA.h"
+#include "SOAManager.h"
 
 Define_Module(SOA);
 
@@ -21,6 +22,9 @@ void SOA::initialize() {
 
     //  Initialisation of switching time
     d_s = par("d_s").doubleValue();
+
+    // Initialisation of WC variable
+    WC = par("WC").boolValue();
 
     //switchingTable = new cQueue("switchingTable");
     switchingTable = new cArray("switchingTable");
@@ -32,10 +36,10 @@ void SOA::handleMessage(cMessage *msg) {
         // Add switchingTableEntry
         SOAEntry *tse =
                 (SOAEntry *) msg->par("ActivateSwitchingTableEntry").pointerValue();
-        switchingTable->add(tse);
-        EV << " ADD " << tse->info() << endl;
-        delete msg;
-        return;
+
+        // Add SwitchingTableEntry
+        addpSwitchingTableEntry(tse);
+        delete msg; return;
     }
 
     if (msg->isSelfMessage() and msg->hasPar("DeactivateSwitchingTableEntry")) {
@@ -75,6 +79,21 @@ void SOA::handleMessage(cMessage *msg) {
     //delete msg;
 }
 
+void SOA::addpSwitchingTableEntry(SOAEntry *e){
+    EV << " ADD " << e->info() << endl;
+    bool add= true;
+    for (int i = 0; i < switchingTable->size(); i++) {
+        SOAEntry *se = (SOAEntry *) switchingTable->get(i);
+        if (se->getOutPort() == e->getOutPort() and se->getInLambda() == e->getInLambda()){
+            add= false;
+            break;
+        }
+    }
+
+
+    switchingTable->add(e);
+}
+
 void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
     Enter_Method("assignSwitchingTableEntry()");
     cMessage *amsg = new cMessage("ActivateSTE");
@@ -91,6 +110,11 @@ void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
 
 void SOA::dropSwitchingTableEntry(SOAEntry *e) {
     Enter_Method("dropSwitchingTableEntry()");
+
+    cModule *calleeModule = getParentModule()->getSubmodule("soaManager");
+    SOAManager *sm = check_and_cast<SOAManager *>(calleeModule);
+    sm->dropSwitchingTableEntry(e);
+
     EV << " DROP " << e->info() << endl;
     delete switchingTable->remove(e);
 }

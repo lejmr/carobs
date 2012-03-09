@@ -20,6 +20,8 @@ package carobs.modules;
 //
 simple MAC
 {
+    parameters:
+        int maxWL = default(10);		// Max number number of wavelengths
     @display("i=block/tx");
     gates:
         input in;

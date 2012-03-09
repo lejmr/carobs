@@ -59,6 +59,7 @@ module CoreNode
                 d_s = d_s;
                 d_p = d_p;
                 maxWL = maxWL;
+                WC = WC;
                 @display("p=228,104");
             gates:
                 control[sizeof(gate)];

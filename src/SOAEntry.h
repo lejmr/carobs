@@ -11,6 +11,8 @@ class SOAEntry : public cPolymorphic
     int inLambda_var;
     int outPort_var;
     int outLambda_var;
+    simtime_t start_var;
+    simtime_t stop_var;
 
     // protected and unimplemented operator==(), to prevent accidental usage
     bool operator==(const SOAEntry&);
@@ -33,6 +35,10 @@ class SOAEntry : public cPolymorphic
     void setOutPort(int outPort_var){this->outPort_var = outPort_var;};
     int getOutLambda() const {return outLambda_var;};
     void setOutLambda(int outLambda_var){this->outLambda_var = outLambda_var;};
+    simtime_t getStart() const {return start_var;};
+    void setStart(simtime_t start_var){this->start_var = start_var;};
+    simtime_t getStop() const {return stop_var;};
+    void setStop(simtime_t stop_var){this->stop_var = stop_var;};
 };
 
 #endif // _LABELINFORMATIONBASEENTRY_M_H_

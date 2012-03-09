@@ -58,6 +58,11 @@ class MAC : public cSimpleModule
      */
     virtual simtime_t timeEgressIsReady(int port, int wl);
 
+    /**
+     *  Maximum number of wavelengths
+     */
+    int maxWL;
+
 };
 
 #endif

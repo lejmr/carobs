@@ -26,6 +26,7 @@ void Generator::initialize()
     myMaxID = par("myMaxID").longValue();
     amount = par("n").longValue();
     gap = par("l").doubleValue();
+    dstPerm = par("dst").doubleValue();
 
 
     cModule *calleeModule = getParentModule()->getSubmodule("routingTable");
@@ -63,14 +64,21 @@ void Generator::handleMessage(cMessage *msg)
         int rnd;
         for (int i = 0; i < amount; i++) {
             // Generate random destination, but must take care of not generating for myself
-            while (true) {
-                dst = RT->getNthRemoteAddress( uniform(0, RT->dimensionOfRemoteAddressSet()));
-                if (dst > myMaxID or dst < myMinID)
-                    break;
+            if( dstPerm >0 ){
+                // Hardcoded destination
+                dst = dstPerm;
+            }else{
+                // Random destination
+                while (true) {
+                    dst = RT->getNthRemoteAddress( uniform(0, RT->dimensionOfRemoteAddressSet()));
+                    if (dst > myMaxID or dst < myMinID)
+                        break;
+                }
             }
             src = uniform(myMinID, myMaxID);
             Payload *msg = new Payload();
             msg->setByteLength((int) normal(1500, 100)); // Generates frames with mean size of 1500B and deviation 100 for normal distribution
+            msg->setByteLength(1500); // testing of WC
             msg->setDst(dst);
             msg->setSrc(src);
             scheduleAt(simTime() + i * gap, msg);

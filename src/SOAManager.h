@@ -21,6 +21,8 @@
 #include <SOA.h>
 #include <messages/CAROBSHeader_m.h>
 #include <messages/OpticalLayer_m.h>
+#include <SOAEntry.h>
+
 
 class SOAManager : public cSimpleModule
 {
@@ -29,10 +31,66 @@ class SOAManager : public cSimpleModule
     virtual void handleMessage(cMessage *msg);
 
   private:
+    /**
+     *  Pointer for communication with routing submodule
+     */
     Routing *R;
+
+    /**
+     *  Pointer for communication with SOA submodule
+     */
     SOA *soa;
+
+    /**
+     *  Processing and switching time of SOAManager and SOA respectively
+     */
     simtime_t d_p, d_s;
+
+    /**
+     *  Option whether JET/JIT is going to be used
+     */
     bool JET;
+
+    /**
+     *  Maximum number of wavelengths which can be used for WC
+     */
+    int maxWL;
+
+    /**
+     *  Variable which tracks Wavelength conversion state .. true= enabled, false= disabled
+     *  at this CoreNode
+     */
+    bool WC;
+
+    /**
+     *  Array which keeps informations about time usage of output ports and its
+     *  wavelengths over the time. It can be used for finding of free wavelengths
+     *  if wavelength conversion is enabled
+     */
+    cArray scheduling;
+
+    /**
+     *  Function tries to find proper output such that there is no collision or
+     *  overlap of output port@output wavelength among more inputs
+     *
+     *  if function returns -1 -1 -1 -1 it means there is no affordable output\
+     *  so the burst must be either stored in memory or dropped
+     */
+    virtual SOAEntry* getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop);
+
+    /**
+     *  Function testOutputCombination test whether combination of outPort and outWL at given time
+     *  can be used. It returns response
+     */
+    virtual bool testOutputCombination(int outPort, int outWL, simtime_t start, simtime_t stop );
+
+
+  public:
+    /**
+     *  When the SOAEntry is not needed SOA informas SOAManager to tear it down through
+     *  this interface taking as input parameter pointer to the SOAEntry.
+     */
+    virtual void dropSwitchingTableEntry(SOAEntry *e);
 };
 
 #endif

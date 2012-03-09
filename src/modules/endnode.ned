@@ -47,7 +47,9 @@ module Endnode
             @display("p=137,48");
         }
         MAC: MAC {
-            @display("p=223,194");
+            parameters:
+                maxWL = maxWL;
+                @display("p=223,194");
             gates:
                 out[sizeof(gate)];
         }

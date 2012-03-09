@@ -35,8 +35,10 @@ class SOA : public cSimpleModule
      *  switching time
      */
     simtime_t d_s;
+    bool WC;
 
     virtual SOAEntry * findOutput(int inPort, int inWl);
+    virtual void addpSwitchingTableEntry(SOAEntry *e);
 
 
   public:

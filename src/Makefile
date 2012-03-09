@@ -155,7 +155,10 @@ $O/MAC.o: MAC.cc \
 $O/SOA.o: SOA.cc \
 	SOA.h \
 	SOAEntry.h \
-	messages/OpticalLayer_m.h
+	SOAManager.h \
+	messages/CAROBSHeader_m.h \
+	messages/OpticalLayer_m.h \
+	routing.h
 $O/SOAEntry.o: SOAEntry.cc \
 	SOAEntry.h
 $O/SOAManager.o: SOAManager.cc \

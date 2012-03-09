@@ -15,9 +15,10 @@ std::string SOAEntry::info() const
 {
     std::stringstream out;
     out << "In>> Port:" << inPort_var << " ";
-    out << "Lambda:" << inLambda_var << " ";
+    out << "@" << inLambda_var << " ";
     out << "Out>> Port:" << outPort_var << " ";
-    out << "Lambda:" << outLambda_var << " ";
+    out << "@" << outLambda_var << " ";
+    out << "for= "<<start_var<<"-"<<stop_var<< " ";
     return out.str();
 }
 

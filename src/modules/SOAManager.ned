@@ -25,6 +25,7 @@ simple SOAManager
         double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
         bool JET = default(true);	// if False JIT is turned on
         int maxWL = default(10);		// Max number number of wavelengths
+        bool WC = default(true);				// Wavelength conversion
         
     @display("i=block/cogwheel");
     gates:

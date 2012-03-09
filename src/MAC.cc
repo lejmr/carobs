@@ -19,6 +19,9 @@ Define_Module(MAC);
 
 void MAC::initialize()
 {
+    // reading parameters
+    maxWL = par("maxWL").longValue();
+
     // Making link for communication with Routing module
     cModule *calleeModule = getParentModule()->getSubmodule("routing");
     R = check_and_cast<Routing *>(calleeModule);
@@ -77,7 +80,7 @@ void MAC::handleMessage(cMessage *msg)
 
 int MAC::getOutputWavelength(int port){
     // random approach
-    return uniform(0,10);
+    return uniform(1,maxWL);
 }
 
 simtime_t MAC::timeEgressIsReady(int port, int wl){

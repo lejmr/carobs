@@ -29,6 +29,7 @@ class Generator : public cSimpleModule
     int myMinID;
     int myMaxID;
     int MaxID;
+    int dstPerm;
 
     long amount;
     double gap;
