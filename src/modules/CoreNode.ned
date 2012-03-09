@@ -25,6 +25,8 @@ module CoreNode
         int address = default(uniform(1, 1000));	// TODO: watchout mi overlap 
         double d_p @unit(s) = default(10ms);	// Processing time of SOA Manager
         double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
+        bool WC = default(true);				// Wavelength conversion 
+        int maxWL = default(10);		// Max number number of wavelengths
 
         @display("bgb=326,349;t=$address;i=abstract/switch");
     gates:
@@ -47,6 +49,7 @@ module CoreNode
         soa: SOA {
             parameters:
                 d_s = d_s;
+                WC = WC;
                 @display("p=228,221");
             gates:
                 gate[sizeof(gate)];
@@ -55,6 +58,7 @@ module CoreNode
             parameters:
                 d_s = d_s;
                 d_p = d_p;
+                maxWL = maxWL;
                 @display("p=228,104");
             gates:
                 control[sizeof(gate)];

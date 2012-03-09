@@ -22,6 +22,7 @@ simple SOA
 {
     parameters:
         double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
+        bool WC = default(true);				// Wavelength conversion 
         
     @display("i=block/switch;is=l");    
     gates:

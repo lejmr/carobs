@@ -24,6 +24,7 @@ simple SOAManager
         double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
         double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
         bool JET = default(true);	// if False JIT is turned on
+        int maxWL = default(10);		// Max number number of wavelengths
         
     @display("i=block/cogwheel");
     gates:

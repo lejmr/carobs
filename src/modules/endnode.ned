@@ -20,6 +20,7 @@ module Endnode
 {
     parameters:
         int address= default( uniform(1, 1000));	// TODO: watchout might overlap
+        int maxWL = default(10);		// Max number number of wavelengths
         
     @display("bgb=300,278;i=abstract/router;t=$address");
     gates:
