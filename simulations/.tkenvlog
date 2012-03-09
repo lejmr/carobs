@@ -1,0 +1,92 @@
+----------------------------------------------------------------------
+
+
+Tcl error: modinsp.cc#237: syntax error in expression "-": premature end of expression
+    while executing
+"expr [lindex $bb 2]-[lindex $bb 0]"
+    (procedure "graphmodwin_adjust_windowsize_and_zoom" line 13)
+    invoked from within
+"graphmodwin_adjust_windowsize_and_zoom $w"
+    (procedure "create_graphicalmodwindow" line 104)
+    invoked from within
+"create_graphicalmodwindow .ptr01B8E9B8-2 """
+
+
+----------------------------------------------------------------------
+
+
+Tcl error: modinsp.cc#237: syntax error in expression "-": premature end of expression
+    while executing
+"expr [lindex $bb 2]-[lindex $bb 0]"
+    (procedure "graphmodwin_adjust_windowsize_and_zoom" line 13)
+    invoked from within
+"graphmodwin_adjust_windowsize_and_zoom $w"
+    (procedure "create_graphicalmodwindow" line 104)
+    invoked from within
+"create_graphicalmodwindow .ptr01C33D40-2 """
+
+
+----------------------------------------------------------------------
+
+
+Tcl error: modinsp.cc#237: syntax error in expression "-": premature end of expression
+    while executing
+"expr [lindex $bb 2]-[lindex $bb 0]"
+    (procedure "graphmodwin_adjust_windowsize_and_zoom" line 13)
+    invoked from within
+"graphmodwin_adjust_windowsize_and_zoom $w"
+    (procedure "create_graphicalmodwindow" line 104)
+    invoked from within
+"create_graphicalmodwindow .ptr01D03D40-2 "565x340+88+88:normal""
+
+
+----------------------------------------------------------------------
+
+
+Tcl error: modinsp.cc#237: syntax error in expression "-": premature end of expression
+    while executing
+"expr [lindex $bb 2]-[lindex $bb 0]"
+    (procedure "graphmodwin_adjust_windowsize_and_zoom" line 13)
+    invoked from within
+"graphmodwin_adjust_windowsize_and_zoom $w"
+    (procedure "create_graphicalmodwindow" line 104)
+    invoked from within
+"create_graphicalmodwindow .ptr01C45BD8-2 "574x508+80+285:normal""
+
+
+----------------------------------------------------------------------
+
+
+Tcl error: modinsp.cc#237: syntax error in expression "-": premature end of expression
+    while executing
+"expr [lindex $bb 2]-[lindex $bb 0]"
+    (procedure "graphmodwin_adjust_windowsize_and_zoom" line 13)
+    invoked from within
+"graphmodwin_adjust_windowsize_and_zoom $w"
+    (procedure "create_graphicalmodwindow" line 104)
+    invoked from within
+"create_graphicalmodwindow .ptr01E35BD8-2 """
+
+
+----------------------------------------------------------------------
+
+
+Tcl error: tkenv.cc#961: null or malformed pointer
+    while executing
+"opp_msgarrtimefromnow $msgptr"
+    (procedure "redraw_timeline" line 68)
+    invoked from within
+"redraw_timeline"
+
+
+----------------------------------------------------------------------
+
+
+Tcl error: tkenv.cc#961: null or malformed pointer
+    while executing
+"opp_msgarrtimefromnow $msgptr"
+    (procedure "redraw_timeline" line 68)
+    invoked from within
+"redraw_timeline"
+
+

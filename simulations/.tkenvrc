@@ -1,3 +1,10 @@
 # Partial Tkenv config file -- see $HOME/.tkenvrc as well
+inspector "EndnodeTest.endnode.TA..AQ 6" "Car" "1" "460x314+44+44:normal"
+inspector "Network.coreNode.soa.switchingTable" "cQueue" "1" "778x328+442+61:normal"
+inspector "Network3.coreNode" "CoreNode" "2" "565x340+154+154:normal"
+inspector "Network3" "Network3" "2" "565x340+132+132:normal"
+inspector "Network3.coreNode.soaManager" "SOAManager" "1" "483x314+176+176:normal"
+inspector "Network3.coreNode.soaManager.scheduling" "std::set<SOAEntry *>" "1" "460x314+771+279:normal"
 inspector "EndnodeTest.endnode.AQ." "Car2" "1" "460x314+44+44:normal"
+inspector "Network2" "Network2" "2" "565x340+154+154:normal"
 
