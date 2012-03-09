@@ -34,6 +34,7 @@ OBJS = \
     $O/deMux.o \
     $O/generator.o \
     $O/MAC.o \
+    $O/MACEntry.o \
     $O/merge.o \
     $O/payloadInterface.o \
     $O/portManager.o \
@@ -146,12 +147,15 @@ depend:
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 $O/MAC.o: MAC.cc \
 	MAC.h \
+	MACEntry.h \
 	messages/CAROBSHeader_m.h \
 	messages/MACContainer_m.h \
 	messages/OpticalLayer_m.h \
 	messages/car_m.h \
 	messages/schedulerUnit_m.h \
 	routing.h
+$O/MACEntry.o: MACEntry.cc \
+	MACEntry.h
 $O/SOA.o: SOA.cc \
 	SOA.h \
 	SOAEntry.h \

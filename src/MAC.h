@@ -23,10 +23,12 @@
 #include <messages/schedulerUnit_m.h>
 #include <messages/car_m.h>
 #include <messages/OpticalLayer_m.h>
+#include <MACEntry.h>
 
-/**
- * TODO - Generated class
- */
+struct output_t{
+    int WL;
+    simtime_t t;
+};
 class MAC : public cSimpleModule
 {
   protected:
@@ -40,29 +42,27 @@ class MAC : public cSimpleModule
     Routing *R;
 
     /**
-     *  Function getOutputWavelength resolves the best wavelength to be
-     *  used for output port given by a parameter
+     *  Function getOutput resolves the best wavelength to be
+     *  used for output port given by a parameter. The condition for best
+     *  is lowest waiting time till burst is send onto fiber
      *
      *  @param port - refers to egress port of communication
      *  @return empty wavelength of outgoing port
      */
-    virtual int getOutputWavelength(int port);
-
-    /**
-     *  Function timeEgressIsReady counts when the output port and wavelength
-     *  are going to be free for another CARBOS train initialisation
-     *
-     *  @param port - refers to number of outgoing port
-     *  @param wl   - refers to wavelength of associate port
-     *  @return     - time when combination of port&wl is ready to be used for sending
-     */
-    virtual simtime_t timeEgressIsReady(int port, int wl);
+    virtual output_t getOutput(int port);
 
     /**
      *  Maximum number of wavelengths
      */
     int maxWL;
 
+    /**
+     *  Wavelength availability scheduler - it keeps information when an bust can be send
+     *  onto outgoing fiber
+     */
+    cArray portScheduled;
+
+    simtime_t guardTime;
 };
 
 #endif

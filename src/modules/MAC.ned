@@ -22,7 +22,9 @@ simple MAC
 {
     parameters:
         int maxWL = default(10);		// Max number number of wavelengths
-    @display("i=block/tx");
+        double guardTime = default(10ms) @unit(s); // Guarding time, least time when a burst can be send to network on the same wavelength and port
+         
+        @display("i=block/tx");
     gates:
         input in;
         output out[];
