@@ -22,7 +22,7 @@
 //#include <messages/swe_m.h>
 
 /**
- * TODO - Generated class
+ *  All optical space switching matrix
  */
 class SOA : public cSimpleModule
 {

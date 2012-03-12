@@ -25,6 +25,7 @@
 #include <CAROBSHeader_m.h>
 #include <MACContainer_m.h>
 
+//TODO - CTA algorithm
 
 class TrainAssembler : public cSimpleModule
 {

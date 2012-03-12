@@ -20,7 +20,9 @@
 #include <messages/OpticalLayer_m.h>
 
 /**
- * TODO - Generated class
+ *  All optical Array Waveguide Grating - AWG
+ *  - All optical MUX
+ *  - All optical DEMUX
  */
 class DeMux : public cSimpleModule
 {

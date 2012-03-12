@@ -19,7 +19,7 @@
 #include <omnetpp.h>
 
 /**
- * TODO - Generated class
+ *  Module which takes care of routing in network
  */
 class Routing : public cSimpleModule
 {

@@ -22,7 +22,8 @@
 #include <messages/car_m.h>
 
 /**
- * TODO - Generated class
+ *  Object Merge converts CAROBS Car into a sequence of
+ *  Payload packets which then sends onto output gate
  */
 class Merge : public cSimpleModule
 {

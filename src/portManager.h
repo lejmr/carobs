@@ -19,7 +19,7 @@
 #include <omnetpp.h>
 
 /**
- * TODO - Generated class
+ *  Module which manages Payload ports of parent Compound module
  */
 class PortManager : public cSimpleModule
 {

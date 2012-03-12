@@ -19,7 +19,10 @@
 #include <omnetpp.h>
 
 /**
- * TODO - Generated class
+ *  Simple table which finds in the network all Network IDs and
+ *  provides such a set to Payload packet generator.. so the
+ *  generator only need to know it local network IDs and can generate
+ *  random traffic to random destinations without manual configuration
  */
 class RoutingTable : public cSimpleModule
 {
