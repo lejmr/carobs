@@ -25,7 +25,7 @@ module Endnode
     @display("bgb=300,278;i=abstract/router;t=$address");
     gates:
         inout gate[] @labels(CAROBS);
-        inout edge[] @labels(Payload);
+        inout tributary[] @labels(Payload);
 
     submodules:
         AQ: AggregationQueues {
@@ -56,17 +56,12 @@ module Endnode
         INT: PayloadInterface {
             @display("p=56,125");
             gates:
-                in[sizeof(edge)];
+                in[sizeof(tributary)];
         }
         PM: PortManager {
             @display("p=56,48");
         }
-    //        endpoint1: Endpoint {
-    //            @display("p=39,180");
-    //        }
-    //        endpoint: Endpoint {
-    //            @display("p=39,111");
-    //        }
+
     connections:
         INT.outgoing --> AQ.in;
         AQ.out --> TA.in;
@@ -77,13 +72,9 @@ module Endnode
         }
 
 
-        for i=0..sizeof(edge)-1 {
-            edge[i] <--> INT.in[i];
+        for i=0..sizeof(tributary)-1 {
+            tributary[i] <--> INT.in[i];
         }
-
-//        endpoint.gate <--> INT.in++;
-//endpoint1.gate <--> INT.in++;
-
 
         TA.out --> MAC.in;
 

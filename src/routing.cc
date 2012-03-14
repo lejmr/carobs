@@ -22,17 +22,15 @@ void Routing::initialize() {
      *  LAN network discovery - I am finding addresses which this Node is terminating one
      *   - So I check for addresses of each Endpoint facing with Edge port
      */
-    // Am I really and poing facing any endpoint with edge port?
-    if (getParentModule()->hasGate("edge", 0)) {
+    // Am I really and point facing any endpoint with edge port?
+    if (getParentModule()->hasGate("tributary", 0)) {
 
         // Walk through all edge ports and discover destination addresses
-        for (int i = 0; i < getParentModule()->gateSize("edge"); i++) {
-            cGate *g = getParentModule()->gate("edge$o", i);
-            int min =
-                    g->getPathEndGate()->getOwnerModule()->getParentModule()->par("myMinID").longValue();
-            int max =
-                    g->getPathEndGate()->getOwnerModule()->getParentModule()->par("myMaxID").longValue();
-            for (int j = min; j < max; j++)
+        for (int i = 0; i < getParentModule()->gateSize("tributary"); i++) {
+            cGate *g = getParentModule()->gate("tributary$o", i);
+            int min = g->getPathEndGate()->getOwnerModule()->getParentModule()->par("myMinID").longValue();
+            int max = g->getPathEndGate()->getOwnerModule()->getParentModule()->par("myMaxID").longValue();
+            for (int j = min; j <= max; j++)
                 terminatingIDs.insert(j);
         }
 
