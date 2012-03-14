@@ -158,3 +158,5 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
     snd->par("allCarsHaveBeenSend").setLongValue(TSId);
     send(snd,"out");
 }
+
+void AggregationQueues::setAggregationQueueReleaseTime( int AQid, simtime_t release_time ){}

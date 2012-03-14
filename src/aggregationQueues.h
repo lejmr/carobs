@@ -36,6 +36,15 @@ class AggregationQueues : public cSimpleModule
     simtime_t bufferLengthT;
 
     /**
+     *  Extension of bufferLengthT for CoreNode where SOA manager can store
+     *  information when an AQ need to be released in order to fit the empty
+     *  time space in place of Car train head
+     *    int - key value representing AQ id
+     *    simtime_t - time when the AQ must be released
+     */
+    std::map<int, simtime_t> bufferlengthArray;
+
+    /**
      *  Structure for incoming Payload packet storing, it is basically
      *  a array of arrays .. 2D array
      */
@@ -95,6 +104,14 @@ class AggregationQueues : public cSimpleModule
      *               are these cars assigned, the tag is removed at TA
      */
     virtual void releaseAggregationQueues( std::set<int> queues, int tag );
+
+    /**
+     *  Function setAggregationQueueReleaseTime fill bufferlengthArray structure
+     *  - this function is called by SOA manager only
+     *  @param AQid : Aggragation queue identifier
+     *  @param release_time: time when the AQ must be released
+     */
+    virtual void setAggregationQueueReleaseTime( int AQid, simtime_t release_time );
 };
 
 #endif

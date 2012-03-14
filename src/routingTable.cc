@@ -32,7 +32,7 @@ void RoutingTable::initialize()
 
 
     cTopology topo;
-    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.Endnode carobs.modules.Endpoint").asVector() );
+    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.EdgeNode carobs.modules.Endpoint").asVector() );
     for (int i = 0; i < topo.getNumNodes(); i++) {
         cTopology::Node *node = topo.getNode(i);
         cModule *mod= node->getModule();

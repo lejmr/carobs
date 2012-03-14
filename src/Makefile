@@ -31,6 +31,7 @@ O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 OBJS = \
     $O/aggregationPoolManager.o \
     $O/aggregationQueues.o \
+    $O/CoreNodeMAC.o \
     $O/deMux.o \
     $O/generator.o \
     $O/MAC.o \
@@ -145,6 +146,18 @@ depend:
 	$(MAKEDEPEND) $(INCLUDE_PATH) -f Makefile -P\$$O/ -- $(MSG_CC_FILES)  ./*.cc messages/*.cc modules/*.cc
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
+$O/CoreNodeMAC.o: CoreNodeMAC.cc \
+	CoreNodeMAC.h \
+	SOA.h \
+	SOAEntry.h \
+	SOAManager.h \
+	messages/CAROBSCarHeader_m.h \
+	messages/CAROBSHeader_m.h \
+	messages/MACContainer_m.h \
+	messages/OpticalLayer_m.h \
+	messages/car_m.h \
+	messages/schedulerUnit_m.h \
+	routing.h
 $O/MAC.o: MAC.cc \
 	MAC.h \
 	MACEntry.h \
@@ -160,6 +173,7 @@ $O/SOA.o: SOA.cc \
 	SOA.h \
 	SOAEntry.h \
 	SOAManager.h \
+	messages/CAROBSCarHeader_m.h \
 	messages/CAROBSHeader_m.h \
 	messages/OpticalLayer_m.h \
 	routing.h
@@ -169,6 +183,7 @@ $O/SOAManager.o: SOAManager.cc \
 	SOA.h \
 	SOAEntry.h \
 	SOAManager.h \
+	messages/CAROBSCarHeader_m.h \
 	messages/CAROBSHeader_m.h \
 	messages/OpticalLayer_m.h \
 	routing.h

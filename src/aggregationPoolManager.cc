@@ -46,24 +46,24 @@ void AggregationPoolManager::handleMessage(cMessage *msg) {
 void AggregationPoolManager::initiateAggregationPools() {
     cTopology EPtopo, topo;
     std::map< int, std::set<int> >::iterator it;
-    EPtopo.extractByNedTypeName(cStringTokenizer("carobs.modules.Endnode").asVector());
-    topo.extractByNedTypeName(cStringTokenizer("carobs.modules.Endnode carobs.modules.CoreNode").asVector());
+    EPtopo.extractByNedTypeName(cStringTokenizer("carobs.modules.PayloadInterface").asVector());
+    topo.extractByNedTypeName(cStringTokenizer("carobs.modules.EdgeNode carobs.modules.CoreNode").asVector());
     for (int i = 0; i < EPtopo.getNumNodes(); i++) {
         cTopology::Node *endnode = EPtopo.getNode(i);
 
         // Skip finding pool for myself - AP is for different nodes not same ones
-        if( endnode->getModule() == getParentModule() ) continue;
+        if( endnode->getModule()->getParentModule() == getParentModule() ) continue;
 
         // Obtain Endnode address
-        int ENaddress= endnode->getModule()->par("address").longValue();
+        int ENaddress= endnode->getModule()->getParentModule()->par("address").longValue();
+        // EV << "address="<<ENaddress << " " << endnode->getModule()->getParentModule()->getFullPath() << endl;
 
         // Calculate path from THIS -> Far Endnode and prepare path-pool[FarEndnode#]
-        topo.calculateUnweightedSingleShortestPathsTo(topo.getNodeFor( endnode->getModule() ));
+        topo.calculateUnweightedSingleShortestPathsTo(topo.getNodeFor( endnode->getModule()->getParentModule() ));
         cTopology::Node *node = topo.getNodeFor(getParentModule());
         while (node != topo.getTargetNode()) {
             cTopology::LinkOut *path = node->getPath(0);
             node = path->getRemoteNode();
-//            EV << node->getModule()->par("address").longValue() << " ";
             AP[ENaddress].insert( node->getModule()->par("address").longValue() );
         }
     }
@@ -78,7 +78,6 @@ void AggregationPoolManager::initiateAggregationPools() {
         }
         EV << endl;
     }
-
 }
 
 int64_t AggregationPoolManager::aggregationPoolSize(int poolId) {

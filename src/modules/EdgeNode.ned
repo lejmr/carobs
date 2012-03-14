@@ -16,7 +16,7 @@
 package carobs.modules;
 
 
-module Endnode
+module EdgeNode
 {
     parameters:
         int address= default( uniform(1, 1000));	// TODO: watchout might overlap

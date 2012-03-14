@@ -17,23 +17,12 @@ package carobs.modules;
 //
 // TODO documentation
 //
-module AggregationPool
+module Aggregation
 {
-    @display("i=block/subqueue;bgb=260,103");
-    gates:
-        input in[];
-        output out[];
-
+    @display("i=block/subqueue;bgb=299,197");
     submodules:
-        AQ: AggregationQueues {
-            @display("p=46,47");
+        aggregationQueues: AggregationQueues {
+            @display("p=53,94");
         }
-        TA: TrainAssembler {
-            @display("p=127,47");
-        }
-    connections:
-        AQ.out --> TA.in;
-        //TA.out --> TS.in;
-     
 }
 

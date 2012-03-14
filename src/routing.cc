@@ -96,7 +96,7 @@ int Routing::getOutputPort(int destination) {
 
 
 void Routing::doNetworkTranslationDiscovery() {
-    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.CoreNode carobs.modules.Endnode").asVector());
+    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.CoreNode carobs.modules.EdgeNode").asVector());
 
     // Calculate translation of destination network vs terminating node
     for (int i = 0; i < topo.getNumNodes(); i++) {
@@ -171,7 +171,7 @@ bool Routing::canForwardHeader(int destination){
     cGate *g= getParentModule()->gate("gate$o", port);
     cObject *c = g->getPathEndGate()->getOwner()->getOwner();
 
-    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.Endnode").asVector());
+    topo.extractByNedTypeName( cStringTokenizer("carobs.modules.EdgeNode").asVector());
         // Calculate translation of destination network vs terminating node
     for (int i = 0; i < topo.getNumNodes(); i++) {
         cTopology::Node *node = topo.getNode(i);

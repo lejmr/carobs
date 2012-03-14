@@ -13,26 +13,23 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
+#ifndef __CAROBS_CORENODEMAC_H_
+#define __CAROBS_CORENODEMAC_H_
 
-//
-// Queues manager with ability to make Aggregation of queues (AQs) 
-//
-simple AggregationQueues
+#include <omnetpp.h>
+#include <SOAManager.h>
+#include <messages/schedulerUnit_m.h>
+#include <messages/MACContainer_m.h>
+#include <messages/car_m.h>
+
+class CoreNodeMAC : public cSimpleModule
 {
-    parameters:
-        double bufferLengthT = default(0.1); // ms
+  protected:
+    virtual void initialize();
+    virtual void handleMessage(cMessage *msg);
+  private:
+    SOAManager *SM;
 
-        @display("i=block/classifier");
-    gates:
-        input in;
-        output out;
-}
+};
 
-simple Merge
-{
-    @display("i=block/join");
-    gates:
-        input in[] @loose;
-        output out;
-}
+#endif
