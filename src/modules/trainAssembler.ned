@@ -25,6 +25,7 @@ simple TrainAssembler
         int poolTreshold = default(9000); // Bytes
         double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
         double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
+        double datarate= default(1Gbps) @unit(bps);	// Datarate
         
     @display("i=block/join,#FF8000");
     gates:

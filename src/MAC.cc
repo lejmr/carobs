@@ -49,7 +49,7 @@ void MAC::handleMessage(cMessage *msg)
         // Set Wavelength to CARBOS Header once we know it
         H->setWL( wlwt.WL );
 
-        EV << "CAROBS Train to "<< dst << " will be send at " << t0;
+        EV << "CAROBS Train to "<< dst << " will be send at " << t0+simTime();
         // Schedule CAROBS Header to send onto network desc. by port&wl
         // Such a CAROBS Header must be encapsulated into OpticalLayer 1st
         char buffer_name[50]; sprintf(buffer_name, "Header %d", dst);
@@ -71,7 +71,7 @@ void MAC::handleMessage(cMessage *msg)
             OC->encapsulate(tcar);
 
             OC->setSchedulingPriority(10);
-            EV<<" + Sending car to "<<su->getDst() <<" at "<< t0 + su->getStart()<<" of length="<<su->getLength()<<endl;
+            EV<<" + Sending car to "<<su->getDst() <<" at "<< t0 + su->getStart()+simTime()<<" of length="<<su->getLength()<<endl;
             // Send the car onto proper wl at proper time
             sendDelayed(OC, t0 + su->getStart(), "out", out);
             //EV << "car "<< su->getDst() <<" at"<< t0+su->getStart() << " length: " << su->getLength() << endl;

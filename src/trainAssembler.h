@@ -72,6 +72,11 @@ class TrainAssembler : public cSimpleModule
      *  given by processing time of BHP at any CoreNode along the path.
      */
     virtual void smoothTheTrain(std::vector<SchedulerUnit *> &num);
+
+    /**
+     *  Hardcoded datarate
+     */
+    int64_t C;
 };
 
 #endif

@@ -21,8 +21,14 @@
 Define_Module(TrainAssembler);
 
 void TrainAssembler::initialize() {
+
+    // Switching and processing times
     d_p = (simtime_t) par("d_p").doubleValue(); // set d_p
     d_s = (simtime_t) par("d_s").doubleValue(); // set d_s
+    ASSERT(d_p>d_s);
+
+    // Hard-coded datarte
+    C = par("datarate").doubleValue();
 
     // Making link for communication with Routing module
     cModule *calleeModule = getParentModule()->getSubmodule("routing");
@@ -33,7 +39,6 @@ void TrainAssembler::initialize() {
 }
 
 void TrainAssembler::handleMessage(cMessage *msg) {
-    int C = 10e9; // data rate in bps -- currently hardcoded but will be resolved from channel rate
 
     if (dynamic_cast<Car *>(msg) != NULL) {
         Car *tcar = dynamic_cast<Car *>(msg);
@@ -100,12 +105,13 @@ void TrainAssembler::prepareTrain(int TSId) {
      *  Prepare CAROBS header
      */
     int N = dst.size();
-
     if( N == 0) return;
 
     simtime_t OT = dst[0]->getStart();
     int dt = dst[dst.size() - 1]->getDst();
     simtime_t len= dst[N-1]->getEnd() - dst[0]->getStart();
+
+    EV << "Burst train length="<<len << endl;
 
     // Train Section
     CAROBSHeader *H = new CAROBSHeader();
