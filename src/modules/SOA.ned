@@ -27,5 +27,6 @@ simple SOA
     @display("i=block/switch;is=l");    
     gates:
         inout gate[];
-        inout aggregation[];
+        inout aggregation[] @loose;
+        output disaggregation @loose;
 }

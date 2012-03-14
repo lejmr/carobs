@@ -18,18 +18,11 @@ package carobs.modules;
 //
 // TODO auto-generated module
 //
-simple SOAManager
+simple CoreNodeMAC
 {
-    parameters:
-        double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
-        double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
-        int maxWL = default(10);		// Max number number of wavelengths
-        bool WC = default(true);				// Wavelength conversion
-        bool OBS = default(true);	// Sets OBS mode or CAROBS mode = false
-        double datarate= default(1Gbps) @unit(bps);	// Datarate
-        
-    @display("i=block/cogwheel");
+    @display("i=block/tx");
     gates:
-        inout control[];
-        input aggregation;
+        inout soa[];
+        input in;
+        output control;
 }

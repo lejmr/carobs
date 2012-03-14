@@ -17,7 +17,7 @@ package carobs.modules;
 
 
 //
-// TODO documentation
+//	Full-featured CAROBS CoreNode
 //
 module CoreNode
 {
@@ -28,31 +28,33 @@ module CoreNode
         bool WC = default(true);				// Wavelength conversion 
         int maxWL = default(10);		// Max number number of wavelengths
 
-        @display("bgb=326,349;t=$address;i=abstract/switch");
+        @display("bgb=499,359;t=$address;i=abstract/switch,,30");
     gates:
         inout gate[] @labels(CAROBS);
+        inout tributary[] @labels(Payload);
 
 
     submodules:
         routing: Routing {
-            @display("p=55,44");
+            @display("p=143,44");
         }
 
         mux[sizeof(gate)]: MUX {
-            @display("p=47,212");
+            @display("p=47,235");
         }
 
         demux[sizeof(gate)]: DEMUX {
-            @display("p=86,248");
+            @display("p=86,271");
         }
 
         soa: SOA {
             parameters:
                 d_s = d_s;
                 WC = WC;
-                @display("p=228,221");
+                @display("p=228,244");
             gates:
                 gate[sizeof(gate)];
+                aggregation[sizeof(gate)];
         }
         soaManager: SOAManager {
             parameters:
@@ -60,11 +62,35 @@ module CoreNode
                 d_p = d_p;
                 maxWL = maxWL;
                 WC = WC;
-                @display("p=228,104");
+                @display("p=228,127");
             gates:
                 control[sizeof(gate)];
         }
-
+        INT: PayloadInterface {
+            @display("p=458,244");
+            gates:
+                in[sizeof(tributary)];
+        }
+        APm: AggregationPoolManager {
+            @display("p=228,44");
+        }
+        AQ: AggregationQueues {
+            @display("p=399,226;is=s");
+        }
+        disaggregation: Merge {
+            @display("p=356,266;is=s");
+        }
+        PM: PortManager {
+            @display("p=314,44");
+        }
+        TA: TrainAssembler {
+            @display("p=355,226;is=s");
+        }
+        MAC: CoreNodeMAC {
+            @display("p=313,226;is=s");
+            gates:
+                soa[sizeof(gate)];
+        }
     connections:
         for i=0..sizeof(gate)-1 {
             demux[i].soa --> soa.gate$i[i];
@@ -73,7 +99,19 @@ module CoreNode
             mux[i].out --> gate$o[i];
             demux[i].control --> soaManager.control$i[i];
             soaManager.control$o[i] --> mux[i].control;
+            soa.aggregation[i] <--> MAC.soa[i];
         }
 
-}
+        for i=0..sizeof(tributary)-1 {
+            tributary[i] <--> INT.in[i];
+        }
 
+        INT.outgoing --> AQ.in;
+        disaggregation.out --> INT.incoming;
+
+        soa.disaggregation --> disaggregation.in++;
+        
+        AQ.out --> TA.in;
+        TA.out --> MAC.in;
+        MAC.control --> soaManager.aggregation;
+}

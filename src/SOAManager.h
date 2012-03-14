@@ -22,6 +22,7 @@
 #include <messages/CAROBSHeader_m.h>
 #include <messages/OpticalLayer_m.h>
 #include <SOAEntry.h>
+#include <messages/CAROBSCarHeader_m.h>
 
 
 class SOAManager : public cSimpleModule
@@ -47,11 +48,6 @@ class SOAManager : public cSimpleModule
     simtime_t d_p, d_s;
 
     /**
-     *  Option whether JET/JIT is going to be used
-     */
-    bool JET;
-
-    /**
      *  Maximum number of wavelengths which can be used for WC
      */
     int maxWL;
@@ -61,6 +57,12 @@ class SOAManager : public cSimpleModule
      *  at this CoreNode
      */
     bool WC;
+
+    /**
+     *  OBS mode allows swtiching of Burst trains only on the contrary CAROBS mode
+     *  allows cars grooming
+     */
+    bool OBS;
 
     /**
      *  Array which keeps informations about time usage of output ports and its
@@ -84,6 +86,29 @@ class SOAManager : public cSimpleModule
      */
     virtual bool testOutputCombination(int outPort, int outWL, simtime_t start, simtime_t stop );
 
+    /**
+     *  OBS manner burst train SOA manager behaviour - means that car train is switched based on
+     *  informations in CAROBS header and no CAR Headers are taken on consideration. Such a mode
+     *  is elected automatically based on activation of tributary ports .. sizeof(tributary)==0
+     */
+    virtual void obsBehaviour(cMessage *msg, int inPort);
+
+    /**
+     *  CAROBS manner burst train SOA manager behaviour - means that car train is switched based on
+     *  informations in CAR Headers. It means CoreNode can perform Grooming, Dis/Aggregation.
+     *  Such a mode is elected automatically based on activation of tributary ports .. sizeof(tributary)!=0
+     */
+    virtual void carobsBehaviour(cMessage *msg, int inPort);
+
+    /**
+     *  Address of this CoreNode
+     */
+    int address;
+
+    /**
+     *  Hardcoded datarate
+     */
+    int64_t C;
 
   public:
     /**
@@ -91,6 +116,16 @@ class SOAManager : public cSimpleModule
      *  this interface taking as input parameter pointer to the SOAEntry.
      */
     virtual void dropSwitchingTableEntry(SOAEntry *e);
+
+    /**
+     *   Function getAggregationWaitingTime return waiting time of burst train such that
+     *   SOA is not blocked by any other burst train
+     *   @param destination : Information about final distination of Car train
+     *   @param simtime_t:  Offset time betwean CAROBS header and Car train
+     *   @param wl: pointer on WL variable which is to be used as wavelength
+     *   @return    : Least waiting time when such car train can be send to SOA
+     */
+    virtual simtime_t getAggregationWaitingTime(int destination, simtime_t OT, int &WL, int &outPort);
 };
 
 #endif

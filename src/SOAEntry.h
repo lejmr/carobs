@@ -13,6 +13,8 @@ class SOAEntry : public cPolymorphic
     int outLambda_var;
     simtime_t start_var;
     simtime_t stop_var;
+    bool aggregation_var;
+    bool disaggregation_var;
 
     // protected and unimplemented operator==(), to prevent accidental usage
     bool operator==(const SOAEntry&);
@@ -23,6 +25,7 @@ class SOAEntry : public cPolymorphic
   public:
     SOAEntry(){this->valid=false;}
     SOAEntry(int ip, int il, int op, int ol);
+    SOAEntry(int op, int ol, bool aggregation);
     virtual ~SOAEntry() {}
     virtual std::string info() const;
 
@@ -39,6 +42,10 @@ class SOAEntry : public cPolymorphic
     void setStart(simtime_t start_var){this->start_var = start_var;};
     simtime_t getStop() const {return stop_var;};
     void setStop(simtime_t stop_var){this->stop_var = stop_var;};
+    bool isAggregation() const {return aggregation_var;};
+    void setAggregation(bool aggregation_var){this->aggregation_var = aggregation_var;};
+    bool isDisaggregation() const {return disaggregation_var;};
+    void setDisaggregation(bool disaggregation_var){this->disaggregation_var = disaggregation_var;};
 };
 
 #endif // _LABELINFORMATIONBASEENTRY_M_H_

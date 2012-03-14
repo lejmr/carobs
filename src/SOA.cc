@@ -33,7 +33,7 @@ void SOA::initialize() {
 void SOA::handleMessage(cMessage *msg) {
 
     if (msg->isSelfMessage() and msg->hasPar("ActivateSwitchingTableEntry")) {
-        // Add switchingTableEntry
+        /*  Self-message for adding of switching entry */
         SOAEntry *tse =
                 (SOAEntry *) msg->par("ActivateSwitchingTableEntry").pointerValue();
 
@@ -43,38 +43,54 @@ void SOA::handleMessage(cMessage *msg) {
     }
 
     if (msg->isSelfMessage() and msg->hasPar("DeactivateSwitchingTableEntry")) {
+        /*  Self-message for destruction of switching entry */
         SOAEntry *tse = (SOAEntry *) msg->par("DeactivateSwitchingTableEntry").pointerValue();
         dropSwitchingTableEntry(tse);
         delete msg;
         return;
     }
 
-    // Obtain informations about optical signal -- wavelength and incoming port
-    OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
-    int inPort = msg->getArrivalGate()->getIndex();
-    int inWl = ol->getWavelengthNo();
+    if( !strcmp(msg->getArrivalGate()->getName(), "gate$i") ){
+        /*  Ordinary Cars which are going to be transfered or disaggregated  */
 
-    // Find output configuration for incoming burst
-    SOAEntry *sw = findOutput(inPort, inWl);
+        // Obtain informations about optical signal -- wavelength and incoming port
+        OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
+        int inPort = msg->getArrivalGate()->getIndex();
+        int inWl = ol->getWavelengthNo();
 
-    /**
-     *  TODO: dissagregation&aggregation
-     */
+        // Find output configuration for incoming burst
+        SOAEntry *sw = findOutput(inPort, inWl);
 
-    // Not disaggregated thus only switched out onto exit
-    EV << "Burst is to be switched from " << sw->info() << endl;
+        /*      Disaggregation     */
+        if( sw->isDisaggregation() ){
+            EV << " Disaggregation " << endl;
+            send(ol,"disaggregation");
+            return ;
+        }
 
-    int outPort = sw->getOutPort();
-    int outWl = sw->getOutLambda();
-    // Chceck whether exit is real or faked one
-    if (outPort >= 0 and outWl >= 0) {
-        // Wavelength conversion
-        ol->setWavelengthNo(sw->getOutLambda());
+        // Not disaggregated thus only switched out onto exit
+        EV << "Burst is to be switched from " << sw->info() << endl;
 
-        // Sending to output port
-        send(ol, "gate$o", sw->getOutPort());
+        int outPort = sw->getOutPort();
+        int outWl = sw->getOutLambda();
+        // Chceck whether exit is real or faked one
+        if (outPort >= 0 and outWl >= 0) {
+            // Wavelength conversion
+            ol->setWavelengthNo(sw->getOutLambda());
+
+            // Sending to output port
+            send(ol, "gate$o", sw->getOutPort());
+        }
     }
 
+    if( !strcmp(msg->getArrivalGate()->getName(), "aggregation$i") ){
+        /*      Cars coming from aggregation port    */
+        OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
+        int inPort = msg->getArrivalGate()->getIndex();
+        if (inPort >= 0 ) {
+            send(ol, "gate$o", inPort );
+        }
+    }
     // TODO: take statistics because car is to be dropped
     //delete msg;
 }
@@ -122,7 +138,7 @@ void SOA::dropSwitchingTableEntry(SOAEntry *e) {
 SOAEntry * SOA::findOutput(int inPort, int inWl) {
     for (int i = 0; i < switchingTable->size(); i++) {
         SOAEntry *se = (SOAEntry *) switchingTable->get(i);
-        if (se->getInPort() == inPort and se->getInLambda() == inWl)
+        if (se->getInPort() == inPort and se->getInLambda() == inWl )
             return se;
     }
 
