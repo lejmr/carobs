@@ -25,7 +25,6 @@ void Generator::initialize()
     myMinID = par("myMinID").longValue();
     myMaxID = par("myMaxID").longValue();
     amount = par("n").longValue();
-    gap = par("l").doubleValue();
     dstPerm = par("dst").doubleValue();
 
 
@@ -36,30 +35,13 @@ void Generator::initialize()
     if( par("send").boolValue() )
         scheduleAt(0, init);
 
-    /*
-    if( par("send").boolValue() ){
-        int rnd;
-        for(int i=0; i < amount;i++){
-            // Generate random destination, but must take care of not generating for myself
-            while(true){
-                dst= RT->getNthRemoteAddress( uniform(0, RT->dimensionOfRemoteAddressSet()) );
-                if ( dst > myMaxID or dst < myMinID ) break;
-            }
-            src= uniform(myMinID, myMaxID);
-            Payload *msg = new Payload();
-            msg->setByteLength( (int) normal(1500,100) ); // Generates frames with mean size of 1500B and deviation 100 for normal distribution
-            msg->setDst(dst);
-            msg->setSrc( src );
-            scheduleAt(simTime()+i*gap, msg);
-            EV << src << " - " << dst << " : " << simTime()+i*gap << endl;
-        }
-    }*/
 }
 
 void Generator::handleMessage(cMessage *msg)
 {
 
     if ( dynamic_cast<Payload *>(msg) == NULL){
+
         int dst, src;
         int rnd;
         for (int i = 0; i < amount; i++) {
@@ -76,13 +58,14 @@ void Generator::handleMessage(cMessage *msg)
                 }
             }
             src = uniform(myMinID, myMaxID);
+            simtime_t gap = par("l").doubleValue();
+            int length= par("length").doubleValue();
             Payload *msg = new Payload();
-            msg->setByteLength((int) normal(1500, 100)); // Generates frames with mean size of 1500B and deviation 100 for normal distribution
-            msg->setByteLength(1500); // testing of WC
+            msg->setByteLength( length ); // testing of WC
             msg->setDst(dst);
             msg->setSrc(src);
-            scheduleAt(simTime() + i * gap, msg);
-            EV << src << " - " << dst << " : " << simTime() + i * gap << endl;
+            scheduleAt(simTime() + gap, msg);
+            EV << src << "->" << dst << " ("<< length <<"B): " << simTime() + gap << endl;
         }
 
     }else{

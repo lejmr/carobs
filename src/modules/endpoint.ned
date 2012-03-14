@@ -35,7 +35,8 @@ simple Generator
 {
     parameters:
         int n = default(10);
-        double l = default(1E-3);
+        volatile double l = default(1E-3);
+        volatile double length= default(1500);
         int myMinID;
         int myMaxID;
         int maxID;

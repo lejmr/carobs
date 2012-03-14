@@ -32,7 +32,6 @@ class Generator : public cSimpleModule
     int dstPerm;
 
     long amount;
-    double gap;
 
     RoutingTable *RT;
 };
