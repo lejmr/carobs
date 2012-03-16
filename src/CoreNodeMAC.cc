@@ -18,65 +18,93 @@
 Define_Module(CoreNodeMAC);
 
 void CoreNodeMAC::initialize() {
+
+    // Communication link with soaManager
     cModule *calleeModule = getParentModule()->getSubmodule("soaManager");
     SM = check_and_cast<SOAManager *>(calleeModule);
 
-    WATCH_VECTOR(bufferedMSGs);
+    // Statistics and Watchers
+    bufferSize.setName("Buffer Usage [B]"); // How much RAM do we need?
+    WATCH(capacity);
 }
 
 void CoreNodeMAC::handleMessage(cMessage *msg) {
-
+    /**
+     *  This part of the code is executed when an OpticalLayer message approaches
+     *  the MAC layer. This might happend only in case of buffering .. this is the
+     *  code which buffers incoming Cars and creates scheduler to resend them back
+     */
     if (dynamic_cast<OpticalLayer *>(msg) != NULL) {
-        EV << "Ukladam do pameti.. " << endl;
         OpticalLayer *ol= dynamic_cast<OpticalLayer *>(msg);
         Car *car= (Car *) ol->decapsulate();    // OE conversion
+        EV << "The car "<< car->getName() << "is to be stored in buffer" << endl;
 
-        capacity += car->getBitLength();
+        // Calculate buffer usage and create record for statistics
+        capacity += car->getByteLength();
+        bufferSize.record(capacity);
 
+        // Determine description of incoming signal. Since it is optical only port and WL
         int inPort= msg->getArrivalGate()->getIndex();
         int inWL= ol->getWavelengthNo();
         delete ol;
 
-        std::vector<cMessage *>::iterator it;
+        // Based on input port and WL find SOAEntry informing me when to send it back
+        // Since we have car-train it is complicated and rescheduling time muset be
+        // recalculated for each Car
         for ( int i=0;i<bufferedSOAe.size();i++){
             SOAEntry *tmpse= (SOAEntry *) bufferedSOAe[i];
             if( tmpse->getInPort() == inPort and tmpse->getInLambda() == inWL ){
+                // Self-message informing this module about releasing Car from buffer
                 cMessage *msg = new cMessage("ReleaseBuffer");
                 msg->addPar("RelaseStoredCar");
                 msg->addPar("RelaseStoredCar_CAR");
                 msg->par("RelaseStoredCar").setPointerValue(tmpse);
                 msg->par("RelaseStoredCar_CAR").setPointerValue(car);
-                scheduleAt(tmpse->getStart(), msg);
+                // Determine waiting time of cars from car-train which are not the first one
+                usage[tmpse]++;
+                scheduleAt(simTime()+waitings[tmpse], msg);
             }
         }
-
         return;
     }
 
-
+    /** Continue of previous part - withdrawing the Car from waiting queue and send back to SOA **/
     if( msg->isSelfMessage() and msg->hasPar("RelaseStoredCar")){
-
-        ev << "vYSILAM NAZPET" << endl;
-
         SOAEntry *se=(SOAEntry *) msg->par("RelaseStoredCar").pointerValue();
         Car *car= (Car *) msg->par("RelaseStoredCar_CAR").pointerValue();
+        EV << "The car "<< car->getName() << "is to be released to SOA" << endl;
 
+        // Convert Car->OpticalLayer == E/O conversion
         OpticalLayer *ol= new OpticalLayer( car->getName() );
         ol->setWavelengthNo( se->getOutLambda() );
         ol->encapsulate( car );
 
-        capacity -= car->getBitLength();
+        // Calculate buffer usage and create record for statistics
+        capacity -= car->getByteLength();
+        bufferSize.record(capacity);
 
+        // Send the OL to SOA
         send(ol, "soa$o", se->getOutPort() );
 
+        // Clean waitings and bufferedSOAe - maintenance
+        if( --usage[se] <= 0 ){
+            EV << "Last car now clean up" << endl;
+            waitings.erase(se);
+            usage.erase(se);
+            bufferedSOAe.remove(se);
+        }
 
-
-        return;
+        // Drop the self-message since is not needed anymore
+        delete msg; return;
     }
 
 
 
-
+    /**
+     *  This part of the code takes care of aggregation of Payload packet to
+     *  SOA in case of mixed usage scenario when CoreNode can behave as an
+     *  EdgeNode.
+     */
 
     // Lets make the sending done
     MACContainer *MAC = dynamic_cast<MACContainer *>(msg);
@@ -90,7 +118,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     // Obtain waiting and wavelength
     int WL = 0;
     int outPort=0;
-    simtime_t t0 = SM->getAggregationWaitingTime(dst, H->getOT() , WL, outPort);
+    simtime_t t0 = SM->getAggregationWaitingTime(dst, H->getOT(), H->getLength(), WL, outPort);
 
     // Set wavelength of Car train to CAROBS header
     H->setWL(WL);
@@ -128,8 +156,10 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
 }
 
-void CoreNodeMAC::storeCar( SOAEntry *e ){
+void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
     Enter_Method("storeCar()");
     EV << "Pridavam scheduler " << simTime() << " release="<<e->getStart()<<endl;
     bufferedSOAe.add(e);
+    waitings[e]= wait;
+    usage[e]= 0;
 }

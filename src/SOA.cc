@@ -103,15 +103,19 @@ void SOA::handleMessage(cMessage *msg) {
 }
 
 void SOA::addpSwitchingTableEntry(SOAEntry *e){
+
     EV << " ADD " << e->info() << endl;
+
+    /*
     bool add= true;
     for (int i = 0; i < switchingTable->size(); i++) {
         SOAEntry *se = (SOAEntry *) switchingTable->get(i);
+        if( not se->valid ) continue;
         if (se->getOutPort() == e->getOutPort() and se->getInLambda() == e->getInLambda()){
             add= false;
             break;
         }
-    }
+    }*/
 
 
     switchingTable->add(e);

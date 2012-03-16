@@ -29,18 +29,35 @@ class CoreNodeMAC : public cSimpleModule
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
   private:
-    SOAManager *SM;
-    std::vector<cMessage *> bufferedMSGs;
-    cArray bufferedSOAe;
 
     /**
-     *  How much bites was stored in memory - buffered cars
+     *  Communication link with SOA manager
+     */
+    SOAManager *SM;
+
+    /**
+     *  Helper variables for waiting time and SOAEntry storing
+     */
+    cArray bufferedSOAe;
+    std::map< SOAEntry *, simtime_t> waitings;
+    std::map< SOAEntry *, int> usage;
+
+    /**
+     *  How much bites was stored in memory - buffered cars in Bytes
      */
     int64_t capacity;
 
+    /**
+     *  Statistics of buffer use
+     */
+    cOutVector bufferSize;
+
   public:
-    virtual void storeCar( SOAEntry *e );
 
+    /**
+     *  Function called by SOA manager informing MAC about new burst coming to
+     *  MAC to be stored for a given time wait;
+     */
+    virtual void storeCar( SOAEntry *e, simtime_t wait );
 };
-
 #endif

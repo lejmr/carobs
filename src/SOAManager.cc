@@ -52,24 +52,14 @@ void SOAManager::handleMessage(cMessage *msg) {
     // Obtaining information about source port
     int inPort = msg->getArrivalGate()->getIndex();
 
-    // Behaves as full-featured or not CoreNode
-    if (OBS) obsBehaviour(msg, inPort);
-    else carobsBehaviour(msg, inPort);
-
-}
-
-void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
-    EV << "> CAROBS Behaviour" << endl;
-
-
-    // Obtaining optical signal
-    OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
-
-    // Detection of optical signal -> Electrical CARBOS Header
-    CAROBSHeader *H = (CAROBSHeader *) ol->decapsulate();
-
     /* Aggregation - Data coming from aggregation port */
     if (!strcmp(msg->getArrivalGate()->getName(), "aggregation")) {
+        // Obtaining optical signal
+        OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
+
+        // Detection of optical signal -> Electrical CARBOS Header
+        CAROBSHeader *H = (CAROBSHeader *) ol->decapsulate();
+
         EV << " ! Aggregation process" << endl;
         int inWl = H->getWL();
         int dst = H->getDst();
@@ -93,6 +83,21 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         return;
     }
 
+    // Behaves as full-featured or not CoreNode
+    if (OBS) obsBehaviour(msg, inPort);
+    else carobsBehaviour(msg, inPort);
+
+}
+
+void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
+    EV << "> CAROBS Behaviour" << endl;
+
+
+    // Obtaining optical signal
+    OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
+
+    // Detection of optical signal -> Electrical CARBOS Header
+    CAROBSHeader *H = (CAROBSHeader *) ol->decapsulate();
 
     /*  Disaggregation - This burst train is destined here   */
     EV << " ! Disaggregation process " << endl;
@@ -102,8 +107,8 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // Car train reached its termination Node -> Disaggregation
     if (H->getDst() == address) {
         SOAEntry *se = new SOAEntry(inPort, inWl, false);
-        se->setStart(simTime() + H->getOT() - d_s);
-        se->setStop(simTime() + H->getOT() + H->getLength() - d_s);
+        se->setStart(simTime() + H->getOT());
+        se->setStop(simTime() + H->getOT() + H->getLength());
         // Add Switching Entry to SOA a SOAManager scheduler
         soa->assignSwitchingTableEntry(se, H->getOT() - d_s, H->getLength());
         scheduling.add(se);
@@ -202,35 +207,32 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
 
     // Assign this SOAEntry to SOA
     SOAEntry *se = getOptimalOutput(outPort, inPort, inWl, simTime()+H->getOT(), simTime()+H->getOT()+H->getLength() );
-    simtime_t d_p_extra=0;
+    simtime_t d_w_extra=0;
 
     if( se->getBuffer() ){
+        // Calculate extra waiting time
         simtime_t SOA_set= simTime()+H->getOT();
         simtime_t SOA_nset= se->getStart();
-        d_p_extra= SOA_nset-SOA_set;
+        d_w_extra= SOA_nset-SOA_set;
 
-        EV << "Extra cekani t="<<d_p_extra;
-        EV << " inPort="<<inPort;
-        EV << " inWL="<<inWl;
-        EV << " outPort="<<outPort;
-        EV << " outWL="<<se->getOutLambda();
-        EV << endl;
-
+        // Inform the MAC to store and restore Car in a given moment
         cModule *calleeModule = getParentModule()->getSubmodule("MAC");
         CoreNodeMAC *mac = check_and_cast<CoreNodeMAC *>(calleeModule);
-        mac->storeCar(se);
-        // Comunication SOAmanager -> MAC pass the waiting time
-
+        mac->storeCar(se, d_w_extra);
     }
 
-    soa->assignSwitchingTableEntry(se, H->getOT()+d_p_extra-d_s, H->getLength());
+    // Send switching configuration to SOA - with/without extra waiting time in case of buffering
+    soa->assignSwitchingTableEntry(se, H->getOT()+d_w_extra-d_s, H->getLength());
 
     // Update WL in case of WC
     H->setWL( se->getOutLambda() );
 
+    //  Update offset time in-order of processing time d_p
+    H->setOT(H->getOT() - d_p + d_w_extra );
+
     // Put the headers  back to OpticalLayer E-O conversion
     ol->encapsulate(H);
-    H->setOT(H->getOT() - d_p + d_p_extra );
+
     // Test whether this is last CoreNode on the path is so CAROBS Header is not passed towards
     if (R->canForwardHeader(H->getDst())) {
         // Resending CAROBS Header to next CoreNode
@@ -424,12 +426,62 @@ void SOAManager::dropSwitchingTableEntry(SOAEntry *e) {
     scheduling.remove(e);
 }
 
-simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, int &WL, int &outPort) {
+simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, simtime_t len, int &WL, int &outPort) {
+    Enter_Method("getAggregationWaitingTime()");
 
+    // Find the output gate
     outPort = R->getOutputPort(destination);
-    EV << "Dotazuji se na cil " << destination << " port=" << outPort << ":" << R->getOutputPort(destination) << endl;
+    EV << "Asking for destination=" << destination << " through port=" << outPort;
 
-    WL = 5;
+    if (scheduling.size() == 0) {
+        // Fast forward - if there is no scheduling .. do bypas
+        WL = 1;
 
-    return 2;
+        // Full-fill output text
+        EV << "#"<<WL << " without waiting" <<endl;
+        return 0.0;
+    }
+
+    // Procedure of find less waiting egress port
+    std::map<int, simtime_t> times;
+    simtime_t wait = 1e6;  // just a really high number
+    // table row: outputPort & outputWL -> time the outputWL is ready to be used again
+    for (int i = 0; i < scheduling.size(); i++) {
+        SOAEntry *tmp = (SOAEntry *) scheduling[i];
+
+        // Do the find only for One output port OutPort
+        if (tmp->getOutPort() == outPort) {
+            // test whether table times contains such outputWL .. unless fix it
+            if (times.find(tmp->getOutLambda()) == times.end()) {
+                // Empty, lets assign it
+                times[tmp->getOutLambda()] = tmp->getStop();
+                continue;
+            }
+
+            // Update outputWL timing if it is not up-to-date
+            if (times[tmp->getOutLambda()] < tmp->getStop()) {
+                times[tmp->getOutLambda()] = tmp->getStop();
+            }
+        }
+    }
+
+    for( int i=1; i<maxWL;i++){
+        // We have found unused wavelength.. lets use it!!!
+        if (times.find(i) == times.end()) {
+            WL= i; wait=0;
+            break;
+        }
+
+        // Find the smallest waiting time
+        if( times[i] < wait ){
+            WL= i;
+            wait= times[i];
+        }
+    }
+
+    // Full-fill output text
+    EV << "#"<<WL<< " with waiting="<< wait << endl;
+
+    // Inform MAC how log mus wait before sending
+    return wait;
 }
