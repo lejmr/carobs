@@ -19,9 +19,9 @@
 #include <omnetpp.h>
 #include <routing.h>
 #include <SOA.h>
+#include <SOAEntry.h>
 #include <messages/CAROBSHeader_m.h>
 #include <messages/OpticalLayer_m.h>
-#include <SOAEntry.h>
 #include <messages/CAROBSCarHeader_m.h>
 
 
@@ -41,6 +41,11 @@ class SOAManager : public cSimpleModule
      *  Pointer for communication with SOA submodule
      */
     SOA *soa;
+
+    /**
+     *  Pointer for communication with MAC submodule
+     */
+    //CoreNodeMAC *mac;
 
     /**
      *  Processing and switching time of SOAManager and SOA respectively

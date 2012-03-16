@@ -11,6 +11,7 @@ SOAEntry::SOAEntry(int ip, int il, int op, int ol){
 	this->valid = true;
 	this->aggregation_var = false;
 	this->disaggregation_var= false;
+	this->buffer_var = false;
 }
 
 
@@ -37,24 +38,34 @@ SOAEntry::SOAEntry(int port, int wl, bool aggregation){
     this->valid = true;
     this->aggregation_var = aggregation;
     this->disaggregation_var= not aggregation;
+    this->buffer_var = false;
 }
 
 std::string SOAEntry::info() const
 {
     std::stringstream out;
-    if( aggregation_var ){
+
+    if( buffer_var and not buffer_in_var ){
+            out << "In>> Buffer ";
+    } else if (  not buffer_var and aggregation_var ){
         out << "In>> Aggregation ";
     }else{
         out << "In>> Port:" << inPort_var ;
         out << "#" << inLambda_var << " ";
     }
 
-    if (disaggregation_var) {
+
+
+    if (buffer_var and buffer_in_var) {
+        out << "Out>> Buffer ";
+    } else if (not buffer_var and disaggregation_var) {
         out << "Out>> Disaggregation ";
     } else {
         out << "Out>> Port:" << outPort_var;
         out << "#" << outLambda_var << " ";
     }
+
+
 
     out << "for= "<<start_var<<"-"<<stop_var<< " ";
     return out.str();

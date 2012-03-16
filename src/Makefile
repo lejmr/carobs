@@ -180,12 +180,16 @@ $O/SOA.o: SOA.cc \
 $O/SOAEntry.o: SOAEntry.cc \
 	SOAEntry.h
 $O/SOAManager.o: SOAManager.cc \
+	CoreNodeMAC.h \
 	SOA.h \
 	SOAEntry.h \
 	SOAManager.h \
 	messages/CAROBSCarHeader_m.h \
 	messages/CAROBSHeader_m.h \
+	messages/MACContainer_m.h \
 	messages/OpticalLayer_m.h \
+	messages/car_m.h \
+	messages/schedulerUnit_m.h \
 	routing.h
 $O/aggregationPoolManager.o: aggregationPoolManager.cc \
 	aggregationPoolManager.h \

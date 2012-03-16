@@ -20,9 +20,63 @@ Define_Module(CoreNodeMAC);
 void CoreNodeMAC::initialize() {
     cModule *calleeModule = getParentModule()->getSubmodule("soaManager");
     SM = check_and_cast<SOAManager *>(calleeModule);
+
+    WATCH_VECTOR(bufferedMSGs);
 }
 
 void CoreNodeMAC::handleMessage(cMessage *msg) {
+
+    if (dynamic_cast<OpticalLayer *>(msg) != NULL) {
+        EV << "Ukladam do pameti.. " << endl;
+        OpticalLayer *ol= dynamic_cast<OpticalLayer *>(msg);
+        Car *car= (Car *) ol->decapsulate();    // OE conversion
+
+        capacity += car->getBitLength();
+
+        int inPort= msg->getArrivalGate()->getIndex();
+        int inWL= ol->getWavelengthNo();
+        delete ol;
+
+        std::vector<cMessage *>::iterator it;
+        for ( int i=0;i<bufferedSOAe.size();i++){
+            SOAEntry *tmpse= (SOAEntry *) bufferedSOAe[i];
+            if( tmpse->getInPort() == inPort and tmpse->getInLambda() == inWL ){
+                cMessage *msg = new cMessage("ReleaseBuffer");
+                msg->addPar("RelaseStoredCar");
+                msg->addPar("RelaseStoredCar_CAR");
+                msg->par("RelaseStoredCar").setPointerValue(tmpse);
+                msg->par("RelaseStoredCar_CAR").setPointerValue(car);
+                scheduleAt(tmpse->getStart(), msg);
+            }
+        }
+
+        return;
+    }
+
+
+    if( msg->isSelfMessage() and msg->hasPar("RelaseStoredCar")){
+
+        ev << "vYSILAM NAZPET" << endl;
+
+        SOAEntry *se=(SOAEntry *) msg->par("RelaseStoredCar").pointerValue();
+        Car *car= (Car *) msg->par("RelaseStoredCar_CAR").pointerValue();
+
+        OpticalLayer *ol= new OpticalLayer( car->getName() );
+        ol->setWavelengthNo( se->getOutLambda() );
+        ol->encapsulate( car );
+
+        capacity -= car->getBitLength();
+
+        send(ol, "soa$o", se->getOutPort() );
+
+
+
+        return;
+    }
+
+
+
+
 
     // Lets make the sending done
     MACContainer *MAC = dynamic_cast<MACContainer *>(msg);
@@ -74,3 +128,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
 }
 
+void CoreNodeMAC::storeCar( SOAEntry *e ){
+    Enter_Method("storeCar()");
+    EV << "Pridavam scheduler " << simTime() << " release="<<e->getStart()<<endl;
+    bufferedSOAe.add(e);
+}

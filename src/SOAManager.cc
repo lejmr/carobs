@@ -14,6 +14,7 @@
 // 
 
 #include "SOAManager.h"
+#include "CoreNodeMAC.h"
 
 Define_Module(SOAManager);
 
@@ -199,17 +200,37 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
     // Resolving output port
     int outPort = R->getOutputPort(dst);
 
-    // Update OT
-    simtime_t tmpOT = H->getOT();
-    H->setOT(H->getOT() - d_p);
-
     // Assign this SOAEntry to SOA
-    SOAEntry *se = getOptimalOutput(outPort, inPort, inWl, simTime() + tmpOT - d_s, simTime() + tmpOT - d_s + H->getLength());
-    soa->assignSwitchingTableEntry(se, tmpOT - d_s, H->getLength());
+    SOAEntry *se = getOptimalOutput(outPort, inPort, inWl, simTime()+H->getOT(), simTime()+H->getOT()+H->getLength() );
+    simtime_t d_p_extra=0;
+
+    if( se->getBuffer() ){
+        simtime_t SOA_set= simTime()+H->getOT();
+        simtime_t SOA_nset= se->getStart();
+        d_p_extra= SOA_nset-SOA_set;
+
+        EV << "Extra cekani t="<<d_p_extra;
+        EV << " inPort="<<inPort;
+        EV << " inWL="<<inWl;
+        EV << " outPort="<<outPort;
+        EV << " outWL="<<se->getOutLambda();
+        EV << endl;
+
+        cModule *calleeModule = getParentModule()->getSubmodule("MAC");
+        CoreNodeMAC *mac = check_and_cast<CoreNodeMAC *>(calleeModule);
+        mac->storeCar(se);
+        // Comunication SOAmanager -> MAC pass the waiting time
+
+    }
+
+    soa->assignSwitchingTableEntry(se, H->getOT()+d_p_extra-d_s, H->getLength());
+
+    // Update WL in case of WC
+    H->setWL( se->getOutLambda() );
 
     // Put the headers  back to OpticalLayer E-O conversion
     ol->encapsulate(H);
-
+    H->setOT(H->getOT() - d_p + d_p_extra );
     // Test whether this is last CoreNode on the path is so CAROBS Header is not passed towards
     if (R->canForwardHeader(H->getDst())) {
         // Resending CAROBS Header to next CoreNode
@@ -218,7 +239,7 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
 }
 
 SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop) {
-    EV << "Get scheduling for " << inPort << "@" << inWL << " to " << outPort << " for:" << start << "-" << stop;
+    EV << "Get scheduling for " << inPort << "#" << inWL << " to port=" << outPort << " for:" << start << "-" << stop;
 
     if (scheduling.size() == 0) {
         // Fast forward - if there is no scheduling .. do bypas
@@ -246,12 +267,11 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
 
     if (WC) {
         /* Perform wavelength conversion */
-
         // FIFO approach
         for (int i = 1; i <= maxWL; i++) {
             if (testOutputCombination(outPort, i, start, stop)) {
                 // Wavelength i is free at the given time, we can use it
-                SOAEntry *e = new SOAEntry(inPort, i, outPort, inWL);
+                SOAEntry *e = new SOAEntry(inPort, inWL, outPort, i);
                 e->setStart(start);
                 e->setStop(stop);
                 // And add it to scheduling table
@@ -260,11 +280,110 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
                 return e;
             }
         }
+
     }
 
-    // Sorry I did my best but there is not output
-    // So burst buffering if enabled?
-    return new SOAEntry(-1, -1, -1, -1);
+    /**
+     *  This part is reached because of full usage of all lambdas in the outPort.
+     *  So the approach here is to find output combination with delayed time such
+     *  that the delay is minimal. Car-train is meanwhile stored in MAC buffers
+     *  Solution:
+     *      1. Try to find least output time for given WL
+     *      2. If WC is enabled find the least output time at any WL
+     *          1. If enabled the result can be dropped if it was to expensive ..
+     *             through configuration of simulation
+     */
+
+    std::map<int, simtime_t> times;
+    // ! NO WC
+    // table row: outputPort & outputWL -> time the outputWL is ready to be used again
+    for (int i = 0; i < scheduling.size(); i++) {
+        SOAEntry *tmp = (SOAEntry *) scheduling[i];
+
+        // Do the find only for One output port OutPort
+        if( tmp->getOutPort() == outPort ){
+            // test whether table times contains such outputWL .. unless fix it
+            if( times.find( tmp->getOutLambda() ) == times.end() ){
+                times[tmp->getOutLambda()]= tmp->getStop();
+                continue;
+            }
+
+            // Update outputWL timing if it is not up-to-date
+            if( times[tmp->getOutLambda()] < tmp->getStop() ){
+                times[tmp->getOutLambda()]= tmp->getStop();
+            }
+        }
+    }
+
+    if( times.find(inWL) == times.end() ){
+        EV << " NO BUFFER outWL=" << inWL << endl;
+        EV << " ! Strange situation - it seems there is no scheduling for outPort="<<outPort<<"#"<<inWL<<" do not have to buffer it !"<<endl;
+        SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
+        e->setStart(start);
+        e->setStop(stop);
+        scheduling.add(e);
+        return e;
+    }
+
+    //  Time to stay in buffer
+    simtime_t BT= times[inWL]-start;
+    int outWL = inWL;
+    // Check WC options
+    if( WC ){
+        simtime_t tmpBT = BT;
+        int betterWL = inWL;
+        for(int i=1; i<maxWL;i++){
+            if( i==inWL) continue;
+            if (times.find(i) == times.end()) {
+                EV << " NO BUFFER WC->outWL=" << i << endl;
+                EV<<" ! Strange situation - it seems there is no scheduling for outPort="<<outPort<<"#"<<i<<" do not have to buffer it !" << endl;
+
+                // Set the car-train to buffer
+                SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
+                e->setStart(start);
+                e->setStop(stop);
+                return e;
+            }
+
+            simtime_t tmpBTloop = times[i]-start;
+            if( tmpBTloop < tmpBT ){
+                // There is a candidate but WC is needed
+                tmpBT= tmpBTloop;
+                betterWL= i;
+            }
+        }
+
+        outWL= betterWL;
+        BT= tmpBT;
+
+        EV << " BUFFERED="<<tmpBT<<" WC->outWL=" << outWL << endl;
+        //  Return the record important for outgoing car-train from buffer - this
+        //  way SOAManager can assume the buffering time
+    }
+
+    // Record which sends incoming car-train to buffer
+    SOAEntry *e_in = new SOAEntry(inPort, inWL, outPort, outWL);
+    e_in->setStart(start);
+    e_in->setStop(stop);
+    e_in->setBuffer(true);
+    e_in->setInBuffer();
+    scheduling.add(e_in);
+    soa->assignSwitchingTableEntry(e_in, start-simTime()-d_s, stop - start);
+
+    // Withdraw car-train from buffer and reserver output port
+    SOAEntry *e_out = new SOAEntry(inPort, inWL, outPort, outWL);
+    e_out->setStart(start + BT);
+    e_out->setStop(stop + BT);
+    e_out->setBuffer(true);
+    e_out->setOutBuffer();
+    scheduling.add(e_out);
+
+    //  Buffered result
+    if(not WC) EV << " BUFFERED=" << BT << " outWL=" << inWL << endl;
+
+    //  Return the record important for outgoing car-train from buffer - this
+    //  way SOAManager can assume the buffering time
+    return e_out;
 }
 
 bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, simtime_t stop) {

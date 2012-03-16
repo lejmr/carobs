@@ -21,6 +21,7 @@
 #include <messages/schedulerUnit_m.h>
 #include <messages/MACContainer_m.h>
 #include <messages/car_m.h>
+#include <messages/OpticalLayer_m.h>
 
 class CoreNodeMAC : public cSimpleModule
 {
@@ -29,6 +30,16 @@ class CoreNodeMAC : public cSimpleModule
     virtual void handleMessage(cMessage *msg);
   private:
     SOAManager *SM;
+    std::vector<cMessage *> bufferedMSGs;
+    cArray bufferedSOAe;
+
+    /**
+     *  How much bites was stored in memory - buffered cars
+     */
+    int64_t capacity;
+
+  public:
+    virtual void storeCar( SOAEntry *e );
 
 };
 
