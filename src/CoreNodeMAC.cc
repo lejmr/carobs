@@ -124,7 +124,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     H->setWL(WL);
 
     /*   Sending ....   */
-    EV << "CAROBS Train to " << dst << " will be send at " << t0;
+    EV << "CAROBS Train to " << dst << " will be send at " << simTime()+t0;
 
     // CAROBS Header
     char buffer_name[50];
@@ -148,7 +148,6 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         OC->setWavelengthNo(WL);
         OC->encapsulate(tcar);
 
-        OC->setSchedulingPriority(10);
         EV << " + Sending car to " << su->getDst() << " at " << t0 + su->getStart() << " of length=" << su->getLength() << endl;
         // Send the car onto proper wl at proper time
         sendDelayed(OC, t0 + su->getStart(), "soa$o", outPort);

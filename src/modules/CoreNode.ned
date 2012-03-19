@@ -28,7 +28,7 @@ module CoreNode
         bool WC = default(true);				// Wavelength conversion 
         int maxWL = default(10);		// Max number number of wavelengths
 
-        @display("bgb=499,359;t=$address;i=abstract/switch,,30");
+        @display("bgb=499,444;t=$address;i=abstract/switch,,30");
     gates:
         inout gate[] @labels(CAROBS);
         inout tributary[] @labels(Payload);
@@ -40,11 +40,11 @@ module CoreNode
         }
 
         mux[sizeof(gate)]: MUX {
-            @display("p=47,235");
+            @display("p=49,236,c,-45");
         }
 
         demux[sizeof(gate)]: DEMUX {
-            @display("p=86,271");
+            @display("p=86,275,c,45");
         }
 
         soa: SOA {
@@ -110,7 +110,7 @@ module CoreNode
         disaggregation.out --> INT.incoming;
 
         soa.disaggregation --> disaggregation.in++;
-        
+
         AQ.out --> TA.in;
         TA.out --> MAC.in;
         MAC.control --> soaManager.aggregation;
