@@ -49,7 +49,7 @@ class MAC : public cSimpleModule
      *  @param port - refers to egress port of communication
      *  @return empty wavelength of outgoing port
      */
-    virtual output_t getOutput(int port);
+    virtual output_t getOutput(int port, simtime_t ot);
 
     /**
      *  Maximum number of wavelengths

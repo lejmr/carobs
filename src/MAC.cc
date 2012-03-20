@@ -43,13 +43,14 @@ void MAC::handleMessage(cMessage *msg)
         // Sending parameters
         int dst= H->getDst();
         int out= R->getOutputPort( dst );
-        output_t wlwt = getOutput( out );
+        output_t wlwt = getOutput( out, H->getOT() );
         simtime_t t0 = wlwt.t;
 
         // Set Wavelength to CARBOS Header once we know it
         H->setWL( wlwt.WL );
 
         EV << "CAROBS Train to "<< dst << " will be send at " << t0+simTime();
+        EV << " to port "<<out<<"#"<<wlwt.WL;
         // Schedule CAROBS Header to send onto network desc. by port&wl
         // Such a CAROBS Header must be encapsulated into OpticalLayer 1st
         char buffer_name[50]; sprintf(buffer_name, "Header %d", dst);
@@ -75,26 +76,19 @@ void MAC::handleMessage(cMessage *msg)
             // Send the car onto proper wl at proper time
             sendDelayed(OC, t0 + su->getStart(), "out", out);
             //EV << "car "<< su->getDst() <<" at"<< t0+su->getStart() << " length: " << su->getLength() << endl;
-
-            // Schedule portScheduled entry to be set up and torn down
-            MACEntry *me= new MACEntry(out, wlwt.WL, simTime()+wlwt.t+H->getLength() + guardTime );
-            cMessage *up = new cMessage("UP");
-            up->addPar("ReserveOutputPortWL");
-            up->par("ReserveOutputPortWL").setPointerValue(me);
-            scheduleAt(simTime()+wlwt.t, up);
-
-            cMessage *down = new cMessage("DOWN");
-            down->addPar("TeardownOutputPortWL");
-            down->par("TeardownOutputPortWL").setPointerValue(me);
-            scheduleAt(simTime()+wlwt.t+H->getLength()+guardTime, down);
         }
-    }
 
-    if( msg->isSelfMessage() and msg->hasPar("ReserveOutputPortWL") ){
-        MACEntry *tmpe = (MACEntry *) msg->par("ReserveOutputPortWL").pointerValue();
-        portScheduled.add(tmpe);
-        delete msg;
-        return;
+        // Schedule portScheduled entry to be set up and torn down
+        simtime_t from_time = simTime() + wlwt.t + H->getOT() ;
+        simtime_t to_time = from_time + H->getLength();
+        MACEntry *me = new MACEntry(out, wlwt.WL, from_time, to_time+guardTime);
+        portScheduled.add(me);
+
+        cMessage *down = new cMessage("DOWN");
+        down->addPar("TeardownOutputPortWL");
+        down->par("TeardownOutputPortWL").setPointerValue(me);
+        scheduleAt(to_time+guardTime, down);
+
     }
 
     if( msg->isSelfMessage() and msg->hasPar("TeardownOutputPortWL") ){
@@ -106,47 +100,68 @@ void MAC::handleMessage(cMessage *msg)
 
 }
 
-output_t MAC::getOutput(int port){
-    // random approach
-    std::set<int> availableWL;
-    std::set<int>::iterator it;
+output_t MAC::getOutput(int port, simtime_t ot){
 
-    // Fill up temp variable
-    for(int i=1;i<=maxWL;i++) availableWL.insert(i);
+    // If there are no scheduling fire it up right now
+    if (portScheduled.size() == 0) {
+        output_t t;
+        t.WL = 1;   // FIFO, Might be changed to something different
+        t.t = 0.0;
+        return t;
+    }
 
-    // Remove WL currently used
+    std::map<int, simtime_t>::iterator it;
+    std::map<int, simtime_t> timings;
     for (int j = 0; j < portScheduled.size(); j++) {
+        if( portScheduled[j] == NULL ) continue;
         MACEntry *m = (MACEntry *) portScheduled[j];
         if (m->getOutPort() == port){
-            if( availableWL.find(m->getOutLambda()) != availableWL.end() )
-                availableWL.erase(m->getOutLambda());
-        }
-    }
+            if( timings.find(m->getOutLambda()) == timings.end() ){
+                timings[m->getOutLambda()] = m->getTo()-simTime();
+                continue;
+            }
 
-    // availableWL contains all possible wavelengths
-    if( availableWL.size() == 0 ){
-        // find any shortest waiting wavelength and return
-        output_t tmp;
-        tmp.WL = maxWL;
-        tmp.t = 1e18;   // max value for simtime_t
-        for (int j = 0; j < portScheduled.size(); j++) {
-            MACEntry *m = (MACEntry *) portScheduled[j];
-            if (m->getOutPort() == port){
-                if( m->getAvailable() < tmp.t ){
-                    tmp.t = m->getAvailable();
-                    tmp.WL= m->getOutLambda();
-                }
+            // Update in case of worse waiting .. lesser reservation
+            if( timings[m->getOutLambda()] < m->getTo() ){
+                timings[m->getOutLambda()] = m->getTo()-simTime();
             }
         }
-        return tmp;
     }
 
-    // There are some empty wavelengths, so we can pickup any
-    //FIFO approach
-    it= availableWL.begin();
+    EV << " Waiting for WL: "<< endl;
+    for (int i=1;i<=maxWL;i++){
+        EV << i << "= ";
+            if( timings.find(i) == timings.end() ){
+                // We found an empty WL so lets use it
+                EV << 0 << endl;
+                continue;
+            }
+            EV << timings[i] << endl;
+    }
 
+    simtime_t waiting= 1e6;
+    int WL=1;
+    for (int i=1;i<=maxWL;i++){
+        if( timings.find(i) == timings.end() ){
+            // We found an empty WL so lets use it
+            waiting = ot;
+            WL=i;
+            break;
+        }
+
+        if( timings[i] < waiting ){
+            waiting = timings[i];
+            WL=i;
+        }
+    }
+
+    // Concate after a scheduled burst .. we do not care about BLP of Headers
+    waiting= waiting-ot;
+    if( waiting < 0 ) waiting=0;
+
+    // Formulate output
     output_t t;
-    t.WL= *it;
-    t.t = 0.0;
+    t.WL = WL;   // FIFO, Might be changed to something different
+    t.t = waiting;
     return t;
 }
