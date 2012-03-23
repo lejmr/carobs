@@ -97,20 +97,20 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
 
     // Detection of optical signal -> Electrical CARBOS Header
-    CAROBSHeader *H = (CAROBSHeader *) ol->decapsulate();
+    CAROBSHeader *H = (CAROBSHeader *) ol->getEncapsulatedMsg();
 
     /*  Disaggregation - This burst train is destined here   */
-            EV << " ! Disaggregation process " << endl;
     int inWl = H->getWL();
     int dst = H->getDst();
 
     // Car train reached its termination Node -> Disaggregation
     if (H->getDst() == address) {
+        CAROBSCarHeader *first_car = (CAROBSCarHeader *) H->getCars().get(0);
         SOAEntry *se = new SOAEntry(inPort, inWl, false);
-        se->setStart(simTime() + H->getOT());
-        se->setStop(simTime() + H->getOT() + H->getLength());
+        se->setStart(simTime() + H->getOT()+first_car->getD_c());
+        se->setStop(simTime() + H->getOT()+H->getLength());
         // Add Switching Entry to SOA a SOAManager scheduler
-        soa->assignSwitchingTableEntry(se, H->getOT() - d_s, H->getLength());
+        soa->assignSwitchingTableEntry(se, H->getOT()+first_car->getD_c()-d_s, H->getLength());
         scheduling.add(se);
         // And that is it, nothing more to do
         return;
@@ -142,33 +142,40 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
 
     if (NoToDis + 1 > 0 and NoToDis + 1 < H->getN()) {
         // Count times for car-train
+        CAROBSCarHeader *tmpc0 = (CAROBSCarHeader *) cars.get(NoToDis);
         CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(NoToDis + 1);
         train_start = simTime() + H->getOT() + tmpc->getD_c();
         train_length = train_length - tmpc->getD_c();
-        EV << "disaggregate start=" << simTime() + H->getOT() << " stop=" << train_start - d_s << " length=" << tmpc->getD_c() - d_s << endl;
-        simtime_t c0 = tmpc->getD_c();
+        simtime_t c0 = tmpc0->getD_c();
 
-        // Remove CAR Header from CAROBS Header of this disaggregated car
-        CAROBSCarHeader *tmpc2 = (CAROBSCarHeader *) cars.get(NoToDis);
-        delete cars.remove(tmpc2);
-        H->setN(H->getN() - 1);
+        EV << "disaggregate start=" << simTime() + H->getOT()+c0 << " stop=" << train_start - d_s << " length=" << tmpc->getD_c() - d_s << endl;
+        EV << "car header: " << tmpc0->getDst() << endl;
 
         // Create disaggregation SOA instructions
         SOAEntry *se = new SOAEntry(inPort, inWl, false); // Disaggregation SOAEntry => false
-        se->setStart(simTime() + H->getOT());
+        se->setStart(simTime()+H->getOT()+c0);
         se->setStop(train_start - d_s);
         // Add Switching Entry to SOA a SOAManager scheduler
-        soa->assignSwitchingTableEntry(se, H->getOT() - d_s, tmpc->getD_c() - d_s);
+        soa->assignSwitchingTableEntry(se, H->getOT()+c0- d_s, tmpc->getD_c()-d_s);
         scheduling.add(se);
-        //TODO: inform AQ that there is a time window  //simTime()+H->getOT()-d_s// to //c_n_start//
 
+        // Remove CAR Header from CAROBS Header of this disaggregated car
+        delete cars.remove(tmpc0);
+        H->setN(cars.length());
+        H->setCars(cars);
+
+        /*
+         *  This is place for a new Grooming scenario
+         *      At this point only reserver timeslot before Car-train which can be used for aggregation port
+         *
+         * //TODO: inform AQ that there is a time window  //simTime()+H->getOT()-d_s// to //c_n_start//
         // Data that can be accomodated into the new space
         std::set<int> dsts= R->getDestinationsWithOt( H->getOT()-d_p, H->getOT()+c0-d_p);
         if( dsts.size() == 0 ){
             EV << "No destination can be reached with OT=["<<H->getOT()-d_p<<","<<H->getOT()+c0-d_p<<"]"<<endl;
         }else{
             EV << "Some destination can be reached lets find whether there are data"<<endl;
-        }
+        } */
     }
 
     EV << "train start=" << train_start << " stop=" << train_stop << " length=" << train_length << endl;
@@ -202,7 +209,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     H->setOT(H->getOT()-d_p);
 
     // Encapsulate the CAROBS Header back to OpticalLayer and send further
-    ol->encapsulate(H);
+//    ol->encapsulate(H);
 
     // Test whether this is last CoreNode on the path is so CAROBS Header is not passed towards
     if (R->canForwardHeader(H->getDst())) {

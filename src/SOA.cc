@@ -56,7 +56,6 @@ void SOA::handleMessage(cMessage *msg) {
 
     if( !strcmp(msg->getArrivalGate()->getName(), "gate$i") ){
         /*  Ordinary Cars which are going to be transfered or disaggregated  */
-        EV << "Zprava v " << simTime() << endl;
         // Obtain informations about optical signal -- wavelength and incoming port
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
         int inPort = msg->getArrivalGate()->getIndex();
@@ -67,14 +66,14 @@ void SOA::handleMessage(cMessage *msg) {
 
         /*      Disaggregation     */
         if( sw->isDisaggregation() ){
-            EV << " -> Disaggregation " << endl;
+            EV << "-> Disaggregation " << endl;
             send(ol,"disaggregation");
             return ;
         }
 
         /*      Buffering to MAC    */
         if (sw->getBuffer()) {
-            EV << " -> Buffering " << endl;
+            EV << "-> Buffering " << endl;
             send(ol, "aggregation$o",inPort);
             return;
         }
@@ -153,6 +152,7 @@ void SOA::dropSwitchingTableEntry(SOAEntry *e) {
 
 SOAEntry * SOA::findOutput(int inPort, int inWl) {
     for (int i = 0; i < switchingTable->size(); i++) {
+        if( not switchingTable->exist(i) ) continue;
         SOAEntry *se = (SOAEntry *) switchingTable->get(i);
         if (se->getInPort() == inPort and se->getInLambda() == inWl )
             return se;

@@ -215,7 +215,7 @@ void TrainAssembler::smoothTheTrain(std::vector<SchedulerUnit *> &dst) {
 void TrainAssembler::ctaTrainTruncate(std::vector<SchedulerUnit *> &dst) {
     // add extra d_s for the first car in order to give time for switching
     //dst[0]->setStart(dst[0]->getStart() + d_s);
-    EV << "CTA " << endl;
+    EV << "Curbed Train Assembly " << endl;
 
     // Smoothening process
     for (int i = 0; i < dst.size() - 1; i++) {
@@ -233,12 +233,12 @@ void TrainAssembler::ctaTrainTruncate(std::vector<SchedulerUnit *> &dst) {
            while (!queue.empty()) {
                 Payload *msg = (Payload *) queue.pop();
                 simtime_t t_inc = (simtime_t) msg->getBitLength() / C;
-                EV << msg->getDst() << " size " << t_inc;
+                EV << " + " << msg->getDst() << " size " << t_inc;
                 if (tmp_current > t_space) {
                     // there is no room so I must return Payload packet back to AQ
                     queue.remove(msg);
                     send(msg,"in$o");
-                    EV << " - drop" << endl;
+                    EV << " - return" << endl;
                     continue;
                 }
                 tmp_current_size += msg->getBitLength();
