@@ -64,6 +64,12 @@ class Routing : public cSimpleModule
      *
      */
     virtual bool canForwardHeader(int destination);
+
+    /**
+     *  Get set of reachable destinations which has OT in range up,down
+     */
+    virtual std::set<int> getDestinationsWithOt(simtime_t down, simtime_t up);
+
   private:
     std::map<int, simtime_t> OT;   // First step development, later it obsoletes by cTopolog
     std::map<int, int> outPort;

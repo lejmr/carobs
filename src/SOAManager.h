@@ -23,6 +23,7 @@
 #include <messages/CAROBSHeader_m.h>
 #include <messages/OpticalLayer_m.h>
 #include <messages/CAROBSCarHeader_m.h>
+#include <aggregationQueues.h>
 
 
 class SOAManager : public cSimpleModule
@@ -43,9 +44,9 @@ class SOAManager : public cSimpleModule
     SOA *soa;
 
     /**
-     *  Pointer for communication with MAC submodule
+     *  Pointer for communication with AQ submodule
      */
-    //CoreNodeMAC *mac;
+    AggregationQueues *AQ;
 
     /**
      *  Processing and switching time of SOAManager and SOA respectively

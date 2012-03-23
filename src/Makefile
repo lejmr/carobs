@@ -151,10 +151,12 @@ $O/CoreNodeMAC.o: CoreNodeMAC.cc \
 	SOA.h \
 	SOAEntry.h \
 	SOAManager.h \
+	aggregationQueues.h \
 	messages/CAROBSCarHeader_m.h \
 	messages/CAROBSHeader_m.h \
 	messages/MACContainer_m.h \
 	messages/OpticalLayer_m.h \
+	messages/Payload_m.h \
 	messages/car_m.h \
 	messages/schedulerUnit_m.h \
 	routing.h
@@ -173,9 +175,12 @@ $O/SOA.o: SOA.cc \
 	SOA.h \
 	SOAEntry.h \
 	SOAManager.h \
+	aggregationQueues.h \
 	messages/CAROBSCarHeader_m.h \
 	messages/CAROBSHeader_m.h \
 	messages/OpticalLayer_m.h \
+	messages/Payload_m.h \
+	messages/car_m.h \
 	routing.h
 $O/SOAEntry.o: SOAEntry.cc \
 	SOAEntry.h
@@ -184,10 +189,12 @@ $O/SOAManager.o: SOAManager.cc \
 	SOA.h \
 	SOAEntry.h \
 	SOAManager.h \
+	aggregationQueues.h \
 	messages/CAROBSCarHeader_m.h \
 	messages/CAROBSHeader_m.h \
 	messages/MACContainer_m.h \
 	messages/OpticalLayer_m.h \
+	messages/Payload_m.h \
 	messages/car_m.h \
 	messages/schedulerUnit_m.h \
 	routing.h

@@ -76,6 +76,9 @@ void MAC::handleMessage(cMessage *msg)
             // Send the car onto proper wl at proper time
             sendDelayed(OC, t0 + su->getStart(), "out", out);
             //EV << "car "<< su->getDst() <<" at"<< t0+su->getStart() << " length: " << su->getLength() << endl;
+
+            // Drop the SchedulerUnit - it is empty now
+            delete su;
         }
 
         // Schedule portScheduled entry to be set up and torn down
@@ -89,6 +92,8 @@ void MAC::handleMessage(cMessage *msg)
         down->par("TeardownOutputPortWL").setPointerValue(me);
         scheduleAt(to_time+guardTime, down);
 
+        // Drop the MACContainer - it is empty now and not needed.
+        delete MAC;
     }
 
     if( msg->isSelfMessage() and msg->hasPar("TeardownOutputPortWL") ){

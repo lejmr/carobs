@@ -29,6 +29,7 @@ void TrainAssembler::initialize() {
 
     // Hard-coded datarte
     C = par("datarate").doubleValue();
+    CTA = par("CTA").boolValue();
 
     // Making link for communication with Routing module
     cModule *calleeModule = getParentModule()->getSubmodule("routing");
@@ -79,9 +80,11 @@ void TrainAssembler::handleMessage(cMessage *msg) {
     if (msg->hasPar("allCarsHaveBeenSend")) {
         // Initialise process of ordering and sending
         int TSId = msg->par("allCarsHaveBeenSend").longValue();
-        EV << "Prisel uvolnovaci paket " << TSId << endl;
+        EV << "Release packet has arrived for AP with rand ID=" << TSId << endl;
         prepareTrain(TSId);
         delete msg;
+        // Drop information about released AP
+        schedulerCAR.erase(TSId);
     }
 }
 
@@ -97,6 +100,9 @@ void TrainAssembler::prepareTrain(int TSId) {
 
     // Sort cars according the OT for further car assignement into a train
     bubbleSort(dst);
+
+    // Apply the CTA if set on
+    if( CTA ) ctaTrainTruncate(dst);
 
     // Make the train dense
     smoothTheTrain(dst);
@@ -142,10 +148,16 @@ void TrainAssembler::prepareTrain(int TSId) {
     while (!dst.empty()) {
         SchedulerUnit *tmp = dst.back();
         dst.pop_back();
-        EV << " + " <<tmp->getDst()<<"OT="<<tmp->getOt()<<" starts: "<<tmp->getStart()<<"-"<<tmp->getEnd()<<"="<<tmp->getLength()<<"("<<tmp->getLengthB()<<"B)"<<endl;
+        EV << " + " <<tmp->getDst()<<"OT="<<tmp->getOt();
+        EV << "..EOT="<<tmp->getEOT();
+        EV <<" starts: "<<tmp->getStart()<<"-"<<tmp->getEnd()<<"="<<tmp->getLength()<<"("<<tmp->getLengthB()<<"B)"<<endl;
         schedulerCAR[TSId].remove(tmp);
         MAC->getCars().insert(tmp);
     }
+
+    // Do not show in inspector TKenv
+    MAC->getCars().removeFromOwnershipTree();
+    H->getCars().removeFromOwnershipTree();
 
     // Sending MAC Packet to MAC controller which will take care of sending
     send(MAC, "out");
@@ -180,14 +192,12 @@ void TrainAssembler::smoothTheTrain(std::vector<SchedulerUnit *> &dst) {
         if (dst[i]->getEnd() < dst[i + 1]->getStart() - d_s) {
             // Big gap between c_1 <----> c_2 -- c_1 must be given by EOT
             dst[i]->setEnd(dst[i + 1]->getStart() - d_s);
-            dst[i]->setStart(
-                    dst[i + 1]->getStart() - d_s - dst[i]->getLength());
+            dst[i]->setStart(dst[i + 1]->getStart() - d_s - dst[i]->getLength());
             dst[i]->setEOT(dst[i]->getStart() - dst[i]->getOt());
             if (i > 0) {
                 for (int j = i; j >= 0; j--) {
                     dst[j]->setEnd(dst[j + 1]->getStart() - d_s);
-                    dst[j]->setStart(
-                            dst[j + 1]->getStart() - d_s - dst[j]->getLength());
+                    dst[j]->setStart(dst[j + 1]->getStart() - d_s - dst[j]->getLength());
                     dst[j]->setEOT(dst[j]->getStart() - d_s - dst[j]->getOt());
                 }
             }
@@ -196,9 +206,60 @@ void TrainAssembler::smoothTheTrain(std::vector<SchedulerUnit *> &dst) {
         if (dst[i]->getEnd() > dst[i + 1]->getStart() - d_s) {
             // The gap is not big enough c_1 <----> c_2 -- c_1 must be given by EOT
             dst[i + 1]->setStart(dst[i]->getEnd() + d_s);
-            dst[i + 1]->setEnd(
-                    dst[i]->getEnd() + d_s + dst[i + 1]->getLength());
+            dst[i + 1]->setEnd(dst[i]->getEnd() + d_s + dst[i + 1]->getLength());
             dst[i + 1]->setEOT(dst[i + 1]->getStart() - dst[i + 1]->getOt());
         }
     }
+}
+
+void TrainAssembler::ctaTrainTruncate(std::vector<SchedulerUnit *> &dst) {
+    // add extra d_s for the first car in order to give time for switching
+    //dst[0]->setStart(dst[0]->getStart() + d_s);
+    EV << "CTA " << endl;
+
+    // Smoothening process
+    for (int i = 0; i < dst.size() - 1; i++) {
+        // Calculate the gap between two OT
+        simtime_t t_space = dst[i+1]->getOt()-dst[i]->getOt();
+
+        // Evaluate whether current car is not longer than space
+        if( dst[i]->getLength() > t_space ){
+           Car *car= (Car *) dst[i]->getEncapsulatedPacket();
+           cQueue queue = car->getPayload();
+           cQueue toSend; toSend.setName( queue.getName() );
+
+           simtime_t tmp_current=0;
+           int64_t tmp_current_size=0;
+           while (!queue.empty()) {
+                Payload *msg = (Payload *) queue.pop();
+                simtime_t t_inc = (simtime_t) msg->getBitLength() / C;
+                EV << msg->getDst() << " size " << t_inc;
+                if (tmp_current > t_space) {
+                    // there is no room so I must return Payload packet back to AQ
+                    queue.remove(msg);
+                    send(msg,"in$o");
+                    EV << " - drop" << endl;
+                    continue;
+                }
+                tmp_current_size += msg->getBitLength();
+                tmp_current += t_inc;
+                toSend.insert(msg);
+                EV << " - send" << endl;
+           }
+
+           // stop inspecting it in TKenv
+           queue.removeFromOwnershipTree();
+
+           // Informations about car and its scheduler container must be updated
+           car->setPayload(toSend);
+           car->setBitLength(tmp_current_size);
+           dst[i]->setBitLength(tmp_current_size);
+           dst[i]->setLength(tmp_current);
+           dst[i]->setLengthB(car->getByteLength());
+           dst[i]->setEnd( dst[i]->getStart() + tmp_current);
+//           EV << "Reduced to="<< tmp_current<<"s "<<tmp_current_size<<"b ("<<tmp_current_size/8<<"B)"<<endl;
+        }
+
+    }
+
 }

@@ -180,3 +180,23 @@ bool Routing::canForwardHeader(int destination){
 
     return true;
 }
+
+std::set<int> Routing::getDestinationsWithOt(simtime_t down, simtime_t up){
+
+    EV << "dorazovacka na "<<down<<" - "<<up <<endl;
+    std::set<int> tmp;
+    std::map<int, simtime_t>::iterator it;
+    for ( it=OT.begin() ; it != OT.end(); it++ ){
+        EV << (*it).first << " => " << (*it).second;
+
+        if( (*it).second>=down and (*it).second<up ){
+            EV << "Kandidat";
+            tmp.insert( (*it).first );
+        }
+
+        EV << endl;
+    }
+
+
+    return tmp;
+}

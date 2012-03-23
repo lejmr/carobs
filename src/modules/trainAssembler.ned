@@ -26,10 +26,11 @@ simple TrainAssembler
         double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
         double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
         double datarate= default(1Gbps) @unit(bps);	// Datarate
+        bool   CTA = default(false);	// Turns Curbet train algorithm reducing E-to-E delay
         
     @display("i=block/join,#FF8000");
     gates:
-        input in;
+        inout in;
         output out;
 }
 

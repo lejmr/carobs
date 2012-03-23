@@ -29,6 +29,8 @@ class SOA : public cSimpleModule
   protected:
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
+    virtual void finish();
+
   private:
     cArray *switchingTable;
     /**
@@ -39,6 +41,11 @@ class SOA : public cSimpleModule
 
     virtual SOAEntry * findOutput(int inPort, int inWl);
     virtual void addpSwitchingTableEntry(SOAEntry *e);
+
+    cOutVector switched, dropped;
+    int64_t incm, drpd;
+
+
 
 
   public:

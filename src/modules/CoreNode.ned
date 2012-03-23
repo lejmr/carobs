@@ -111,7 +111,7 @@ module CoreNode
 
         soa.disaggregation --> disaggregation.in++;
 
-        AQ.out --> TA.in;
+        AQ.out <--> TA.in;
         TA.out --> MAC.in;
         MAC.control --> soaManager.aggregation;
 }

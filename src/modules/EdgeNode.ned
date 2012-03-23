@@ -64,7 +64,7 @@ module EdgeNode
 
     connections:
         INT.outgoing --> AQ.in;
-        AQ.out --> TA.in;
+        AQ.out <--> TA.in;
         co.out --> INT.incoming;
         for i=0..sizeof(gate)-1 {
             MAC.out[i] --> gate$o[i];

@@ -146,6 +146,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         train_start = simTime() + H->getOT() + tmpc->getD_c();
         train_length = train_length - tmpc->getD_c();
         EV << "disaggregate start=" << simTime() + H->getOT() << " stop=" << train_start - d_s << " length=" << tmpc->getD_c() - d_s << endl;
+        simtime_t c0 = tmpc->getD_c();
 
         // Remove CAR Header from CAROBS Header of this disaggregated car
         CAROBSCarHeader *tmpc2 = (CAROBSCarHeader *) cars.get(NoToDis);
@@ -160,6 +161,14 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         soa->assignSwitchingTableEntry(se, H->getOT() - d_s, tmpc->getD_c() - d_s);
         scheduling.add(se);
         //TODO: inform AQ that there is a time window  //simTime()+H->getOT()-d_s// to //c_n_start//
+
+        // Data that can be accomodated into the new space
+        std::set<int> dsts= R->getDestinationsWithOt( H->getOT()-d_p, H->getOT()+c0-d_p);
+        if( dsts.size() == 0 ){
+            EV << "No destination can be reached with OT=["<<H->getOT()-d_p<<","<<H->getOT()+c0-d_p<<"]"<<endl;
+        }else{
+            EV << "Some destination can be reached lets find whether there are data"<<endl;
+        }
     }
 
     EV << "train start=" << train_start << " stop=" << train_stop << " length=" << train_length << endl;
@@ -187,7 +196,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // Add Switching Entry to SOA a SOAManager scheduler
     sef->setStart(train_start+d_w_extra);
     sef->setStop(train_stop+d_w_extra);
-    soa->assignSwitchingTableEntry(sef, d_w_extra+train_start - d_s, train_length);
+    soa->assignSwitchingTableEntry(sef, d_w_extra+train_start-d_s-simTime(), train_length);
 
     // Update of OT for continuing car train
     H->setOT(H->getOT()-d_p);
@@ -318,6 +327,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     // ! NO WC
     // table row: outputPort & outputWL -> time the outputWL is ready to be used again
     for (int i = 0; i < scheduling.size(); i++) {
+        if( scheduling[i] == NULL ) { continue; EV << "invalid2" << endl;}
         SOAEntry *tmp = (SOAEntry *) scheduling[i];
 
         // Do the find only for One output port OutPort
@@ -411,9 +421,9 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     return e_out;
 }
 
-bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start,
-        simtime_t stop) {
+bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, simtime_t stop) {
     for (int i = 0; i < scheduling.size(); i++) {
+        if( scheduling[i] == NULL ) { continue; EV << "invalid3" << endl;}
         SOAEntry *tmp = (SOAEntry *) scheduling[i];
 
         if (tmp->getOutLambda() == outWL and tmp->getOutPort() == outPort) {
@@ -474,6 +484,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
     // Make a map of spaces for all WLs
     std::map<int, simtime_t> fitting;
     for (int i = 0; i < scheduling.size(); i++) {
+        if( scheduling[i] == NULL ) { continue; EV << "invalid" << endl;}
         SOAEntry *tmp = (SOAEntry *) scheduling[i];
 
         // Do the find only for One output port OutPort
@@ -512,6 +523,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         std::map<int, simtime_t> times;
         // table row: outputPort & outputWL -> time the outputWL is ready to be used again
         for (int i = 0; i < scheduling.size(); i++) {
+            if( scheduling[i] == NULL ) { continue; EV << "invalid1" << endl;}
             SOAEntry *tmp = (SOAEntry *) scheduling[i];
 
             // Do the find only for One output port OutPort

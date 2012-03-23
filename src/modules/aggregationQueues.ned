@@ -26,7 +26,7 @@ simple AggregationQueues
         @display("i=block/classifier");
     gates:
         input in;
-        output out;
+        inout out;
 }
 
 simple Merge

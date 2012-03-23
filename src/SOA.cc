@@ -28,6 +28,10 @@ void SOA::initialize() {
 
     //switchingTable = new cQueue("switchingTable");
     switchingTable = new cArray("switchingTable");
+
+    switched.setName("Incoming bursts");
+    dropped.setName("Dropped bursts");
+    incm=0; drpd=0;
 }
 
 void SOA::handleMessage(cMessage *msg) {
@@ -87,6 +91,7 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Sending to output port
             send(ol, "gate$o", sw->getOutPort());
+            incm++; switched.record(incm);
         }
     }
 
@@ -154,5 +159,13 @@ SOAEntry * SOA::findOutput(int inPort, int inWl) {
     }
 
     // Nothing found.. butst is going to be lost
+    drpd++; dropped.record(drpd);
     return new SOAEntry(0, 1, -1, -1);
+}
+
+
+void SOA::finish() {
+    recordScalar("Total switched bursts", incm);
+    recordScalar("Total dropped bursts", drpd);
+    recordScalar("Loss probability", (double) drpd/(drpd+incm));
 }

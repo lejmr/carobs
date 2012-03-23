@@ -136,27 +136,32 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
             car->par("TSId").setLongValue(TSId);
         }
 
-        // Drop the queue and its scheduled initiation
-        AQ.erase(*it);
-        AQSizeCache.erase(*it);
-
         cMessage *msg= scheduled[*it];
         if ( msg != NULL and msg->isSelfMessage() and msg->isScheduled() ){
             delete cancelEvent(msg);
         }
         scheduled.erase(*it);
 
+        // Do not show cQueue of leaving car
+        car->getPayload().removeFromOwnershipTree();
+
         // Update AQSizeCache
         countAggregationQueueSize(*it);
 
+        // Drop the queue and its scheduled initiation
+        AQ.erase(*it);
+        AQSizeCache.erase(*it);
+
         // Sends car of the queue to TA
-        send(car,"out");
+        send(car,"out$o");
     }
 
     cMessage *snd = new cMessage();
     snd->addPar("allCarsHaveBeenSend");
     snd->par("allCarsHaveBeenSend").setLongValue(TSId);
-    send(snd,"out");
+    send(snd,"out$o");
 }
 
-void AggregationQueues::setAggregationQueueReleaseTime( int AQid, simtime_t release_time ){}
+void AggregationQueues::setAggregationQueueReleaseTime( int AQid, simtime_t release_time ){
+
+}
