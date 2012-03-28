@@ -49,7 +49,7 @@ network Europe
             @display("p=1090,953");
         }
         Copenhagen: CoreNode {
-            @display("p=812,358");
+            @display("p=764,378");
         }
         Dublin: CoreNode {
             @display("p=186,448");
@@ -79,7 +79,7 @@ network Europe
             @display("p=812,924");
         }
         Oslo: CoreNode {
-            @display("p=865,217");
+            @display("p=715,241");
         }
         Paris: CoreNode {
             @display("p=462,924");
@@ -91,7 +91,7 @@ network Europe
             @display("p=773,1255");
         }
         Stockholm: CoreNode {
-            @display("p=969,306");
+            @display("p=915,266");
         }
         Strasbourg: CoreNode {
             @display("p=635,914");
@@ -100,7 +100,7 @@ network Europe
             @display("p=960,943");
         }
         Warsaw: CoreNode {
-            @display("p=1062,560");
+            @display("p=1043,599");
         }
         Zagreb: CoreNode {
             @display("p=954,1150");
