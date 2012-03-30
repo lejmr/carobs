@@ -33,7 +33,9 @@ class MAC : public cSimpleModule
 {
   protected:
     virtual void initialize();
+    virtual void finish();
     virtual void handleMessage(cMessage *msg);
+    //virtual void numberOfWavelengthsUsed();
 
   private:
     /**
@@ -63,6 +65,9 @@ class MAC : public cSimpleModule
     cArray portScheduled;
 
     simtime_t guardTime;
+    cOutVector avg_delay;
+    int64_t burst_send;
+    cOutVector wls;
 };
 
 #endif

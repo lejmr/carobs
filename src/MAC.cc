@@ -27,6 +27,10 @@ void MAC::initialize()
     cModule *calleeModule = getParentModule()->getSubmodule("routing");
     R = check_and_cast<Routing *>(calleeModule);
 
+    //  Statistics
+    avg_delay.setName("Aggregation delay");
+    wls.setName("Used wavelengths");
+    burst_send = 0;
 }
 
 void MAC::handleMessage(cMessage *msg)
@@ -45,6 +49,7 @@ void MAC::handleMessage(cMessage *msg)
         int out= R->getOutputPort( dst );
         output_t wlwt = getOutput( out, H->getOT() );
         simtime_t t0 = wlwt.t;
+        avg_delay.record(t0);
 
         // Set Wavelength to CARBOS Header once we know it
         H->setWL( wlwt.WL );
@@ -73,12 +78,19 @@ void MAC::handleMessage(cMessage *msg)
 
             OC->setSchedulingPriority(10);
             EV<<" + Sending car to "<<su->getDst() <<" at "<< t0 + su->getStart()+simTime()<<" of length="<<su->getLength()<<endl;
+
+            // Set quite high number for lowering message priority.. Since this is EDS a number of
+            // events can happen at one moment. Burst has lower priority than ActivateSwitchingTableEntry in SOA
+            OC->setSchedulingPriority(10);
+
             // Send the car onto proper wl at proper time
             sendDelayed(OC, t0 + su->getStart(), "out", out);
             //EV << "car "<< su->getDst() <<" at"<< t0+su->getStart() << " length: " << su->getLength() << endl;
 
             // Drop the SchedulerUnit - it is empty now
             delete su;
+
+            burst_send++;
         }
 
         // Schedule portScheduled entry to be set up and torn down
@@ -112,6 +124,7 @@ output_t MAC::getOutput(int port, simtime_t ot){
         output_t t;
         t.WL = 1;   // FIFO, Might be changed to something different
         t.t = 0.0;
+        wls.record(0);
         return t;
     }
 
@@ -169,4 +182,8 @@ output_t MAC::getOutput(int port, simtime_t ot){
     t.WL = WL;   // FIFO, Might be changed to something different
     t.t = waiting;
     return t;
+}
+
+void MAC::finish(){
+    recordScalar("Burst Send", burst_send);
 }

@@ -53,6 +53,7 @@ void RoutingTable::initialize()
 }
 
 std::set<int> RoutingTable::getLocalIDs(){
+    Enter_Method("getLocalIDs()");
     return localIDs;
 }
 

@@ -46,7 +46,13 @@ class SOA : public cSimpleModule
     int64_t incm, drpd;
 
 
-
+    /**
+     *  The number of wavelengths currently used
+     */
+    int wls;
+    cOutVector vwls;
+    int wcs;    // number of WC
+    cOutVector vwcs;
 
   public:
     virtual void assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len);

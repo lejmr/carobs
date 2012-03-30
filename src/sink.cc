@@ -19,10 +19,48 @@ Define_Module(Sink);
 
 void Sink::initialize()
 {
-    // TODO - Generated method body
+    received=0;
+    total_delay = 0;
+    avg_delay.setName("End-to-End delay");
 }
 
 void Sink::handleMessage(cMessage *msg)
 {
-    // TODO - Generated method body
+    Payload *pl = dynamic_cast<Payload *>(msg);
+    simtime_t delay = simTime()-pl->getT0();
+    int src = pl->getSrc();
+
+    if (counts.find(src) == counts.end())
+        counts[src] = 0;
+    counts[src]++;
+
+    if (vects.find(src) == vects.end()){
+        vects[src]= new cOutVector();
+        std::stringstream out;
+        out << "End-to-End Delay from " << src;
+        vects[src]->setName( out.str().c_str() );
+    }
+
+    vects[src]->record(delay);
+    avg_delay.record(delay);
+    received++;
+    total_delay += delay;
+
+    delete msg;
+}
+
+void Sink::finish(){
+    recordScalar("Simulation duration", simTime());
+
+    recordScalar("Received packets", received);
+    if( received != 0 ) recordScalar("Average delay", total_delay/received);
+    else recordScalar("Average delay", 0 );
+
+    std::map<int,int>::iterator it;
+    for(it=counts.begin();it!=counts.end();it++){
+        std::stringstream out;
+        out << "Received from " << (*it).first;
+        recordScalar(out.str().c_str(), (*it).second);
+    }
+
 }

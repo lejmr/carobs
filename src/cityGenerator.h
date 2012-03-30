@@ -13,26 +13,32 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef __CAROBS_GENERATOR_H_
-#define __CAROBS_GENERATOR_H_
+#ifndef __CAROBS_CityGENERATOR_H_
+#define __CAROBS_CityGENERATOR_H_
 
 #include <omnetpp.h>
-#include <routingTable.h>
+#include <messages/Payload_m.h>
 
-class Generator : public cSimpleModule
+class CityGenerator : public cSimpleModule
 {
   protected:
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
 
   private:
-    int myMinID;
-    int myMaxID;
-    int dstPerm;
+    int src;
+    int64_t n;
+    std::vector<double> demads;
 
-    long amount;
+    /**
+     *  Hardcoded datarate
+     */
+    int64_t C;
 
-    RoutingTable *RT;
+    std::map<int,int> counts;
+
+    virtual void sendAmount(int amount, int src, int dst, double lambda, int length);
+
 };
 
 #endif

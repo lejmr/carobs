@@ -22,7 +22,7 @@ package carobs.modules;
 module CoreNode
 {
     parameters:
-        int address = default(uniform(1, 1000));	// TODO: watchout mi overlap 
+        int address = default(uniform(1000, 2000));	// TODO: watchout mi overlap 
         double d_p @unit(s) = default(10ms);	// Processing time of SOA Manager
         double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
         bool WC = default(true);				// Wavelength conversion 

@@ -14,7 +14,7 @@ USERIF_LIBS = $(ALL_ENV_LIBS) # that is, $(TKENV_LIBS) $(CMDENV_LIBS)
 #USERIF_LIBS = $(TKENV_LIBS)
 
 # C++ include paths (with -I)
-INCLUDE_PATH = -I. -Imessages -Imodules
+INCLUDE_PATH = -I. -Ilink -Imessages -Imodules
 
 # Additional object and library files to link with
 EXTRA_OBJS =
@@ -31,6 +31,7 @@ O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 OBJS = \
     $O/aggregationPoolManager.o \
     $O/aggregationQueues.o \
+    $O/cityGenerator.o \
     $O/CoreNodeMAC.o \
     $O/deMux.o \
     $O/generator.o \
@@ -110,16 +111,14 @@ endif
 #------------------------------------------------------------------------------
 
 # Main target
-all: $(TARGET)
-
-$(TARGET) : $O/$(TARGET)
+all: $O/$(TARGET)
 	$(LN) $O/$(TARGET) .
 
 $O/$(TARGET): $(OBJS)  $(wildcard $(EXTRA_OBJS)) Makefile
 	@$(MKPATH) $O
 	$(CXX) $(LDFLAGS) -o $O/$(TARGET)  $(OBJS) $(EXTRA_OBJS) $(AS_NEEDED_OFF) $(WHOLE_ARCHIVE_ON) $(LIBS) $(WHOLE_ARCHIVE_OFF) $(OMNETPP_LIBS)
 
-.PHONY:
+.PHONY: all clean cleanall depend msgheaders
 
 .SUFFIXES: .cc
 
@@ -136,6 +135,7 @@ clean:
 	-rm -rf $O
 	-rm -f carobs carobs.exe libcarobs.so libcarobs.a libcarobs.dll libcarobs.dylib
 	-rm -f ./*_m.cc ./*_m.h
+	-rm -f link/*_m.cc link/*_m.h
 	-rm -f messages/*_m.cc messages/*_m.h
 	-rm -f modules/*_m.cc modules/*_m.h
 
@@ -143,7 +143,7 @@ cleanall: clean
 	-rm -rf $(PROJECT_OUTPUT_DIR)
 
 depend:
-	$(MAKEDEPEND) $(INCLUDE_PATH) -f Makefile -P\$$O/ -- $(MSG_CC_FILES)  ./*.cc messages/*.cc modules/*.cc
+	$(MAKEDEPEND) $(INCLUDE_PATH) -f Makefile -P\$$O/ -- $(MSG_CC_FILES)  ./*.cc link/*.cc messages/*.cc modules/*.cc
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 $O/CoreNodeMAC.o: CoreNodeMAC.cc \
@@ -210,6 +210,9 @@ $O/aggregationQueues.o: aggregationQueues.cc \
 	messages/Payload_m.h \
 	messages/car_m.h \
 	routing.h
+$O/cityGenerator.o: cityGenerator.cc \
+	cityGenerator.h \
+	messages/Payload_m.h
 $O/deMux.o: deMux.cc \
 	deMux.h \
 	messages/OpticalLayer_m.h
@@ -233,6 +236,7 @@ $O/routing.o: routing.cc \
 $O/routingTable.o: routingTable.cc \
 	routingTable.h
 $O/sink.o: sink.cc \
+	messages/Payload_m.h \
 	sink.h
 $O/trainAssembler.o: trainAssembler.cc \
 	messages/CAROBSCarHeader_m.h \

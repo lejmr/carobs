@@ -17,7 +17,7 @@
 #define __CAROBS_SINK_H_
 
 #include <omnetpp.h>
-
+#include <messages/Payload_m.h>
 /**
  * TODO - Generated class
  */
@@ -25,7 +25,15 @@ class Sink : public cSimpleModule
 {
   protected:
     virtual void initialize();
+    virtual void finish();
     virtual void handleMessage(cMessage *msg);
+    int64_t received;
+    simtime_t total_delay;
+
+    std::map<int,int> counts;
+    std::map<int,cOutVector *> vects;
+    cOutVector avg_delay;
+
 };
 
 #endif

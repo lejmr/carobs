@@ -25,6 +25,8 @@ void CoreNodeMAC::initialize() {
 
     // Statistics and Watchers
     bufferSize.setName("Buffer Usage [B]"); // How much RAM do we need?
+    avg_delay.setName("Aggregation delay");
+    burst_send = 0;
     WATCH(capacity);
 }
 
@@ -119,6 +121,12 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     int WL = 0;
     int outPort=0;
     simtime_t t0 = SM->getAggregationWaitingTime(dst, H->getOT(), H->getLength(), WL, outPort);
+    avg_delay.record(t0);
+
+    if( outPort == -1 ){
+        EV << "Unable to find output path" << endl;
+        return ;
+    }
 
     // Set wavelength of Car train to CAROBS header
     H->setWL(WL);
@@ -151,6 +159,9 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         EV << " + Sending car to " << su->getDst() << " at " << t0 + su->getStart() << " of length=" << su->getLength() << endl;
         // Send the car onto proper wl at proper time
         sendDelayed(OC, t0 + su->getStart(), "soa$o", outPort);
+
+        // Statistics
+        burst_send++;
     }
 
 }
@@ -161,4 +172,8 @@ void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
     bufferedSOAe.add(e);
     waitings[e]= wait;
     usage[e]= 0;
+}
+
+void CoreNodeMAC::finish(){
+    recordScalar("Burst send", burst_send);
 }

@@ -17,6 +17,7 @@ class SOAEntry : public cPolymorphic
     bool disaggregation_var;
     bool buffer_var;
     bool buffer_in_var;
+    bool aoswitch_var;
 
     // protected and unimplemented operator==(), to prevent accidental usage
     bool operator==(const SOAEntry&);
@@ -52,6 +53,7 @@ class SOAEntry : public cPolymorphic
     void setBuffer(bool buffer_var){this->buffer_var = buffer_var;};
     void setInBuffer(){this->buffer_in_var = true;};
     void setOutBuffer(){this->buffer_in_var = false;};
+    bool getAOSwitch() const {return aoswitch_var;};
 };
 
 #endif // _LABELINFORMATIONBASEENTRY_M_H_

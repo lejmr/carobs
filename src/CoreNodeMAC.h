@@ -27,6 +27,7 @@ class CoreNodeMAC : public cSimpleModule
 {
   protected:
     virtual void initialize();
+    virtual void finish();
     virtual void handleMessage(cMessage *msg);
   private:
 
@@ -51,6 +52,8 @@ class CoreNodeMAC : public cSimpleModule
      *  Statistics of buffer use
      */
     cOutVector bufferSize;
+    cOutVector avg_delay;
+    int64_t burst_send;
 
   public:
 

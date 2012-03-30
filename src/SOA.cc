@@ -32,14 +32,22 @@ void SOA::initialize() {
     switched.setName("Incoming bursts");
     dropped.setName("Dropped bursts");
     incm=0; drpd=0;
+
+    // Wavelength statistics
+    wls=0;
+    vwls.setName("Number of WL used");
+    wcs=0;
 }
 
 void SOA::handleMessage(cMessage *msg) {
 
+    // Set quite high number for lowering message priority.. Since this is EDS a number of
+    // events can happen at one moment. Burst has lower priority than ActivateSwitchingTableEntry in SOA
+    msg->setSchedulingPriority(10);
+
     if (msg->isSelfMessage() and msg->hasPar("ActivateSwitchingTableEntry")) {
         /*  Self-message for adding of switching entry */
-        SOAEntry *tse =
-                (SOAEntry *) msg->par("ActivateSwitchingTableEntry").pointerValue();
+        SOAEntry *tse = (SOAEntry *) msg->par("ActivateSwitchingTableEntry").pointerValue();
 
         // Add SwitchingTableEntry
         addpSwitchingTableEntry(tse);
@@ -57,6 +65,7 @@ void SOA::handleMessage(cMessage *msg) {
     if( !strcmp(msg->getArrivalGate()->getName(), "gate$i") ){
         /*  Ordinary Cars which are going to be transfered or disaggregated  */
         // Obtain informations about optical signal -- wavelength and incoming port
+        msg->setSchedulingPriority(10);
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
         int inPort = msg->getArrivalGate()->getIndex();
         int inWl = ol->getWavelengthNo();
@@ -107,21 +116,12 @@ void SOA::handleMessage(cMessage *msg) {
 }
 
 void SOA::addpSwitchingTableEntry(SOAEntry *e){
-
     EV << " ADD " << e->info() << endl;
 
-    /*
-    bool add= true;
-    for (int i = 0; i < switchingTable->size(); i++) {
-        SOAEntry *se = (SOAEntry *) switchingTable->get(i);
-        if( not se->valid ) continue;
-        if (se->getOutPort() == e->getOutPort() and se->getInLambda() == e->getInLambda()){
-            add= false;
-            break;
-        }
-    }*/
+    if( e->getAOSwitch() and e->getInLambda() != e->getOutLambda() ) wcs++;
 
-
+    // Reserve WL if it is not buffered
+    if( !e->getBuffer() and !e->isDisaggregation() ) vwls.record(++wls);
     switchingTable->add(e);
 }
 
@@ -147,6 +147,9 @@ void SOA::dropSwitchingTableEntry(SOAEntry *e) {
     sm->dropSwitchingTableEntry(e);
 
     EV << " DROP " << e->info() << endl;
+
+    // Reserve WL if it is not buffered
+    if( !e->getBuffer() and !e->isDisaggregation() ) vwls.record(--wls);
     delete switchingTable->remove(e);
 }
 
@@ -168,4 +171,5 @@ void SOA::finish() {
     recordScalar("Total switched bursts", incm);
     recordScalar("Total dropped bursts", drpd);
     recordScalar("Loss probability", (double) drpd/(drpd+incm));
+    recordScalar("Wavelength conversion used", wcs);
 }
