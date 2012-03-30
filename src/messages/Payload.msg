@@ -19,4 +19,5 @@
 packet Payload {
     int src;
     int dst;
+    simtime_t t0;
 }
