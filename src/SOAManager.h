@@ -116,6 +116,11 @@ class SOAManager : public cSimpleModule
      */
     int64_t C;
 
+    /**
+     *  Statistics
+     */
+
+
   public:
     /**
      *  When the SOAEntry is not needed SOA informas SOAManager to tear it down through

@@ -37,12 +37,20 @@ void CityGenerator::initialize()
         opp_error("Error opening routing table file `%s'", filename);
 
     std::string line;
-    for(int i=0;i<src;i++)
+    for(int i=0;i<src;i++){
         getline(infile,line);
-    demads = cStringTokenizer( line.c_str() , ",").asDoubleVector();
-    WATCH_VECTOR(demads);
-    // Lets generate something
+        // Because of unix line end notation..
+        if (!line.empty() && line[line.size() - 1] == '\r')
+            line.erase(line.size() - 1);
+    }
 
+    // Resolving which char is delimiter
+    char *del = ",";
+    if( line.find(',') == std::string::npos )
+        del = ";";
+    else demads = cStringTokenizer( line.c_str() , del ).asDoubleVector();
+
+    WATCH_VECTOR(demads);
 
     // Initialise sending
     if (par("send").boolValue()) {
@@ -68,12 +76,16 @@ void CityGenerator::handleMessage(cMessage *msg)
             if( dst == src ) continue;
             double demand= (*it)*alpha;
             if( demand == 0 ) continue;
+
+            // First arrival time
+            arrivals[dst]=simTime();
+
             EV << "Preparing "<<n<<" payload packets to " << dst << " with demand "<<demand <<"Gbps"<< endl;
             // Mean time between incomens of the demands .. based on A= lambda*mu
             // mu = lenghtB*8 / C  - Where lengthB is mean value of length and C is bitrate in bps
             // demand/C - in conversion of traffic matrix into Erlang notation
             double lambda= demand/C*1e9 * length/C;
-
+            EV << "lambda="<<lambda <<endl;
             int sent= 0;
             while( sent+step <= n ){
                 cMessage *t = new cMessage();
@@ -122,13 +134,14 @@ void CityGenerator::handleMessage(cMessage *msg)
 
 void CityGenerator::sendAmount(int amount, int src, int dst, double lambda, int length){
     for (int i = 0; i < amount; i++) {
-        simtime_t gap = poisson(lambda);
+        simtime_t gap = exponential(lambda);
+        arrivals[dst]+=gap;
         Payload *pl = new Payload();
         pl->setBitLength(length);
         pl->setDst(dst);
         pl->setSrc(src);
-        pl->setT0(simTime() + gap);
-        scheduleAt(simTime() + gap, pl);
-        EV << " + " << src << "->" << dst << " (" << length / 8 << "B): " << simTime() + gap << endl;
+        pl->setT0(arrivals[dst]);
+        scheduleAt(arrivals[dst], pl);
+        EV << " + " << src << "->" << dst << " (" << length / 8 << "B): " << arrivals[dst] << endl;
     }
 }

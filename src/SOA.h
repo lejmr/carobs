@@ -53,6 +53,7 @@ class SOA : public cSimpleModule
     cOutVector vwls;
     int wcs;    // number of WC
     cOutVector vwcs;
+    int bigOT;  // If OT goes to the past
 
   public:
     virtual void assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len);

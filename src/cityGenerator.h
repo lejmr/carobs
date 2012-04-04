@@ -38,6 +38,7 @@ class CityGenerator : public cSimpleModule
     std::map<int,int> counts;
 
     virtual void sendAmount(int amount, int src, int dst, double lambda, int length);
+    std::map<int,simtime_t> arrivals;
 
 };
 

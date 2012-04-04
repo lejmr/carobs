@@ -22,6 +22,12 @@ void Sink::initialize()
     received=0;
     total_delay = 0;
     avg_delay.setName("End-to-End delay");
+
+    if( getParentModule()->hasPar("address"))
+        address = getParentModule()->par("address").longValue();
+    else{
+        address = par("myMinID").longValue();
+    }
 }
 
 void Sink::handleMessage(cMessage *msg)
@@ -46,6 +52,16 @@ void Sink::handleMessage(cMessage *msg)
     received++;
     total_delay += delay;
 
+    // Misdelivered packets statistics
+    int dst = pl->getDst();
+    if( dst != address ){
+        if( misdelivered.find(dst) == misdelivered.end( ))
+            misdelivered[dst]=0;
+        misdelivered[dst]++;
+
+        EV << "MISDELIVERY from " << pl->getSrc() << " to " << pl->getDst() << endl;
+    }
+
     delete msg;
 }
 
@@ -56,11 +72,26 @@ void Sink::finish(){
     if( received != 0 ) recordScalar("Average delay", total_delay/received);
     else recordScalar("Average delay", 0 );
 
+    int received=0;
     std::map<int,int>::iterator it;
     for(it=counts.begin();it!=counts.end();it++){
         std::stringstream out;
         out << "Received from " << (*it).first;
-        recordScalar(out.str().c_str(), (*it).second);
+        //recordScalar(out.str().c_str(), (*it).second);
+        received += (*it).second;
     }
+    recordScalar("Received", received);
+
+
+    int64_t total=0;
+    std::map<int, int64_t>::iterator it2;
+    for(it2=misdelivered.begin();it2!=misdelivered.end();it2++){
+            std::stringstream out;
+            out << "Misdelivered for " << (*it2).first;
+            recordScalar(out.str().c_str(), (*it2).second);
+            total += (*it2).second;
+    }
+    recordScalar("Total misdelivered packets", total);
+
 
 }

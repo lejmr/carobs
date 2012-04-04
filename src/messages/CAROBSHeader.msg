@@ -23,6 +23,7 @@ packet CAROBSHeader {
 	
 	// Car section
 	int N;
+	simtime_t length;	// Duration of all cars with theirs spaces d_s
 	cQueue cars;
 }
 

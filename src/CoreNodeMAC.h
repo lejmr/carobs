@@ -39,8 +39,12 @@ class CoreNodeMAC : public cSimpleModule
     /**
      *  Helper variables for waiting time and SOAEntry storing
      */
-    cArray bufferedSOAe;
+    cQueue bufferedSOAqueue;
     std::map< SOAEntry *, simtime_t> waitings;
+
+    /**
+     *  Helps to remember the number of cars which use the same SOAEntry
+     */
     std::map< SOAEntry *, int> usage;
 
     /**
@@ -54,6 +58,7 @@ class CoreNodeMAC : public cSimpleModule
     cOutVector bufferSize;
     cOutVector avg_delay;
     int64_t burst_send;
+    cOutVector wrong_output;
 
   public:
 
@@ -62,5 +67,6 @@ class CoreNodeMAC : public cSimpleModule
      *  MAC to be stored for a given time wait;
      */
     virtual void storeCar( SOAEntry *e, simtime_t wait );
+    virtual void removeCar( SOAEntry *e );
 };
 #endif

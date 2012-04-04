@@ -15,6 +15,7 @@
 
 #include "SOA.h"
 #include "SOAManager.h"
+#include "CoreNodeMAC.h"
 
 Define_Module(SOA);
 
@@ -37,6 +38,7 @@ void SOA::initialize() {
     wls=0;
     vwls.setName("Number of WL used");
     wcs=0;
+    bigOT = 0;
 }
 
 void SOA::handleMessage(cMessage *msg) {
@@ -75,31 +77,36 @@ void SOA::handleMessage(cMessage *msg) {
 
         /*      Disaggregation     */
         if( sw->isDisaggregation() ){
-            EV << "-> Disaggregation " << endl;
+            EV << "Disaggregated based on: " << sw->info() << endl;
             send(ol,"disaggregation");
             return ;
         }
 
         /*      Buffering to MAC    */
         if (sw->getBuffer()) {
-            EV << "-> Buffering " << endl;
+            EV << "Buffering based on: " << sw->info() << endl;
             send(ol, "aggregation$o",inPort);
             return;
         }
 
-        // Not disaggregated thus only switched out onto exit
-        EV << "Burst is to be switched from " << sw->info() << endl;
-
         int outPort = sw->getOutPort();
         int outWl = sw->getOutLambda();
         // Chceck whether exit is real or faked one
+
+        //  and outPort < getParentModule()->gateSize("gate")
         if (outPort >= 0 and outWl >= 0) {
+            // Not disaggregated thus only switched out onto exit
+            EV << "Burst is to be switched based on: " << sw->info() << endl;
+
             // Wavelength conversion
             ol->setWavelengthNo(sw->getOutLambda());
 
             // Sending to output port
             send(ol, "gate$o", sw->getOutPort());
             incm++; switched.record(incm);
+        }else{
+            EV << "Burst at "<<inPort<<"#"<<inWl<<" is to be dropped !!!" << endl;
+            delete msg; return;
         }
     }
 
@@ -107,25 +114,33 @@ void SOA::handleMessage(cMessage *msg) {
         /*      Cars coming from aggregation port    */
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
         int inPort = msg->getArrivalGate()->getIndex();
+        EV << "Agreguji pres port " << inPort << endl;
         if (inPort >= 0 ) {
             send(ol, "gate$o", inPort );
         }
     }
-    // TODO: take statistics because car is to be dropped
-    //delete msg;
+
 }
 
 void SOA::addpSwitchingTableEntry(SOAEntry *e){
     EV << " ADD " << e->info() << endl;
 
-    if( e->getAOSwitch() and e->getInLambda() != e->getOutLambda() ) wcs++;
+    // AOS mode and different lambdas on output and input
+    if( !e->getBuffer() and e->getInLambda() != e->getOutLambda() ) wcs++;
 
-    // Reserve WL if it is not buffered
-    if( !e->getBuffer() and !e->isDisaggregation() ) vwls.record(++wls);
+    // Reserve WL if it is not to buffer direction
+    if( not ( e->getBuffer() and e->getBufferDirection() ) ) vwls.record(++wls);
     switchingTable->add(e);
 }
 
 void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
+
+    if( simTime() + d_s + ot < simTime() ){
+        bigOT++;
+        EV << " Car train reached the Header - unable to set switching matrix" << endl;
+        return;
+    }
+
     Enter_Method("assignSwitchingTableEntry()");
     cMessage *amsg = new cMessage("ActivateSTE");
     amsg->addPar("ActivateSwitchingTableEntry");
@@ -136,15 +151,23 @@ void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
     cMessage *amsg2 = new cMessage("DeactivateSTE");
     amsg2->addPar("DeactivateSwitchingTableEntry");
     amsg2->par("DeactivateSwitchingTableEntry") = e;
-    scheduleAt(simTime() + d_s + ot + len, amsg2);
+    scheduleAt(((SOAEntry *)e)->getStop(), amsg2);
 }
 
 void SOA::dropSwitchingTableEntry(SOAEntry *e) {
     Enter_Method("dropSwitchingTableEntry()");
 
+    // Drop Entry from SOAmanager
     cModule *calleeModule = getParentModule()->getSubmodule("soaManager");
     SOAManager *sm = check_and_cast<SOAManager *>(calleeModule);
     sm->dropSwitchingTableEntry(e);
+
+    // Drop Entry from MAC if it was used
+    if( e->getBuffer() and ! e->getBufferDirection() ){
+        calleeModule = getParentModule()->getSubmodule("MAC");
+        CoreNodeMAC *mac = check_and_cast<CoreNodeMAC *>(calleeModule);
+        mac->removeCar(e);
+    }
 
     EV << " DROP " << e->info() << endl;
 
@@ -163,7 +186,7 @@ SOAEntry * SOA::findOutput(int inPort, int inWl) {
 
     // Nothing found.. butst is going to be lost
     drpd++; dropped.record(drpd);
-    return new SOAEntry(0, 1, -1, -1);
+    return new SOAEntry(-1, -1, -1, -1);
 }
 
 
@@ -172,4 +195,5 @@ void SOA::finish() {
     recordScalar("Total dropped bursts", drpd);
     recordScalar("Loss probability", (double) drpd/(drpd+incm));
     recordScalar("Wavelength conversion used", wcs);
+    recordScalar("Train reached header", bigOT );
 }

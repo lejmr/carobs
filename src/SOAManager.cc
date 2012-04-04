@@ -58,7 +58,7 @@ void SOAManager::handleMessage(cMessage *msg) {
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
 
         // Detection of optical signal -> Electrical CARBOS Header
-        CAROBSHeader *H = (CAROBSHeader *) ol->decapsulate();
+        CAROBSHeader *H = (CAROBSHeader *) ol->getEncapsulatedPacket();
 
         EV << " ! Aggregation process" << endl;
 //        int inWl = H->getWL();
@@ -73,7 +73,6 @@ void SOAManager::handleMessage(cMessage *msg) {
 //        scheduling.add(se);
 
         H->setOT(H->getOT() - d_p);
-        ol->encapsulate(H);
         if (R->canForwardHeader(H->getDst())) {
             // Resending CAROBS Header to next CoreNode
             sendDelayed(ol, d_p, "control$o", outPort);
@@ -113,11 +112,12 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         soa->assignSwitchingTableEntry(se, H->getOT()+first_car->getD_c()-d_s, H->getLength());
         scheduling.add(se);
         // And that is it, nothing more to do
+        delete msg;
         return;
     }
 
     // This node is not termination one, so we must check whether we need to disaggreate something
-    int NoToDis = 0;
+    int NoToDis = -1;
     cQueue cars = H->getCars();
     EV << "cars we have with OT=" << H->getOT() << ": " << endl;
     for (int i = 0; i < cars.length(); i++) {
@@ -140,7 +140,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     simtime_t train_stop = simTime() + H->getOT() + H->getLength();
     simtime_t train_length = H->getLength();
 
-    if (NoToDis + 1 > 0 and NoToDis + 1 < H->getN()) {
+    if (NoToDis>=0 and NoToDis + 1 < H->getN()) {
         // Count times for car-train
         CAROBSCarHeader *tmpc0 = (CAROBSCarHeader *) cars.get(NoToDis);
         CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(NoToDis + 1);
@@ -148,34 +148,23 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         train_length = train_length - tmpc->getD_c();
         simtime_t c0 = tmpc0->getD_c();
 
-        EV << "disaggregate start=" << simTime() + H->getOT()+c0 << " stop=" << train_start - d_s << " length=" << tmpc->getD_c() - d_s << endl;
+        EV << "disaggregate start=" << simTime() + H->getOT()+c0 << " stop=" << train_start - d_s << " length=" << tmpc->getD_c() - d_s -c0 << endl;
         EV << "car header: " << tmpc0->getDst() << endl;
 
         // Create disaggregation SOA instructions
         SOAEntry *se = new SOAEntry(inPort, inWl, false); // Disaggregation SOAEntry => false
         se->setStart(simTime()+H->getOT()+c0);
         se->setStop(train_start - d_s);
+        simtime_t len= train_start - d_s - simTime()+H->getOT()+c0;
+
         // Add Switching Entry to SOA a SOAManager scheduler
-        soa->assignSwitchingTableEntry(se, H->getOT()+c0- d_s, tmpc->getD_c()-d_s);
+        soa->assignSwitchingTableEntry(se, H->getOT()+c0- d_s, tmpc->getD_c()-d_s-c0);
         scheduling.add(se);
 
         // Remove CAR Header from CAROBS Header of this disaggregated car
         delete cars.remove(tmpc0);
         H->setN(cars.length());
         H->setCars(cars);
-
-        /*
-         *  This is place for a new Grooming scenario
-         *      At this point only reserver timeslot before Car-train which can be used for aggregation port
-         *
-         * //TODO: inform AQ that there is a time window  //simTime()+H->getOT()-d_s// to //c_n_start//
-        // Data that can be accomodated into the new space
-        std::set<int> dsts= R->getDestinationsWithOt( H->getOT()-d_p, H->getOT()+c0-d_p);
-        if( dsts.size() == 0 ){
-            EV << "No destination can be reached with OT=["<<H->getOT()-d_p<<","<<H->getOT()+c0-d_p<<"]"<<endl;
-        }else{
-            EV << "Some destination can be reached lets find whether there are data"<<endl;
-        } */
     }
 
     EV << "train start=" << train_start << " stop=" << train_stop << " length=" << train_length << endl;
@@ -207,6 +196,9 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
 
     // Update of OT for continuing car train
     H->setOT(H->getOT()-d_p);
+
+    // If there was changed wavelength of train Header must carry such information further
+    H->setWL(sef->getOutLambda());
 
     // Encapsulate the CAROBS Header back to OpticalLayer and send further
 //    ol->encapsulate(H);
@@ -354,10 +346,8 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
 
     if (times.find(inWL) == times.end()) {
         EV << " NO BUFFER outWL=" << inWL << endl;
-        EV
-                  << " ! Strange situation - it seems there is no scheduling for outPort="
-                  << outPort << "#" << inWL << " do not have to buffer it !"
-                  << endl;
+        EV << " ! Strange situation - it seems there is no scheduling for outPort="
+           << outPort << "#" << inWL << " do not have to buffer it !" << endl;
         SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
         e->setStart(start);
         e->setStop(stop);
@@ -396,9 +386,9 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
         }
 
         outWL = betterWL;
-        BT = tmpBT;
+        BT = tmpBT+d_s; // d_s makes time offset for SOA reconfiguration
 
-        EV << " BUFFERED=" << tmpBT << " WC->outWL=" << outWL << endl;
+        EV << " BUFFERED=" << BT << " WC->outWL=" << outWL << endl;
         //  Return the record important for outgoing car-train from buffer - this
         //  way SOAManager can assume the buffering time
     }
@@ -429,37 +419,38 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
 }
 
 bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, simtime_t stop) {
+    std::set<bool>::iterator it;
+    std::set<bool> tests;
+
     for (int i = 0; i < scheduling.size(); i++) {
-        if( scheduling[i] == NULL ) { continue; EV << "invalid3" << endl;}
+        if( scheduling[i] == NULL ) { continue;}
         SOAEntry *tmp = (SOAEntry *) scheduling[i];
 
         if (tmp->getOutLambda() == outWL and tmp->getOutPort() == outPort) {
             // There is some scheduling for my output combination, lets see whether it is overlapping
-            if (start < tmp->getStart() and stop > tmp->getStart()) {
-                // Overlap start time
-                //   in table:       |-------|
+
+            if( stop < tmp->getStart()-d_s and start < tmp->getStart()-d_s ){
+                // Overlap start time with respect to d_s
+                //   in table:           |-------|
                 //the new one:    |----|
-                return false;
+                tests.insert(true);
+                continue;
             }
 
-            if (start < tmp->getStop() and stop > tmp->getStart()) {
-                // inside of it .. body overlap
-                //   in table:       |-------|
-                //the new one:         |----|
-                return false;
+            if( start > tmp->getStop()+d_s and stop > tmp->getStop()+d_s ){
+                // Overlap start time with respect to d_s
+                //   in table:   |-------|
+                //the new one:             |----|
+                tests.insert(true);
+                continue;
             }
 
-            if (start < tmp->getStop() and stop > tmp->getStop()) {
-                // overlap stop time
-                //   in table:       |-------|
-                //the new one:            |----|
-                return false;
-            }
-
-            return true;
+            tests.insert(false);
         }
     }
-    return true;
+
+    // Returns True if here is no conflict on the output combination port#WL
+    return tests.find(false) == tests.end();
 }
 
 void SOAManager::dropSwitchingTableEntry(SOAEntry *e) {
@@ -512,17 +503,24 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         }
     }
 
+    /*
+     * TODO: use the space before burst train
     // Find WL that can accommodate CAR train
     simtime_t t0 = 0;
     bool fitted=false;
     for(int i=0;i<=maxWL;i++){
-        if( fitting[i] > OT+len ){
+        if( fitting[i] > OT+len+d_s ){
             WL=i;
             fitted=true;
-            EV << "nalezeno" << endl;
+            EV << " - fitting "<< outPort;
+            break;
         }
     }
+    fitted = false;
+    */
 
+    simtime_t t0 = 0;
+    bool fitted = false;
 
     /* If there is no space for fitting cars must be appended */
     if (not fitted) {

@@ -23,11 +23,15 @@ void CoreNodeMAC::initialize() {
     cModule *calleeModule = getParentModule()->getSubmodule("soaManager");
     SM = check_and_cast<SOAManager *>(calleeModule);
 
+    bufferedSOAqueue.setName("Buffered trains");
     // Statistics and Watchers
     bufferSize.setName("Buffer Usage [B]"); // How much RAM do we need?
     avg_delay.setName("Aggregation delay");
+    wrong_output.setName("Wrong routeting of DST");
     burst_send = 0;
+    capacity = 0;
     WATCH(capacity);
+
 }
 
 void CoreNodeMAC::handleMessage(cMessage *msg) {
@@ -39,7 +43,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     if (dynamic_cast<OpticalLayer *>(msg) != NULL) {
         OpticalLayer *ol= dynamic_cast<OpticalLayer *>(msg);
         Car *car= (Car *) ol->decapsulate();    // OE conversion
-        EV << "The car "<< car->getName() << "is to be stored in buffer" << endl;
+        EV << "The car "<< car->getName() << " is to be stored in buffer" << endl;
 
         // Calculate buffer usage and create record for statistics
         capacity += car->getByteLength();
@@ -53,8 +57,15 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         // Based on input port and WL find SOAEntry informing me when to send it back
         // Since we have car-train it is complicated and rescheduling time muset be
         // recalculated for each Car
-        for ( int i=0;i<bufferedSOAe.size();i++){
-            SOAEntry *tmpse= (SOAEntry *) bufferedSOAe[i];
+        EV << "Prehled casovnai" << endl;
+        std::map< SOAEntry *, simtime_t>::iterator it;
+        for(it=waitings.begin(); it!=waitings.end();it++){
+            EV << ((*it).first)->info() << " : " << (*it).second << endl;
+        }
+
+        for( cQueue::Iterator iter(bufferedSOAqueue,0); !iter.end(); iter++){
+            SOAEntry *tmpse= (SOAEntry *) iter();
+            EV << "Hleda se buffer "<< tmpse->getInPort()<<"#"<<tmpse->getInLambda() << tmpse->info();
             if( tmpse->getInPort() == inPort and tmpse->getInLambda() == inWL ){
                 // Self-message informing this module about releasing Car from buffer
                 cMessage *msg = new cMessage("ReleaseBuffer");
@@ -64,9 +75,22 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
                 msg->par("RelaseStoredCar_CAR").setPointerValue(car);
                 // Determine waiting time of cars from car-train which are not the first one
                 usage[tmpse]++;
+                EV << " --- ";
+                EV << " and released in: " << (simtime_t)waitings[tmpse] << " at="<<simTime()+waitings[tmpse] << endl;
+
+                if(waitings.find(tmpse)  == waitings.end() ){
+                    EV << "Unable to find waiting time" << endl;
+                }
+
                 scheduleAt(simTime()+waitings[tmpse], msg);
+
+                // In memory there might be more of elements and we go with the first one
+                break;
             }
+            EV << endl;
         }
+
+
         return;
     }
 
@@ -89,11 +113,11 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         send(ol, "soa$o", se->getOutPort() );
 
         // Clean waitings and bufferedSOAe - maintenance
-        if( --usage[se] <= 0 ){
+        if( usage[se]-- <= 0 ){
             EV << "Last car now clean up" << endl;
             waitings.erase(se);
             usage.erase(se);
-            bufferedSOAe.remove(se);
+            EV << "Erasing " << se->info() << endl;
         }
 
         // Drop the self-message since is not needed anymore
@@ -121,12 +145,14 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     int WL = 0;
     int outPort=0;
     simtime_t t0 = SM->getAggregationWaitingTime(dst, H->getOT(), H->getLength(), WL, outPort);
-    avg_delay.record(t0);
 
-    if( outPort == -1 ){
+    if( outPort < 0 ){
         EV << "Unable to find output path" << endl;
+        wrong_output.record(dst);
         return ;
     }
+
+    avg_delay.record(t0);
 
     // Set wavelength of Car train to CAROBS header
     H->setWL(WL);
@@ -162,16 +188,37 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
         // Statistics
         burst_send++;
+
+        // Drop the empty scheduler unit
+        delete su;
     }
+
+
+    // Drop the container which is not further in use
+    delete MAC;
 
 }
 
 void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
     Enter_Method("storeCar()");
-    EV << "Pridavam scheduler " << simTime() << " release="<<e->getStart()<<endl;
-    bufferedSOAe.add(e);
+    EV << "Adding scheduler " << e->info() << " with waiting=" << wait << endl;
+    bufferedSOAqueue.insert(e);
     waitings[e]= wait;
     usage[e]= 0;
+
+    EV << "Prehled casovnai" << endl;
+    std::map<SOAEntry *, simtime_t>::iterator it;
+    for (it = waitings.begin(); it != waitings.end(); it++) {
+        EV << ((*it).first)->info() << " : " << (*it).second << endl;
+    }
+
+}
+
+void CoreNodeMAC::removeCar( SOAEntry *e ){
+    Enter_Method("removeCar()");
+    EV << "Removing scheduler at " << simTime() << " for release="<<e->getStart()<<endl;
+    if( bufferedSOAqueue.contains(e) )
+        bufferedSOAqueue.remove( e );
 }
 
 void CoreNodeMAC::finish(){
