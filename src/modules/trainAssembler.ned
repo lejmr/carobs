@@ -22,7 +22,7 @@ package carobs.modules;
 simple TrainAssembler
 {
     parameters:
-        int poolTreshold = default(9000); // Bytes
+        //int poolTreshold @unit(B) = default(9KiB) ; // Bytes
         double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
         double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
         double datarate= default(1Gbps) @unit(bps);	// Datarate
