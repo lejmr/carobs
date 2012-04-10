@@ -13,21 +13,29 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.link;
+#ifndef __CAROBS_FIBERCHANNEL_H_
+#define __CAROBS_FIBERCHANNEL_H_
 
-import ned.DelayChannel;
+#include <omnetpp.h>
+#include <cdelaychannel.h>
+#include <messages/OpticalLayer_m.h>
 
-
-channel FiberChannel extends DelayChannel
+class FiberChannel : public cDelayChannel
 {
-	@class(FiberChannel);
-        	
-    double length @unit(km);
-//    delay = this.length / 200km * 1ms;
-	delay=0;
-	
-	double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
-	double datarate= default(1Gbps) @unit(bps);	// Datarate
-	
-    @display("ls=blue");
-}
+  protected:
+    virtual void initialize();
+    virtual void finish();
+    void processMessage(cMessage *msg, simtime_t t, result_t& result);
+
+    std::map<int,simtime_t> free_time;
+    std::map<int,simtime_t> stop_time;
+    int64_t overlap, scheduling, trans;
+
+    /**
+     *  Hardcoded datarate
+     */
+    int64_t C;
+    simtime_t d_s;
+};
+
+#endif
