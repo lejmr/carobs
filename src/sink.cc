@@ -22,6 +22,7 @@ void Sink::initialize()
     received=0;
     total_delay = 0;
     avg_delay.setName("End-to-End delay");
+    avg_e2e=0;
 
     if( getParentModule()->hasPar("address"))
         address = getParentModule()->par("address").longValue();
@@ -52,6 +53,10 @@ void Sink::handleMessage(cMessage *msg)
     received++;
     total_delay += delay;
 
+    // Scalar E2E measturemtn
+    if(avg_e2e==0) avg_e2e= delay;
+    avg_e2e= (avg_e2e+delay)/2;
+
     // Misdelivered packets statistics
     int dst = pl->getDst();
     if( dst != address ){
@@ -81,7 +86,7 @@ void Sink::finish(){
         received += (*it).second;
     }
     recordScalar("Received", received);
-
+    recordScalar("Avererage End-to-End delay", avg_e2e);
 
     int64_t total=0;
     std::map<int, int64_t>::iterator it2;

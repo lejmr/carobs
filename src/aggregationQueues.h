@@ -58,7 +58,7 @@ class AggregationQueues : public cSimpleModule
     /**
      *  Cache for AQ size counting, it is updated by countAggregationQueueSize
      */
-    std::map<int, int64_t> AQSizeCache;
+    std::map<int, double> AQSizeCache;
 
 
     /**

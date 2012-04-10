@@ -89,6 +89,7 @@ void TrainAssembler::handleMessage(cMessage *msg) {
 }
 
 void TrainAssembler::prepareTrain(int TSId) {
+    EV << "prepareTrain" << endl;
     std::vector<SchedulerUnit *> dst;
     std::vector<SchedulerUnit *>::iterator it;
 

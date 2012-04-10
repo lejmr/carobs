@@ -55,10 +55,13 @@ class CoreNodeMAC : public cSimpleModule
     /**
      *  Statistics of buffer use
      */
-    cOutVector bufferSize;
-    cOutVector avg_delay;
     int64_t burst_send;
-    cOutVector wrong_output;
+    int64_t outAged;
+    int64_t max_buffersize, avg_buffersize;
+    simtime_t avg_waitingtime, total_waitingtime;
+    int64_t aggregated;
+    int64_t wrong_output;
+
 
   public:
 

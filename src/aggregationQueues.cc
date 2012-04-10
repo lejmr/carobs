@@ -97,7 +97,7 @@ void AggregationQueues::countAggregationQueueSize(int AQId){
 
     // Such AQ exists thus I will count its size
     cQueue queue= AQ[ AQId ];
-    int64_t size = 0;
+    double size = 0;
     for( cQueue::Iterator iter(queue,0); !iter.end(); iter++){
         Payload *pl = (Payload *) iter();
         //EV << pl->getSrc() << " --> " << pl->getDst() << ": " << pl->getByteLength() << endl;

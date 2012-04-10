@@ -52,10 +52,15 @@ void SOAManager::handleMessage(cMessage *msg) {
     // Obtaining information about source port
     int inPort = msg->getArrivalGate()->getIndex();
 
+    // Obtaining optical signal
+    OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
+
+    if( dynamic_cast<CAROBSHeader *>(ol->getEncapsulatedPacket()) == NULL ){
+        opp_error("This is not a CAROBS Header !!! ");
+    }
+
     /* Aggregation - Data coming from aggregation port */
     if (!strcmp(msg->getArrivalGate()->getName(), "aggregation")) {
-        // Obtaining optical signal
-        OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
 
         // Detection of optical signal -> Electrical CARBOS Header
         CAROBSHeader *H = (CAROBSHeader *) ol->getEncapsulatedPacket();
@@ -119,6 +124,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // This node is not termination one, so we must check whether we need to disaggreate something
     int NoToDis = -1;
     cQueue cars = H->getCars();
+    bool dissaggregation=false;
     EV << "cars we have with OT=" << H->getOT() << ": " << endl;
     for (int i = 0; i < cars.length(); i++) {
         CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(i);
@@ -131,6 +137,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         if (tmpc->getDst() == address) {
             EV << " - disaggregate";
             NoToDis = i;
+            dissaggregation=true;
         }
         EV << endl;
     }
@@ -179,9 +186,8 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
 
     if (sef->getBuffer()) {
         // Calculate extra waiting time
-        simtime_t SOA_set = simTime() + H->getOT();
         simtime_t SOA_nset = sef->getStart();
-        d_w_extra = SOA_nset - SOA_set;
+        d_w_extra = SOA_nset - train_start;
 
         // Inform the MAC to store and restore Car in a given moment
         cModule *calleeModule = getParentModule()->getSubmodule("MAC");
@@ -558,10 +564,11 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
                 break;
             }
 
-            // If the WL is blocked now but wont be blocked at the time of cat arrival
+            // If the WL is blocked now but wont be blocked at the time of car arrival
             if (times[i] < OT) {
                 t0 = 0;
                 WL = i;
+                //TODO: Mel by zde byt asi break
             }
 
             // If the WL is blocked now but wont be blocked at the time of cat arrival
@@ -573,6 +580,9 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         }
 
     }
+
+    // The necessary offset between two bursts
+    t0= t0 + d_s;
 
     // Full-fill output text
     EV << "#" << WL << " with waiting=" << t0 << endl;

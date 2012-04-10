@@ -42,7 +42,6 @@ class SOA : public cSimpleModule
     virtual SOAEntry * findOutput(int inPort, int inWl);
     virtual void addpSwitchingTableEntry(SOAEntry *e);
 
-    cOutVector switched, dropped;
     int64_t incm, drpd;
 
 
@@ -50,9 +49,7 @@ class SOA : public cSimpleModule
      *  The number of wavelengths currently used
      */
     int wls;
-    cOutVector vwls;
     int wcs;    // number of WC
-    cOutVector vwcs;
     int bigOT;  // If OT goes to the past
 
   public:

@@ -47,6 +47,7 @@ OBJS = \
     $O/portManager.o \
     $O/cityGenerator.o \
     $O/sink.o \
+    $O/link/fiberChannel.o \
     $O/messages/CAROBSCarHeader_m.o \
     $O/messages/schedulerUnit_m.o \
     $O/messages/trainContainer_m.o \
@@ -250,6 +251,9 @@ $O/trainAssembler.o: trainAssembler.cc \
 	messages/schedulerUnit_m.h \
 	routing.h \
 	trainAssembler.h
+$O/link/fiberChannel.o: link/fiberChannel.cc \
+	link/fiberChannel.h \
+	messages/OpticalLayer_m.h
 $O/messages/CAROBSCarHeader_m.o: messages/CAROBSCarHeader_m.cc \
 	messages/CAROBSCarHeader_m.h
 $O/messages/CAROBSHeader_m.o: messages/CAROBSHeader_m.cc \

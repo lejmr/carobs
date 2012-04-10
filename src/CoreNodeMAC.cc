@@ -25,13 +25,16 @@ void CoreNodeMAC::initialize() {
 
     bufferedSOAqueue.setName("Buffered trains");
     // Statistics and Watchers
-    bufferSize.setName("Buffer Usage [B]"); // How much RAM do we need?
-    avg_delay.setName("Aggregation delay");
-    wrong_output.setName("Wrong routeting of DST");
     burst_send = 0;
     capacity = 0;
+    outAged = 0;
+    avg_waitingtime= 0;
+    max_buffersize=0;
+    avg_buffersize=0;
+    wrong_output=0;
+    total_waitingtime=0;
+    aggregated=0;
     WATCH(capacity);
-
 }
 
 void CoreNodeMAC::handleMessage(cMessage *msg) {
@@ -43,11 +46,13 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     if (dynamic_cast<OpticalLayer *>(msg) != NULL) {
         OpticalLayer *ol= dynamic_cast<OpticalLayer *>(msg);
         Car *car= (Car *) ol->decapsulate();    // OE conversion
-        EV << "The car "<< car->getName() << " is to be stored in buffer" << endl;
+        EV << "The car "<< car->getName() << " is to be stored in buffer";
 
         // Calculate buffer usage and create record for statistics
         capacity += car->getByteLength();
-        bufferSize.record(capacity);
+        if( capacity > max_buffersize )max_buffersize= capacity;
+        if( avg_buffersize == 0 ) avg_buffersize= capacity;
+        avg_buffersize= (avg_buffersize+capacity)/2;
 
         // Determine description of incoming signal. Since it is optical only port and WL
         int inPort= msg->getArrivalGate()->getIndex();
@@ -57,25 +62,39 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         // Based on input port and WL find SOAEntry informing me when to send it back
         // Since we have car-train it is complicated and rescheduling time muset be
         // recalculated for each Car
+
+
         EV << "Prehled casovnai" << endl;
         std::map< SOAEntry *, simtime_t>::iterator it;
         for(it=waitings.begin(); it!=waitings.end();it++){
+            if( not  bufferedSOAqueue.contains((*it).first) ){
+                EV << "there is a pointer for: "<< (*it).first << " : " << (*it).second << endl;
+                continue;
+            }
+            EV << ((*it).first)->getInPort()<<"#"<< ((*it).first)->getInLambda() << " ";
             EV << ((*it).first)->info() << " : " << (*it).second << endl;
         }
 
+
         for( cQueue::Iterator iter(bufferedSOAqueue,0); !iter.end(); iter++){
             SOAEntry *tmpse= (SOAEntry *) iter();
-            EV << "Hleda se buffer "<< tmpse->getInPort()<<"#"<<tmpse->getInLambda() << tmpse->info();
+            //EV << "Hleda se buffer "<< tmpse->getInPort()<<"#"<<tmpse->getInLambda() << tmpse->info();
+
             if( tmpse->getInPort() == inPort and tmpse->getInLambda() == inWL ){
+
+                // All simulations event are going with the start time so if otherwise we skip the tmpse
+                if( simTime() != tmpse->getStart() ) continue;
+
                 // Self-message informing this module about releasing Car from buffer
                 cMessage *msg = new cMessage("ReleaseBuffer");
                 msg->addPar("RelaseStoredCar");
                 msg->addPar("RelaseStoredCar_CAR");
                 msg->par("RelaseStoredCar").setPointerValue(tmpse);
                 msg->par("RelaseStoredCar_CAR").setPointerValue(car);
+                msg->setSchedulingPriority(1);
                 // Determine waiting time of cars from car-train which are not the first one
                 usage[tmpse]++;
-                EV << " --- ";
+                //EV << " --- ";
                 EV << " and released in: " << (simtime_t)waitings[tmpse] << " at="<<simTime()+waitings[tmpse] << endl;
 
                 if(waitings.find(tmpse)  == waitings.end() ){
@@ -87,7 +106,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
                 // In memory there might be more of elements and we go with the first one
                 break;
             }
-            EV << endl;
+            //EV << endl;
         }
 
 
@@ -98,7 +117,18 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     if( msg->isSelfMessage() and msg->hasPar("RelaseStoredCar")){
         SOAEntry *se=(SOAEntry *) msg->par("RelaseStoredCar").pointerValue();
         Car *car= (Car *) msg->par("RelaseStoredCar_CAR").pointerValue();
-        EV << "The car "<< car->getName() << "is to be released to SOA" << endl;
+
+        if( !bufferedSOAqueue.contains(se) ){
+            // This might happend when is there a problem with timing. se is deleted
+            // from bufferedSOAqueue and after the scheduler wants to release car
+            EV << "Takova volba neexistuje - cotains" << endl;
+            outAged++;
+            opp_terminate("Jdeme zkoumat kde je problem");
+            return;
+        }
+
+        EV << "The car "<< car->getName() << "is to be released to SOA";
+        EV << " based on " << se->info() << endl;
 
         // Convert Car->OpticalLayer == E/O conversion
         OpticalLayer *ol= new OpticalLayer( car->getName() );
@@ -107,7 +137,9 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
         // Calculate buffer usage and create record for statistics
         capacity -= car->getByteLength();
-        bufferSize.record(capacity);
+        if( capacity > max_buffersize )max_buffersize= capacity;
+        if( avg_buffersize == 0 ) avg_buffersize= capacity;
+        avg_buffersize= (avg_buffersize+capacity)/2;
 
         // Send the OL to SOA
         send(ol, "soa$o", se->getOutPort() );
@@ -148,11 +180,15 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
     if( outPort < 0 ){
         EV << "Unable to find output path" << endl;
-        wrong_output.record(dst);
+        wrong_output++;
         return ;
     }
 
-    avg_delay.record(t0);
+    // Takes statistics of guard/waiting time - it is going to be averege value
+    if( avg_waitingtime == 0 ) avg_waitingtime= t0;
+    avg_waitingtime= (avg_waitingtime+t0)/2;
+    total_waitingtime += t0;
+    aggregated++;
 
     // Set wavelength of Car train to CAROBS header
     H->setWL(WL);
@@ -182,7 +218,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         OC->setWavelengthNo(WL);
         OC->encapsulate(tcar);
 
-        EV << " + Sending car to " << su->getDst() << " at " << t0 + su->getStart() << " of length=" << su->getLength() << endl;
+        EV << " + Sending car to " << su->getDst() << " at " << simTime()+t0 + su->getStart() << " of length=" << su->getLength() << endl;
         // Send the car onto proper wl at proper time
         sendDelayed(OC, t0 + su->getStart(), "soa$o", outPort);
 
@@ -206,12 +242,13 @@ void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
     waitings[e]= wait;
     usage[e]= 0;
 
+    /*
     EV << "Prehled casovnai" << endl;
     std::map<SOAEntry *, simtime_t>::iterator it;
     for (it = waitings.begin(); it != waitings.end(); it++) {
         EV << ((*it).first)->info() << " : " << (*it).second << endl;
     }
-
+*/
 }
 
 void CoreNodeMAC::removeCar( SOAEntry *e ){
@@ -223,4 +260,9 @@ void CoreNodeMAC::removeCar( SOAEntry *e ){
 
 void CoreNodeMAC::finish(){
     recordScalar("Burst send", burst_send);
+    recordScalar("Late release", outAged);
+    recordScalar("Average buffer size [B]", avg_buffersize);
+    recordScalar("Maximal buffer size [B]", max_buffersize);
+    recordScalar("Average waiting time", avg_waitingtime);
+    if(wrong_output>0) recordScalar("Wrong routing policy",wrong_output);
 }

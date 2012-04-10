@@ -65,9 +65,8 @@ class MAC : public cSimpleModule
     cArray portScheduled;
 
     simtime_t guardTime;
-    cOutVector avg_delay;
+    simtime_t avg_waitingtime;
     int64_t burst_send;
-    cOutVector wls;
 };
 
 #endif

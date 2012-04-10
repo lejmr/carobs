@@ -44,7 +44,7 @@ class AggregationPoolManager : public cSimpleModule
      /**
       *  Size of the pool when is to be released
       */
-     int64_t poolTreshold;
+     double poolTreshold;
 
      /**
       *  Communication link with AggregationQueues module AQ

@@ -30,13 +30,10 @@ void SOA::initialize() {
     //switchingTable = new cQueue("switchingTable");
     switchingTable = new cArray("switchingTable");
 
-    switched.setName("Incoming bursts");
-    dropped.setName("Dropped bursts");
     incm=0; drpd=0;
 
     // Wavelength statistics
     wls=0;
-    vwls.setName("Number of WL used");
     wcs=0;
     bigOT = 0;
 }
@@ -83,7 +80,7 @@ void SOA::handleMessage(cMessage *msg) {
         }
 
         /*      Buffering to MAC    */
-        if (sw->getBuffer()) {
+        if (sw->getBuffer() and sw->getBufferDirection() ) {
             EV << "Buffering based on: " << sw->info() << endl;
             send(ol, "aggregation$o",inPort);
             return;
@@ -103,11 +100,12 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Sending to output port
             send(ol, "gate$o", sw->getOutPort());
-            incm++; switched.record(incm);
         }else{
             EV << "Burst at "<<inPort<<"#"<<inWl<<" is to be dropped !!!" << endl;
             delete msg; return;
         }
+
+        incm++;
     }
 
     if( !strcmp(msg->getArrivalGate()->getName(), "aggregation$i") ){
@@ -129,7 +127,6 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
     if( !e->getBuffer() and e->getInLambda() != e->getOutLambda() ) wcs++;
 
     // Reserve WL if it is not to buffer direction
-    if( not ( e->getBuffer() and e->getBufferDirection() ) ) vwls.record(++wls);
     switchingTable->add(e);
 }
 
@@ -145,6 +142,7 @@ void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
     cMessage *amsg = new cMessage("ActivateSTE");
     amsg->addPar("ActivateSwitchingTableEntry");
     amsg->par("ActivateSwitchingTableEntry") = e;
+    amsg->setSchedulingPriority(5);
     scheduleAt(simTime() + d_s + ot, amsg);
 
     // Scheduling to drop SwitchingTableEntry
@@ -172,7 +170,6 @@ void SOA::dropSwitchingTableEntry(SOAEntry *e) {
     EV << " DROP " << e->info() << endl;
 
     // Reserve WL if it is not buffered
-    if( !e->getBuffer() and !e->isDisaggregation() ) vwls.record(--wls);
     delete switchingTable->remove(e);
 }
 
@@ -180,12 +177,15 @@ SOAEntry * SOA::findOutput(int inPort, int inWl) {
     for (int i = 0; i < switchingTable->size(); i++) {
         if( not switchingTable->exist(i) ) continue;
         SOAEntry *se = (SOAEntry *) switchingTable->get(i);
-        if (se->getInPort() == inPort and se->getInLambda() == inWl )
+        // It searches proper port#wl combination and the combination is not out-of-buffer records
+        if (se->getInPort() == inPort and se->getInLambda() == inWl ){
+            if( se->getBuffer() and not se->getBufferDirection()) continue;
             return se;
+        }
     }
 
     // Nothing found.. butst is going to be lost
-    drpd++; dropped.record(drpd);
+    drpd++;
     return new SOAEntry(-1, -1, -1, -1);
 }
 

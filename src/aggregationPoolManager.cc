@@ -20,7 +20,7 @@ Define_Module(AggregationPoolManager);
 
 void AggregationPoolManager::initialize() {
     // Loading the parameters
-    poolTreshold = par("poolTreshold").longValue();
+    poolTreshold = par("poolTreshold").doubleValue();
 
     // Initiate Aggregation Pools
     cMessage *i = new cMessage("InitAPs");

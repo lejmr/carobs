@@ -109,9 +109,11 @@ void CityGenerator::handleMessage(cMessage *msg)
                 scheduleAt(simTime(), t);
             }
 
+            /*
             std::stringstream out;
             out << "Send messages to " << dst;
             recordScalar(out.str().c_str(), n);
+            */
 
         }
 

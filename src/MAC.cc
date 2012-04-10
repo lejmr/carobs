@@ -28,8 +28,7 @@ void MAC::initialize()
     R = check_and_cast<Routing *>(calleeModule);
 
     //  Statistics
-    avg_delay.setName("Aggregation delay");
-    wls.setName("Used wavelengths");
+    avg_waitingtime=0;
     burst_send = 0;
 }
 
@@ -49,7 +48,10 @@ void MAC::handleMessage(cMessage *msg)
         int out= R->getOutputPort( dst );
         output_t wlwt = getOutput( out, H->getOT() );
         simtime_t t0 = wlwt.t;
-        avg_delay.record(t0);
+
+        // Takes statistics of guard/waiting time - it is going to be averege value
+        if( avg_waitingtime == 0 ) avg_waitingtime= t0;
+        avg_waitingtime= (avg_waitingtime+t0)/2;
 
         // Set Wavelength to CARBOS Header once we know it
         H->setWL( wlwt.WL );
@@ -124,7 +126,6 @@ output_t MAC::getOutput(int port, simtime_t ot){
         output_t t;
         t.WL = 1;   // FIFO, Might be changed to something different
         t.t = 0.0;
-        wls.record(0);
         return t;
     }
 
@@ -186,4 +187,5 @@ output_t MAC::getOutput(int port, simtime_t ot){
 
 void MAC::finish(){
     recordScalar("Burst Send", burst_send);
+    recordScalar("Average waiting time", avg_waitingtime);
 }
