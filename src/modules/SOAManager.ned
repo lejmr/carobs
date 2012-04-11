@@ -27,6 +27,7 @@ simple SOAManager
         bool WC = default(true);				// Wavelength conversion
         bool OBS = default(true);	// Sets OBS mode or CAROBS mode = false
         double datarate= default(1Gbps) @unit(bps);	// Datarate
+        bool buffering = default(true);			// All buffering at the CoreNode in order of loss-less
         
     @display("i=block/cogwheel");
     gates:

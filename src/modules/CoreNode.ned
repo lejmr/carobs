@@ -26,7 +26,8 @@ module CoreNode
         double d_p @unit(s) = default(10ms);	// Processing time of SOA Manager
         double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
         bool WC = default(true);				// Wavelength conversion 
-        int maxWL = default(10);		// Max number number of wavelengths
+        int maxWL = default(10);				// Max number number of wavelengths
+        bool buffering = default(true);			// All buffering at the CoreNode in order of loss-less
 
         @display("bgb=499,444;t=$address;i=abstract/switch,,30");
     gates:
@@ -62,6 +63,7 @@ module CoreNode
                 d_p = d_p;
                 maxWL = maxWL;
                 WC = WC;
+                buffering= buffering;
                 @display("p=228,127");
             gates:
                 control[sizeof(gate)];

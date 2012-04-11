@@ -22,6 +22,7 @@ void SOAManager::initialize() {
     // Obtaining processing time parametr d_p
     d_p = par("d_p").doubleValue();
     d_s = par("d_s").doubleValue();
+    buffering= par("buffering").boolValue();
 
     // reading parameters
     maxWL = par("maxWL").longValue();
@@ -156,7 +157,6 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         simtime_t c0 = tmpc0->getD_c();
 
         EV << "disaggregate start=" << simTime() + H->getOT()+c0 << " stop=" << train_start - d_s << " length=" << tmpc->getD_c() - d_s -c0 << endl;
-        EV << "car header: " << tmpc0->getDst() << endl;
 
         // Create disaggregation SOA instructions
         SOAEntry *se = new SOAEntry(inPort, inWl, false); // Disaggregation SOAEntry => false
@@ -181,6 +181,13 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
 
     // Assign this SOAEntry to SOA
     SOAEntry *sef = getOptimalOutput(outPort, inPort, inWl, train_start, train_stop);
+
+    // sef==NULL happens only if the buffering is turned off
+    if( sef == NULL ){
+        // No buffering allowed so the CAROBS Header is to be dropped and processing is stopped
+        delete msg;
+        return;
+    }
 
     simtime_t d_w_extra = 0;
 
@@ -237,6 +244,14 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
 
     // Assign this SOAEntry to SOA
     SOAEntry *se = getOptimalOutput(outPort, inPort, inWl, simTime() + H->getOT(), simTime() + H->getOT() + H->getLength());
+
+    // se==NULL happens only if the buffering is turned off
+    if (se == NULL) {
+        // No buffering allowed so the CAROBS Header is to be dropped and processing is stopped
+        delete msg; delete H;
+        return;
+    }
+
     simtime_t d_w_extra = 0;
 
     if (se->getBuffer()) {
@@ -315,6 +330,13 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
             }
         }
 
+    }
+
+    if( not buffering ){
+        // The buffering is turned off so We will take some statistics and finish it
+        tbdropped++;
+        EV << " DROPPED" << endl;
+        return NULL;
     }
 
     /**

@@ -117,8 +117,14 @@ class SOAManager : public cSimpleModule
     int64_t C;
 
     /**
+     *  Trigger which allows buffering
+     */
+    bool buffering;
+
+    /**
      *  Statistics
      */
+    int64_t tbdropped;
 
 
   public:
