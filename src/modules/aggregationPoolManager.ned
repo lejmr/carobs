@@ -21,6 +21,6 @@ package carobs.modules;
 simple AggregationPoolManager
 {
     parameters:
-        int poolTreshold = default(9000); // Bytes
+        int poolTreshold @unit(b)= default(9000b); 	// bites
 	@display("i=block/blackboard");
 }

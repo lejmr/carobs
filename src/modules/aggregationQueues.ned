@@ -21,7 +21,7 @@ package carobs.modules;
 simple AggregationQueues
 {
     parameters:
-        double bufferLengthT = default(0.1); // ms
+        double bufferLengthT @unit(s) = default(10ms); // ms
 
         @display("i=block/classifier");
     gates:
