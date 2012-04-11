@@ -72,8 +72,8 @@ void Sink::handleMessage(cMessage *msg)
 
 void Sink::finish(){
     recordScalar("Simulation duration", simTime());
+    recordScalar("Packets received", received);
 
-    recordScalar("Received packets", received);
     if( received != 0 ) recordScalar("Average delay", total_delay/received);
     else recordScalar("Average delay", 0 );
 
@@ -85,7 +85,6 @@ void Sink::finish(){
         //recordScalar(out.str().c_str(), (*it).second);
         received += (*it).second;
     }
-    recordScalar("Received", received);
     recordScalar("Avererage End-to-End delay", avg_e2e);
 
     int64_t total=0;

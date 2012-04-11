@@ -58,6 +58,8 @@ void CityGenerator::initialize()
         init->addPar("initiateSending");
         scheduleAt(0, init);
     }
+
+    psend=0;
 }
 
 void CityGenerator::handleMessage(cMessage *msg)
@@ -145,5 +147,10 @@ void CityGenerator::sendAmount(int amount, int src, int dst, double lambda, int 
         pl->setT0(arrivals[dst]);
         scheduleAt(arrivals[dst], pl);
         EV << " + " << src << "->" << dst << " (" << length / 8 << "B): " << arrivals[dst] << endl;
+        psend++;
     }
+}
+
+void CityGenerator::finish(){
+    recordScalar("Packets sent", psend);
 }

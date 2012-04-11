@@ -101,7 +101,7 @@ void AggregationQueues::countAggregationQueueSize(int AQId){
     for( cQueue::Iterator iter(queue,0); !iter.end(); iter++){
         Payload *pl = (Payload *) iter();
         //EV << pl->getSrc() << " --> " << pl->getDst() << ": " << pl->getByteLength() << endl;
-        size += pl->getByteLength();
+        size += pl->getBitLength();
     }
 
     // set the current value

@@ -23,12 +23,14 @@ class CityGenerator : public cSimpleModule
 {
   protected:
     virtual void initialize();
+    virtual void finish();
     virtual void handleMessage(cMessage *msg);
 
   private:
     int src;
     int64_t n;
     std::vector<double> demads;
+    int64_t psend;
 
     /**
      *  Hardcoded datarate

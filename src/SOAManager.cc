@@ -510,6 +510,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
     }
 
     /*
+     * GROOMING .. using the time of disaggregated car
      * TODO: use the space before burst train
     // Find WL that can accommodate CAR train
     simtime_t t0 = 0;

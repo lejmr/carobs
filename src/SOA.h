@@ -42,6 +42,11 @@ class SOA : public cSimpleModule
     virtual SOAEntry * findOutput(int inPort, int inWl);
     virtual void addpSwitchingTableEntry(SOAEntry *e);
 
+    /**
+     *  Loss statistics
+     *  incm - all processed OpticalLayer packets which are not dropped
+     *  drpd - a number of dropped bursts
+     */
     int64_t incm, drpd;
 
 

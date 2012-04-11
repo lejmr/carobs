@@ -193,7 +193,7 @@ SOAEntry * SOA::findOutput(int inPort, int inWl) {
 void SOA::finish() {
     recordScalar("Total switched bursts", incm);
     recordScalar("Total dropped bursts", drpd);
-    recordScalar("Loss probability", (double) drpd/(drpd+incm));
+    if(incm>0)recordScalar("Loss probability", (double) drpd/(drpd+incm));
     recordScalar("Wavelength conversion used", wcs);
     recordScalar("Train reached header", bigOT );
 }

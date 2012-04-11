@@ -62,6 +62,12 @@ class CoreNodeMAC : public cSimpleModule
     int64_t aggregated;
     int64_t wrong_output;
 
+    /**
+     *  Statistics of grooming process
+     */
+    simtime_t total_buffertime, avg_buffertime;
+    int64_t buffered;
+
 
   public:
 

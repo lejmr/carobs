@@ -29,7 +29,9 @@ void MAC::initialize()
 
     //  Statistics
     avg_waitingtime=0;
+    total_waitingtime=0;
     burst_send = 0;
+    nums=0;
 }
 
 void MAC::handleMessage(cMessage *msg)
@@ -52,6 +54,8 @@ void MAC::handleMessage(cMessage *msg)
         // Takes statistics of guard/waiting time - it is going to be averege value
         if( avg_waitingtime == 0 ) avg_waitingtime= t0;
         avg_waitingtime= (avg_waitingtime+t0)/2;
+        total_waitingtime+=t0;
+        nums++;
 
         // Set Wavelength to CARBOS Header once we know it
         H->setWL( wlwt.WL );
@@ -186,6 +190,7 @@ output_t MAC::getOutput(int port, simtime_t ot){
 }
 
 void MAC::finish(){
-    recordScalar("Burst Send", burst_send);
-    recordScalar("Average waiting time", avg_waitingtime);
+    recordScalar("Bursts sent", burst_send);
+    recordScalar("Access delay", avg_waitingtime);
+    if(nums>0)recordScalar("Access delay (total)", total_waitingtime/nums);
 }

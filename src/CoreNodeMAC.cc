@@ -34,6 +34,11 @@ void CoreNodeMAC::initialize() {
     wrong_output=0;
     total_waitingtime=0;
     aggregated=0;
+
+    total_buffertime=0;
+    avg_buffertime=0;
+    buffered=0;
+
     WATCH(capacity);
 }
 
@@ -64,17 +69,16 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         // recalculated for each Car
 
 
-        EV << "Prehled casovnai" << endl;
-        std::map< SOAEntry *, simtime_t>::iterator it;
-        for(it=waitings.begin(); it!=waitings.end();it++){
-            if( not  bufferedSOAqueue.contains((*it).first) ){
-                EV << "there is a pointer for: "<< (*it).first << " : " << (*it).second << endl;
-                continue;
-            }
-            EV << ((*it).first)->getInPort()<<"#"<< ((*it).first)->getInLambda() << " ";
-            EV << ((*it).first)->info() << " : " << (*it).second << endl;
-        }
-
+//        EV << "Prehled casovnai" << endl;
+//        std::map< SOAEntry *, simtime_t>::iterator it;
+//        for(it=waitings.begin(); it!=waitings.end();it++){
+//            if( not  bufferedSOAqueue.contains((*it).first) ){
+//                EV << "there is a pointer for: "<< (*it).first << " : " << (*it).second << endl;
+//                continue;
+//            }
+//            EV << ((*it).first)->getInPort()<<"#"<< ((*it).first)->getInLambda() << " ";
+//            EV << ((*it).first)->info() << " : " << (*it).second << endl;
+//        }
 
         for( cQueue::Iterator iter(bufferedSOAqueue,0); !iter.end(); iter++){
             SOAEntry *tmpse= (SOAEntry *) iter();
@@ -82,8 +86,10 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
             if( tmpse->getInPort() == inPort and tmpse->getInLambda() == inWL ){
 
-                // All simulations event are going with the start time so if otherwise we skip the tmpse
-                if( simTime() != tmpse->getStart() ) continue;
+                // simTime must be from interval [ tmpse->getStart(); tmpse->getStop() ]
+                simtime_t wt= (simtime_t)waitings[tmpse];
+                //EV << " testuji cekani="<<wt << endl;
+                if( simTime()+wt < tmpse->getStart() or simTime()+wt >  tmpse->getStop() ) continue;
 
                 // Self-message informing this module about releasing Car from buffer
                 cMessage *msg = new cMessage("ReleaseBuffer");
@@ -242,27 +248,34 @@ void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
     waitings[e]= wait;
     usage[e]= 0;
 
-    /*
-    EV << "Prehled casovnai" << endl;
-    std::map<SOAEntry *, simtime_t>::iterator it;
-    for (it = waitings.begin(); it != waitings.end(); it++) {
-        EV << ((*it).first)->info() << " : " << (*it).second << endl;
-    }
-*/
+    // Statistics
+    if( avg_buffertime==0 ) avg_buffertime=wait;
+    avg_buffertime= (avg_buffertime+wait)/2;
+
+    // Overall ones
+    total_buffertime+=wait;
+    buffered++;
 }
 
 void CoreNodeMAC::removeCar( SOAEntry *e ){
     Enter_Method("removeCar()");
     EV << "Removing scheduler at " << simTime() << " for release="<<e->getStart()<<endl;
-    if( bufferedSOAqueue.contains(e) )
-        bufferedSOAqueue.remove( e );
+    if( bufferedSOAqueue.contains(e) ) bufferedSOAqueue.remove( e );
+    waitings.erase(e);
+    usage.erase(e);
 }
 
 void CoreNodeMAC::finish(){
-    recordScalar("Burst send", burst_send);
+    recordScalar("Bursts sent", burst_send);
     recordScalar("Late release", outAged);
     recordScalar("Average buffer size [B]", avg_buffersize);
     recordScalar("Maximal buffer size [B]", max_buffersize);
-    recordScalar("Average waiting time", avg_waitingtime);
+    recordScalar("Access delay", avg_waitingtime);
+    if(aggregated>0)recordScalar("Access delay (total)", total_waitingtime/aggregated);
     if(wrong_output>0) recordScalar("Wrong routing policy",wrong_output);
+
+    if(buffered > 0){
+        recordScalar("Buffering delay", avg_waitingtime);
+        recordScalar("Buffering delay (total)", total_waitingtime/buffered);
+    }
 }
