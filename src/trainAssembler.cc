@@ -60,7 +60,7 @@ void TrainAssembler::handleMessage(cMessage *msg) {
         su->setOt(ot);
 
         // In the first step (definition) Start, End, Length are
-        simtime_t tlength = (simtime_t) tcar->getBitLength() / C;
+        simtime_t tlength = (simtime_t) ((double)tcar->getBitLength()/C);
         su->setStart(ot);
         su->setLength(tlength);
         su->setLengthB(tcar->getByteLength());
@@ -233,7 +233,7 @@ void TrainAssembler::ctaTrainTruncate(std::vector<SchedulerUnit *> &dst) {
            int64_t tmp_current_size=0;
            while (!queue.empty()) {
                 Payload *msg = (Payload *) queue.pop();
-                simtime_t t_inc = (simtime_t) msg->getBitLength() / C;
+                simtime_t t_inc = (simtime_t) ((double)msg->getBitLength()/C);
                 EV << " + " << msg->getDst() << " size " << t_inc;
                 if (tmp_current > t_space) {
                     // there is no room so I must return Payload packet back to AQ

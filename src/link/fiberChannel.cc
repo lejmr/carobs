@@ -41,7 +41,7 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
 
 
     int WL= ol->getWavelengthNo();
-    simtime_t len= (simtime_t) ol->getBitLength()/C;
+    simtime_t len= (simtime_t) ((double)ol->getBitLength()/C);
 
     // We take car of bursts not control packets
     if(WL > 0 ){
