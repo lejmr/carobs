@@ -30,6 +30,7 @@ class SOAManager : public cSimpleModule
 {
   protected:
     virtual void initialize();
+    virtual void finish();
     virtual void handleMessage(cMessage *msg);
 
   private:

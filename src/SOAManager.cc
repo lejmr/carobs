@@ -44,6 +44,7 @@ void SOAManager::initialize() {
 
     // Hard-coded datarte
     C = par("datarate").doubleValue();
+    tbdropped=0;
 
     WATCH(OBS);
 
@@ -619,4 +620,8 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
 
     // Inform MAC how log mus wait before sending CAROBS Header and Cars after OT
     return t0;
+}
+
+void SOAManager::finish(){
+    recordScalar("Bursts to be dropped", tbdropped);
 }
