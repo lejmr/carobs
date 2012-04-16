@@ -73,7 +73,7 @@ void SOAManager::handleMessage(cMessage *msg) {
         // Obtain output port
         int outPort = R->getOutputPort(dst);
 
-        EV << " to " << outPort<<"#"<<ol->getWavelengthNo() << endl;
+        EV << " to " << outPort<<"#"<<H->getWL() << endl;
         EV << "cars we have with OT=" << H->getOT() << ": " << endl;
         cQueue cars = H->getCars();
         for(int i=0;i<cars.length();i++){
@@ -410,7 +410,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     }
 
     //  Time to stay in buffer
-    simtime_t BT = times[inWL] - start;
+    simtime_t BT = times[inWL] - start + d_s;
     int outWL = inWL;
     // Check WC options
     if (WC) {
@@ -465,7 +465,8 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     scheduling.add(e_out);
 
     // Bond this two together
-    e_out->tobuffer= e_in;
+    e_out->bound= e_in;
+    e_in->bound= e_out;
 
     //  Buffered result
     if (not WC) EV << " BUFFERED=" << BT << " outWL=" << inWL << endl;

@@ -40,7 +40,21 @@ class SOA : public cSimpleModule
     bool WC;
 
     virtual SOAEntry * findOutput(int inPort, int inWl);
+
+    /**
+     *  Internal function which verifies the loaded SOAEntry and provides mechanisms
+     *  for SOAEntry adding into SOA switching matrix..
+     *  Function is called from handleMessage() and is triggered by self-message: ActivateSTE
+     */
     virtual void addpSwitchingTableEntry(SOAEntry *e);
+
+    /**
+     *  Function dropSwitchingTableEntry removes SOAEntry when is no longer needed in the
+     *  SOA. By removing SOAEntry from SOA is removed also from SOAmanager and MAC if it was
+     *  buffering entry.
+     *  Function is called from handleMessage() and is triggered by self-message: DeactivateSTE
+     */
+    virtual void dropSwitchingTableEntry(SOAEntry *e);
 
     /**
      *  Loss statistics
@@ -48,7 +62,6 @@ class SOA : public cSimpleModule
      *  drpd - a number of dropped bursts
      */
     int64_t incm, drpd;
-
 
     /**
      *  The number of wavelengths currently used
@@ -58,8 +71,14 @@ class SOA : public cSimpleModule
     int bigOT;  // If OT goes to the past
 
   public:
+
+    /**
+     *  Public function called by SOA Manager in order to perform switching.. SOAm says
+     *  when and for how long the switching must be cross connected. After the time is
+     *  passed dropSwitchingTableEntry function is called.
+     *  When function is called initiates two self-messages: ActivateSTE and DeactivateSTE
+     */
     virtual void assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len);
-    virtual void dropSwitchingTableEntry(SOAEntry *e);
 
 };
 

@@ -24,6 +24,18 @@ class SOAEntry : public cPolymorphic
   public:
       bool valid;
 
+      /*
+       * only used with buffer mode of carobs
+       * makes reference between in and out of buffer SOAEntry such that
+       * from to buffer can be reached to buffer one ..
+       *
+       * This is result of many tries to avoid this but it is only one workig sollution
+       * Buffered OpticalLayer packet is marked my SOAEntry which is used for buffering
+       * and then MAC obtains its out of buffer SOAEntry and resolves proper waiting time..
+       * In real systems this can be implemented with some external shared memory for MAC, SOA and SOAm
+       */
+      SOAEntry *bound;
+
   public:
     SOAEntry(){this->valid=false;}
     SOAEntry(int ip, int il, int op, int ol);

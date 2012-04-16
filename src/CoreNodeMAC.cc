@@ -62,98 +62,47 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         // Determine description of incoming signal. Since it is optical only port and WL
         int inPort= msg->getArrivalGate()->getIndex();
         int inWL= ol->getWavelengthNo();
+
+        // Withdraws the marker from OL
+        SOAEntry *olsw= (SOAEntry *) ol->par("marker").pointerValue();
+
+        /*
+        EV << "Received se= "<<olsw->info();
+        EV << " -> ";
+        EV << olsw->bound->info();
+        EV << "waiting= "<< waitings[olsw->bound] <<endl;
+        */
         delete ol;
 
-        // Based on input port and WL find SOAEntry informing me when to send it back
-        // Since we have car-train it is complicated and rescheduling time muset be
-        // recalculated for each Car
-
-
-
-
-//        EV << "Prehled casovnai" << endl;
+//        EV << "List of SOAEntries" << endl;
 //        std::map< SOAEntry *, simtime_t>::iterator it;
 //        for(it=waitings.begin(); it!=waitings.end();it++){
 //            if( not  bufferedSOAqueue.contains((*it).first) ){
 //                EV << "there is a pointer for: "<< (*it).first << " : " << (*it).second << endl;
 //                continue;
 //            }
-//            EV << ((*it).first)->getInPort()<<"#"<< ((*it).first)->getInLambda() << " ";
+//            EV <<inPort<<"#"<<inWL;
+//            EV << " -> ";
 //            EV << ((*it).first)->info() << " : " << (*it).second << endl;
 //        }
-
-        for( cQueue::Iterator iter(bufferedSOAqueue,0); !iter.end(); iter++){
-            SOAEntry *tmpse= (SOAEntry *) iter();
-
-            // if time does not fit
-            if( simTime() < tmpse->tobuffer->getStart() or simTime() > tmpse->tobuffer->getStop() )
-                continue;
-
-            // if input port#WL does not fit
-            if( tmpse->getInPort() != inPort or tmpse->getInLambda() != inWL )
-                continue;
-
-            // Now we have most probably the right one
-            EV << tmpse->info() << endl;
 
             cMessage *msg = new cMessage("ReleaseBuffer");
             msg->addPar("RelaseStoredCar");
             msg->addPar("RelaseStoredCar_CAR");
-            msg->par("RelaseStoredCar").setPointerValue(tmpse);
+            msg->par("RelaseStoredCar").setPointerValue(olsw->bound);
             msg->par("RelaseStoredCar_CAR").setPointerValue(car);
             msg->setSchedulingPriority(1);
 
-            usage[tmpse]++;
-            EV << " and released in: " << (simtime_t) waitings[tmpse] << " at=" << simTime() + waitings[tmpse] << endl;
+            usage[olsw->bound]++;
+            EV << " and released in: " << (simtime_t) waitings[olsw->bound] << " at=" << simTime() + waitings[olsw->bound] << endl;
 
-            if (waitings.find(tmpse) == waitings.end()) {
+            // Security test of waiting assignment for the SOAEntry
+            if (waitings.find(olsw->bound) == waitings.end()) {
                 EV << "Unable to find waiting time" << endl;
             }
 
-            scheduleAt(simTime() + waitings[tmpse], msg);
-
-            break;
-
-        }
-
-
-        return;
-
-        for( cQueue::Iterator iter(bufferedSOAqueue,0); !iter.end(); iter++){
-            SOAEntry *tmpse= (SOAEntry *) iter();
-            //EV << "Hleda se buffer "<< tmpse->getInPort()<<"#"<<tmpse->getInLambda() << tmpse->info();
-
-            if( tmpse->getInPort() == inPort and tmpse->getInLambda() == inWL ){
-
-                // simTime must be from interval [ tmpse->getStart(); tmpse->getStop() ]
-                simtime_t wt= (simtime_t)waitings[tmpse];
-                //EV << " testuji cekani="<<wt << endl;
-                if( simTime()+wt < tmpse->getStart() or simTime()+wt >  tmpse->getStop() ) continue;
-
-                // Self-message informing this module about releasing Car from buffer
-                cMessage *msg = new cMessage("ReleaseBuffer");
-                msg->addPar("RelaseStoredCar");
-                msg->addPar("RelaseStoredCar_CAR");
-                msg->par("RelaseStoredCar").setPointerValue(tmpse);
-                msg->par("RelaseStoredCar_CAR").setPointerValue(car);
-                msg->setSchedulingPriority(1);
-                // Determine waiting time of cars from car-train which are not the first one
-                usage[tmpse]++;
-                //EV << " --- ";
-                EV << " and released in: " << (simtime_t)waitings[tmpse] << " at="<<simTime()+waitings[tmpse] << endl;
-
-                if(waitings.find(tmpse)  == waitings.end() ){
-                    EV << "Unable to find waiting time" << endl;
-                }
-
-                scheduleAt(simTime()+waitings[tmpse], msg);
-
-                // In memory there might be more of elements and we go with the first one
-                break;
-            }
-            //EV << endl;
-        }
-
+            // Schedules out of buffer CAR release
+            scheduleAt(simTime() + waitings[olsw->bound], msg);
 
         return;
     }
@@ -283,7 +232,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
 void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
     Enter_Method("storeCar()");
-    EV << "Adding scheduler " << e->info() << " with waiting=" << wait << endl;
+    EV << "Adding scheduler " << e->info() << "with waiting=" << wait << endl;
     bufferedSOAqueue.insert(e);
     waitings[e]= wait;
     usage[e]= 0;
