@@ -69,6 +69,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         // recalculated for each Car
 
 
+
+
 //        EV << "Prehled casovnai" << endl;
 //        std::map< SOAEntry *, simtime_t>::iterator it;
 //        for(it=waitings.begin(); it!=waitings.end();it++){
@@ -79,6 +81,43 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 //            EV << ((*it).first)->getInPort()<<"#"<< ((*it).first)->getInLambda() << " ";
 //            EV << ((*it).first)->info() << " : " << (*it).second << endl;
 //        }
+
+        for( cQueue::Iterator iter(bufferedSOAqueue,0); !iter.end(); iter++){
+            SOAEntry *tmpse= (SOAEntry *) iter();
+
+            // if time does not fit
+            if( simTime() < tmpse->tobuffer->getStart() or simTime() > tmpse->tobuffer->getStop() )
+                continue;
+
+            // if input port#WL does not fit
+            if( tmpse->getInPort() != inPort or tmpse->getInLambda() != inWL )
+                continue;
+
+            // Now we have most probably the right one
+            EV << tmpse->info() << endl;
+
+            cMessage *msg = new cMessage("ReleaseBuffer");
+            msg->addPar("RelaseStoredCar");
+            msg->addPar("RelaseStoredCar_CAR");
+            msg->par("RelaseStoredCar").setPointerValue(tmpse);
+            msg->par("RelaseStoredCar_CAR").setPointerValue(car);
+            msg->setSchedulingPriority(1);
+
+            usage[tmpse]++;
+            EV << " and released in: " << (simtime_t) waitings[tmpse] << " at=" << simTime() + waitings[tmpse] << endl;
+
+            if (waitings.find(tmpse) == waitings.end()) {
+                EV << "Unable to find waiting time" << endl;
+            }
+
+            scheduleAt(simTime() + waitings[tmpse], msg);
+
+            break;
+
+        }
+
+
+        return;
 
         for( cQueue::Iterator iter(bufferedSOAqueue,0); !iter.end(); iter++){
             SOAEntry *tmpse= (SOAEntry *) iter();
@@ -127,7 +166,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         if( !bufferedSOAqueue.contains(se) ){
             // This might happend when is there a problem with timing. se is deleted
             // from bufferedSOAqueue and after the scheduler wants to release car
-            EV << "Takova volba neexistuje - cotains" << endl;
+            EV << "Takova volba neexistuje - cotains ";
+            EV << car->getName() << endl;
             outAged++;
             opp_terminate("Jdeme zkoumat kde je problem");
             return;
@@ -266,8 +306,9 @@ void CoreNodeMAC::removeCar( SOAEntry *e ){
 }
 
 void CoreNodeMAC::finish(){
+
+    /* Performance monitoring */
     recordScalar("Bursts sent", burst_send);
-    recordScalar("Late release", outAged);
     recordScalar("Average buffer size [B]", avg_buffersize);
     recordScalar("Maximal buffer size [B]", max_buffersize);
     recordScalar("Access delay", avg_waitingtime);
@@ -278,4 +319,7 @@ void CoreNodeMAC::finish(){
         recordScalar("Buffering delay", avg_waitingtime);
         recordScalar("Buffering delay (total)", total_waitingtime/buffered);
     }
+
+    /* Monitoring */
+    if(outAged>0)recordScalar("Late release", outAged);
 }

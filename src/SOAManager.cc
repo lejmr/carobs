@@ -67,17 +67,25 @@ void SOAManager::handleMessage(cMessage *msg) {
         // Detection of optical signal -> Electrical CARBOS Header
         CAROBSHeader *H = (CAROBSHeader *) ol->getEncapsulatedPacket();
 
-        EV << " ! Aggregation process" << endl;
-//        int inWl = H->getWL();
+        EV << " ! Aggregation process";
         int dst = H->getDst();
 
+        // Obtain output port
         int outPort = R->getOutputPort(dst);
 
-//        SOAEntry *se = new SOAEntry(outPort, inWl, true);
-//        se->setStart(simTime() + H->getOT() - d_s);
-//        se->setStop(simTime() + H->getOT() + H->getLength() - d_s);
-//        soa->assignSwitchingTableEntry(se, tmpOT - d_s, H->getLength());
-//        scheduling.add(se);
+        EV << " to " << outPort<<"#"<<ol->getWavelengthNo() << endl;
+        EV << "cars we have with OT=" << H->getOT() << ": " << endl;
+        cQueue cars = H->getCars();
+        for(int i=0;i<cars.length();i++){
+            CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(i);
+            simtime_t tmplen= (simtime_t) ((double) tmpc->getSize() * 8 / C);
+            EV << " * car=" << tmpc->getDst();
+            EV << " start=" << simTime() + H->getOT() + tmpc->getD_c();
+            EV << " stop="  << simTime() + H->getOT() + tmpc->getD_c() + tmplen;
+            EV << " length=" << tmplen;
+            EV << " d_c=" << tmpc->getD_c();
+            EV << endl;
+        }
 
         H->setOT(H->getOT() - d_p);
         if (R->canForwardHeader(H->getDst())) {
@@ -97,7 +105,7 @@ void SOAManager::handleMessage(cMessage *msg) {
 }
 
 void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
-    EV << "> CAROBS Behaviour" << endl;
+    EV << " > CAROBS Behaviour" << endl;
 
     // Obtaining optical signal
     OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
@@ -113,10 +121,13 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     if (H->getDst() == address) {
         CAROBSCarHeader *first_car = (CAROBSCarHeader *) H->getCars().get(0);
         SOAEntry *se = new SOAEntry(inPort, inWl, false);
-        se->setStart(simTime() + H->getOT()+first_car->getD_c());
+        se->setStart(simTime() + H->getOT() );
         se->setStop(simTime() + H->getOT()+H->getLength());
         // Add Switching Entry to SOA a SOAManager scheduler
-        soa->assignSwitchingTableEntry(se, H->getOT()+first_car->getD_c()-d_s, H->getLength());
+        EV << " Car train has reached it destination"<<endl;
+        EV << " Dissagregation: " << se->info() << endl;
+
+        soa->assignSwitchingTableEntry(se, H->getOT()-d_s, H->getLength());
         scheduling.add(se);
         // And that is it, nothing more to do
         delete msg;
@@ -132,8 +143,8 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(i);
         EV << " * car=" << tmpc->getDst();
         EV << " start=" << simTime() + H->getOT() + tmpc->getD_c();
-        EV << " stop=" << (simtime_t) tmpc->getSize() * 8 / C + simTime() + H->getOT() + tmpc->getD_c();
-        EV << " length=" << (simtime_t) tmpc->getSize() * 8 / C;
+        EV << " stop=" << (simtime_t) ((double)tmpc->getSize()*8/C) + simTime() + H->getOT() + tmpc->getD_c();
+        EV << " length=" << (simtime_t) ((double)tmpc->getSize()*8/C);
         EV << " d_c=" << tmpc->getD_c();
 
         if (tmpc->getDst() == address) {
@@ -153,35 +164,48 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         // Count times for car-train
         CAROBSCarHeader *tmpc0 = (CAROBSCarHeader *) cars.get(NoToDis);
         CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(NoToDis + 1);
-        train_start = simTime() + H->getOT() + tmpc->getD_c();
-        train_length = train_length - tmpc->getD_c();
-        simtime_t c0 = tmpc0->getD_c();
-
-        EV << "disaggregate start=" << simTime() + H->getOT()+c0 << " stop=" << train_start - d_s << " length=" << tmpc->getD_c() - d_s -c0 << endl;
+        train_start += tmpc->getD_c();
+        train_length-= tmpc->getD_c();
 
         // Create disaggregation SOA instructions
         SOAEntry *se = new SOAEntry(inPort, inWl, false); // Disaggregation SOAEntry => false
-        se->setStart(simTime()+H->getOT()+c0);
+        se->setStart(simTime()+H->getOT());
         se->setStop(train_start - d_s);
-        simtime_t len= train_start - d_s - simTime()+H->getOT()+c0;
+        simtime_t len= train_start - d_s - simTime()+H->getOT();
 
         // Add Switching Entry to SOA a SOAManager scheduler
-        soa->assignSwitchingTableEntry(se, H->getOT()+c0- d_s, tmpc->getD_c()-d_s-c0);
+        soa->assignSwitchingTableEntry(se, H->getOT()- d_s, tmpc->getD_c()-d_s);
         scheduling.add(se);
+        EV << " Dissagregation: " << se->info() << endl;
 
         // Remove CAR Header from CAROBS Header of this disaggregated car
+        // and update every d_c of cars persisting in the train
         delete cars.remove(tmpc0);
-        H->setN(cars.length());
-        H->setCars(cars);
-    }
 
-    EV << "train start=" << train_start << " stop=" << train_stop << " length=" << train_length << endl;
+
+        simtime_t shift= tmpc->getD_c();
+        EV << "Zkracuji o " << shift << endl;
+        for(int i=0;i<cars.length();i++){
+            CAROBSCarHeader *tc= (CAROBSCarHeader *) cars.get(i);
+            EV << " - CAR " << tc->getDst() << " d_c="<<tc->getD_c()-shift << endl;
+            tc->setD_c( tc->getD_c()-shift );
+        }
+        EV << "Akutalizuji OT z " << H->getOT();
+        H->setOT( H->getOT()+shift);
+        EV << " to " << H->getOT() << endl;
+
+        // Update CAROBS Header properties
+        H->setN(cars.length());     // Number of carried cars
+        H->setCars(cars);
+        H->setLength( H->getLength()-shift );   // Length of the train
+    }
 
     // 2nd half of the burst train
     int outPort = R->getOutputPort(dst);
 
     // Assign this SOAEntry to SOA
     SOAEntry *sef = getOptimalOutput(outPort, inPort, inWl, train_start, train_stop);
+    EV << " Switching: " << sef->info() << endl;
 
     // sef==NULL happens only if the buffering is turned off
     if( sef == NULL ){
@@ -206,7 +230,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // Add Switching Entry to SOA a SOAManager scheduler
     sef->setStart(train_start+d_w_extra);
     sef->setStop(train_stop+d_w_extra);
-    soa->assignSwitchingTableEntry(sef, d_w_extra+train_start-d_s-simTime(), train_length);
+    soa->assignSwitchingTableEntry(sef, d_w_extra+H->getOT()-d_s, train_length);
 
     // Update of OT for continuing car train
     H->setOT(H->getOT()-d_p);
@@ -245,6 +269,7 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
 
     // Assign this SOAEntry to SOA
     SOAEntry *se = getOptimalOutput(outPort, inPort, inWl, simTime() + H->getOT(), simTime() + H->getOT() + H->getLength());
+    EV << " Switching: " << se->info() << endl;
 
     // se==NULL happens only if the buffering is turned off
     if (se == NULL) {
@@ -439,8 +464,12 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     e_out->setOutBuffer();
     scheduling.add(e_out);
 
+    // Bond this two together
+    e_out->tobuffer= e_in;
+
     //  Buffered result
     if (not WC) EV << " BUFFERED=" << BT << " outWL=" << inWL << endl;
+    EV << " Buffering: " << e_in->info() << endl;
 
     //  Return the record important for outgoing car-train from buffer - this
     //  way SOAManager can assume the buffering time

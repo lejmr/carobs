@@ -132,9 +132,10 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
 
 void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
 
-    if( simTime() + d_s + ot < simTime() ){
+    if( d_s + ot < 0 ){
         bigOT++;
-        EV << " Car train reached the Header - unable to set switching matrix" << endl;
+        EV << "Car train reached the Header - unable to set switching matrix";
+        EV << " lacking="<< d_s+ot <<"s"<< endl;
         return;
     }
 
@@ -191,9 +192,12 @@ SOAEntry * SOA::findOutput(int inPort, int inWl) {
 
 
 void SOA::finish() {
+    /* Performance statistics */
     recordScalar("Total switched bursts", incm);
     recordScalar("Total dropped bursts", drpd);
-    if(incm>0)recordScalar("Loss probability", (double) drpd/(drpd+incm));
     recordScalar("Wavelength conversion used", wcs);
-    recordScalar("Train reached header", bigOT );
+
+    /* Monitoring statistics */
+    if(incm>0)recordScalar("Loss probability", (double) drpd/(drpd+incm));
+    if(bigOT>0)recordScalar("Train reached header", bigOT );
 }

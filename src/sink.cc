@@ -65,6 +65,7 @@ void Sink::handleMessage(cMessage *msg)
         misdelivered[dst]++;
 
         EV << "MISDELIVERY from " << pl->getSrc() << " to " << pl->getDst() << endl;
+        opp_terminate("misdelivery");
     }
 
     delete msg;
@@ -74,7 +75,7 @@ void Sink::finish(){
     recordScalar("Simulation duration", simTime());
     recordScalar("Packets received", received);
 
-    if( received != 0 ) recordScalar("Average delay", total_delay/received);
+    if( received != 0 ) recordScalar("End-to-End delay (total)", total_delay/received);
     else recordScalar("Average delay", 0 );
 
     int received=0;
@@ -87,6 +88,7 @@ void Sink::finish(){
     }
     recordScalar("Avererage End-to-End delay", avg_e2e);
 
+    /* Monitoring variables.. shown only when models behave bad */
     int64_t total=0;
     std::map<int, int64_t>::iterator it2;
     for(it2=misdelivered.begin();it2!=misdelivered.end();it2++){
@@ -95,7 +97,7 @@ void Sink::finish(){
             recordScalar(out.str().c_str(), (*it2).second);
             total += (*it2).second;
     }
-    recordScalar("Total misdelivered packets", total);
+    if(total>0) recordScalar("Total misdelivered packets", total);
 
 
 }
