@@ -29,44 +29,44 @@ O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 
 # Object files for local .cc and .msg files
 OBJS = \
-    $O/CoreNodeMAC.o \
-    $O/routing.o \
-    $O/payloadInterface.o \
-    $O/SOAManager.o \
-    $O/merge.o \
-    $O/MACEntry.o \
-    $O/routingTable.o \
     $O/aggregationPoolManager.o \
     $O/aggregationQueues.o \
-    $O/SOA.o \
-    $O/trainAssembler.o \
+    $O/cityGenerator.o \
+    $O/CoreNodeMAC.o \
     $O/deMux.o \
-    $O/SOAEntry.o \
     $O/generator.o \
     $O/MAC.o \
+    $O/MACEntry.o \
+    $O/merge.o \
+    $O/payloadInterface.o \
     $O/portManager.o \
-    $O/cityGenerator.o \
+    $O/routing.o \
+    $O/routingTable.o \
     $O/sink.o \
+    $O/SOA.o \
+    $O/SOAEntry.o \
+    $O/SOAManager.o \
+    $O/trainAssembler.o \
     $O/link/fiberChannel.o \
-    $O/messages/CAROBSCarHeader_m.o \
-    $O/messages/schedulerUnit_m.o \
-    $O/messages/trainContainer_m.o \
-    $O/messages/Payload_m.o \
-    $O/messages/CAROBSHeader_m.o \
-    $O/messages/OpticalLayer_m.o \
     $O/messages/car_m.o \
-    $O/messages/MACContainer_m.o
+    $O/messages/CAROBSCarHeader_m.o \
+    $O/messages/CAROBSHeader_m.o \
+    $O/messages/MACContainer_m.o \
+    $O/messages/OpticalLayer_m.o \
+    $O/messages/Payload_m.o \
+    $O/messages/schedulerUnit_m.o \
+    $O/messages/trainContainer_m.o
 
 # Message files
 MSGFILES = \
-    messages/CAROBSCarHeader.msg \
-    messages/schedulerUnit.msg \
-    messages/trainContainer.msg \
-    messages/Payload.msg \
-    messages/CAROBSHeader.msg \
-    messages/OpticalLayer.msg \
     messages/car.msg \
-    messages/MACContainer.msg
+    messages/CAROBSCarHeader.msg \
+    messages/CAROBSHeader.msg \
+    messages/MACContainer.msg \
+    messages/OpticalLayer.msg \
+    messages/Payload.msg \
+    messages/schedulerUnit.msg \
+    messages/trainContainer.msg
 
 #------------------------------------------------------------------------------
 
@@ -112,14 +112,16 @@ endif
 #------------------------------------------------------------------------------
 
 # Main target
-all: $O/$(TARGET)
+all: $(TARGET)
+
+$(TARGET) : $O/$(TARGET)
 	$(LN) $O/$(TARGET) .
 
 $O/$(TARGET): $(OBJS)  $(wildcard $(EXTRA_OBJS)) Makefile
 	@$(MKPATH) $O
 	$(CXX) $(LDFLAGS) -o $O/$(TARGET)  $(OBJS) $(EXTRA_OBJS) $(AS_NEEDED_OFF) $(WHOLE_ARCHIVE_ON) $(LIBS) $(WHOLE_ARCHIVE_OFF) $(OMNETPP_LIBS)
 
-.PHONY: all clean cleanall depend msgheaders
+.PHONY:
 
 .SUFFIXES: .cc
 
