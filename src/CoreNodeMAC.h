@@ -61,6 +61,8 @@ class CoreNodeMAC : public cSimpleModule
     simtime_t avg_waitingtime, total_waitingtime;
     int64_t aggregated;
     int64_t wrong_output;
+    cOutVector vwaitingtime;
+    cOutVector vbuffertime;
 
     /**
      *  Statistics of grooming process

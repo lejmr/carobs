@@ -38,6 +38,9 @@ void CoreNodeMAC::initialize() {
     total_buffertime=0;
     avg_buffertime=0;
     buffered=0;
+    vbuffertime.setName("Buffering delay");
+    vwaitingtime.setName("Access delay");
+
 
     WATCH(capacity);
 }
@@ -184,6 +187,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     avg_waitingtime= (avg_waitingtime+t0)/2;
     total_waitingtime += t0;
     aggregated++;
+    vwaitingtime.record(t0);
 
     // Set wavelength of Car train to CAROBS header
     H->setWL(WL);
@@ -240,6 +244,7 @@ void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
     // Statistics
     if( avg_buffertime==0 ) avg_buffertime=wait;
     avg_buffertime= (avg_buffertime+wait)/2;
+    vbuffertime.record(wait);
 
     // Overall ones
     total_buffertime+=wait;
