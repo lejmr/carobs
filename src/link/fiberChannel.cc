@@ -64,8 +64,8 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
 }
 
 void FiberChannel::finish(){
-    if(scheduling) recordScalar("Overlaping bursts", scheduling);
-    if(overlap) recordScalar("Burst spacing violated", overlap);
+    if(scheduling) recordScalar(" ! Overlaping bursts", scheduling);
+    if(overlap) recordScalar(" ! Burst spacing violated", overlap);
     recordScalar("Bursts transmitted", trans);
 }
 
