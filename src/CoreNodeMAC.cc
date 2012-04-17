@@ -270,5 +270,5 @@ void CoreNodeMAC::finish(){
     }
 
     /* Monitoring */
-    if(outAged>0)recordScalar("Late release", outAged);
+    if(outAged>0)recordScalar(" ! Late release", outAged);
 }

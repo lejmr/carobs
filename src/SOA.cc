@@ -205,5 +205,5 @@ void SOA::finish() {
 
     /* Monitoring statistics */
     if(incm>0)recordScalar("Loss probability", (double) drpd/(drpd+incm));
-    if(bigOT>0)recordScalar("Train reached header", bigOT );
+    if(bigOT>0)recordScalar(" ! Train reached header", bigOT );
 }

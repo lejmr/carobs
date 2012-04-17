@@ -93,11 +93,11 @@ void Sink::finish(){
     std::map<int, int64_t>::iterator it2;
     for(it2=misdelivered.begin();it2!=misdelivered.end();it2++){
             std::stringstream out;
-            out << "Misdelivered for " << (*it2).first;
+            out << " ! Misdelivered for " << (*it2).first;
             recordScalar(out.str().c_str(), (*it2).second);
             total += (*it2).second;
     }
-    if(total>0) recordScalar("Total misdelivered packets", total);
+    if(total>0) recordScalar(" ! Total misdelivered packets", total);
 
 
 }
