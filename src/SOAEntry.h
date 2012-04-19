@@ -16,7 +16,7 @@ class SOAEntry : public cPolymorphic
     bool aggregation_var;
     bool disaggregation_var;
     bool buffer_var;
-    bool buffer_in_var;
+    bool buffer_in_var; //True= to buffer, False= from buffer
 
     // protected and unimplemented operator==(), to prevent accidental usage
     bool operator==(const SOAEntry&);

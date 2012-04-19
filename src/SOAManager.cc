@@ -487,6 +487,8 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
         if( scheduling[i] == NULL ) { continue;}
         SOAEntry *tmp = (SOAEntry *) scheduling[i];
 
+        if( tmp->getBuffer() and tmp->getBufferDirection() ) continue;
+
         if (tmp->getOutLambda() == outWL and tmp->getOutPort() == outPort) {
             // There is some scheduling for my output combination, lets see whether it is overlapping
 
@@ -549,6 +551,8 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
 
         // Do the find only for One output port OutPort
         if (tmp->getOutPort() == outPort) {
+
+            if( tmp->getBuffer() and tmp->getBufferDirection() ) continue;
 
             // Gather spaces before a burst is comming on a WL
             simtime_t fitTime = tmp->getStart() - simTime();
