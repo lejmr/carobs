@@ -53,6 +53,7 @@ void Sink::handleMessage(cMessage *msg)
     received++;
     total_delay += delay;
 
+    EV<< "Packet from "<<src<<" was sent at="<<pl->getT0()<<" it makes delay="<<delay<<"s ";
     // Scalar E2E measturemtn
     if(avg_e2e==0) avg_e2e= delay;
     avg_e2e= (avg_e2e+delay)/2;
@@ -64,10 +65,11 @@ void Sink::handleMessage(cMessage *msg)
             misdelivered[dst]=0;
         misdelivered[dst]++;
 
-        EV << "MISDELIVERY from " << pl->getSrc() << " to " << pl->getDst() << endl;
+        EV << "MISDELIVERY from " << pl->getSrc() << " to " << pl->getDst();
         opp_terminate("misdelivery");
     }
 
+    EV  << endl;
     delete msg;
 }
 

@@ -219,7 +219,7 @@ void TrainAssembler::ctaTrainTruncate(std::vector<SchedulerUnit *> &dst) {
     EV << "Curbed Train Assembly " << endl;
 
     // Smoothening process
-    for (int i = 0; i < dst.size() - 1; i++) {
+    for (unsigned int i = 0; i < dst.size() - 1; i++) {
         // Calculate the gap between two OT
         simtime_t t_space = dst[i+1]->getOt()-dst[i]->getOt();
 

@@ -21,7 +21,7 @@ package carobs.modules;
 simple Routing
 {
     parameters:
-        double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
+        double d_p @unit(s) = default(10ms);	// Processing time of SOA Manager
         
     @display("i=block/network2");
 }

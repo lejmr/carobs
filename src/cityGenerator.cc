@@ -87,7 +87,8 @@ void CityGenerator::handleMessage(cMessage *msg)
             // mu = lenghtB*8 / C  - Where lengthB is mean value of length and C is bitrate in bps
             // demand/C - in conversion of traffic matrix into Erlang notation
             double lambda= demand/C*1e9 * length/C;
-            EV << "lambda="<<lambda <<endl;
+            EV << " + alpha="<<alpha<<" demand="<<(*it)<<" alpha*demand="<<demand;
+            EV << " lambda="<<lambda <<endl;
             int sent= 0;
             while( sent+step <= n ){
                 cMessage *t = new cMessage();
@@ -139,13 +140,13 @@ void CityGenerator::handleMessage(cMessage *msg)
 void CityGenerator::sendAmount(int amount, int src, int dst, double lambda, int length){
     for (int i = 0; i < amount; i++) {
         simtime_t gap = exponential(lambda);
-        arrivals[dst]+=gap;
         Payload *pl = new Payload();
         pl->setBitLength(length);
         pl->setDst(dst);
         pl->setSrc(src);
         pl->setT0(arrivals[dst]);
         scheduleAt(arrivals[dst], pl);
+        arrivals[dst]+=gap;
         EV << " + " << src << "->" << dst << " (" << length / 8 << "B): " << arrivals[dst] << endl;
         psend++;
     }

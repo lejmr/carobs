@@ -23,10 +23,10 @@ channel FiberChannel extends DelayChannel
 	@class(FiberChannel);
         	
     double length @unit(km);
-//    delay = this.length / 200km * 1ms;
-	delay=0;
+    delay = this.length / 200km * 1ms;
+	//delay=0;
 	
-	double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
+	double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
 	double datarate= default(1Gbps) @unit(bps);	// Datarate
 	
     @display("ls=blue");

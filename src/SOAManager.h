@@ -127,6 +127,12 @@ class SOAManager : public cSimpleModule
      */
     int64_t tbdropped;
 
+    /**
+     *  Sending method
+     *      True = fifo
+     *      False= rand
+     */
+    bool fifo;
 
   public:
     /**

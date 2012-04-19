@@ -23,8 +23,8 @@ simple TrainAssembler
 {
     parameters:
         //int poolTreshold @unit(B) = default(9KiB) ; // Bytes
-        double d_p = default(10ms) @unit(s);	// Processing time of SOA Manager
-        double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
+        double d_p @unit(s) = default(10ms);	// Processing time of SOA Manager
+        double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
         double datarate= default(1Gbps) @unit(bps);	// Datarate
         bool   CTA = default(false);	// Turns Curbet train algorithm reducing E-to-E delay
         

@@ -61,6 +61,7 @@ void SOA::handleMessage(cMessage *msg) {
         return;
     }
 
+    incm++;
     if( !strcmp(msg->getArrivalGate()->getName(), "gate$i") ){
         /*  Ordinary Cars which are going to be transfered or disaggregated  */
         // Obtain informations about optical signal -- wavelength and incoming port
@@ -111,7 +112,7 @@ void SOA::handleMessage(cMessage *msg) {
             delete msg; return;
         }
 
-        incm++;
+
     }
 
     if( !strcmp(msg->getArrivalGate()->getName(), "aggregation$i") ){
@@ -204,6 +205,6 @@ void SOA::finish() {
     recordScalar("Wavelength conversion used", wcs);
 
     /* Monitoring statistics */
-    if(incm>0)recordScalar("Loss probability", (double) drpd/(drpd+incm));
+    if(incm>0)recordScalar("Loss probability", (double) drpd/(incm));
     if(bigOT>0)recordScalar(" ! Train reached header", bigOT );
 }

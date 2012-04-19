@@ -46,6 +46,9 @@ void SOAManager::initialize() {
     C = par("datarate").doubleValue();
     tbdropped=0;
 
+    // W election method
+    fifo= par("fifo").boolValue();
+
     WATCH(OBS);
 }
 
@@ -525,7 +528,8 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
 
     if (scheduling.size() == 0) {
         // Fast forward - if there is no scheduling .. do bypas
-        WL = (int)uniform(1,maxWL+1);
+        WL= 1;
+        if( !fifo ) WL = (int)uniform(1,maxWL+1);
         SOAEntry *se = new SOAEntry(outPort, WL, true);
         se->setStart(simTime() + OT);
         se->setStop(simTime() + OT + len);
@@ -561,39 +565,40 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         }
     }
 
+    if( !fifo ){
+        /* Random approach for aggreagation through MAC */
+        std::set<int> freeWLs;
+        std::set<int>::iterator it = freeWLs.begin();
 
-    /* Random approach for aggreagation through MAC */
-    std::set<int> freeWLs;
-    std::set<int>::iterator it = freeWLs.begin();
+        // Map of used and unsed WLs
+        for (int i = 1; i <= maxWL; i++)
+            if (fitting.find(i) == fitting.end()) {
+                freeWLs.insert(i);
+                EV << i << " ";
+            }
 
-    // Map of used and unsed WLs
-    for (int i = 1; i <= maxWL; i++)
-        if (fitting.find(i) == fitting.end()) {
-            freeWLs.insert(i);
-            EV << i << " ";
+        // Test whether there are some unused WLs
+        if (freeWLs.size() > 0) {
+            it = freeWLs.begin();
+
+            // Randomly generate and test the generated WL
+            do {
+                int i = uniform(0, freeWLs.size());
+                std::advance(it, i);
+                WL = *it;
+            } while (!testOutputCombination(outPort, WL, simTime() + OT, simTime() + OT + len));
+
+            // Create scheduling entry and assign it to the SOA
+            SOAEntry *se = new SOAEntry(outPort, WL, true);
+            se->setStart(simTime() + OT);
+            se->setStop(simTime() + OT + len);
+            soa->assignSwitchingTableEntry(se, OT - d_s, len);
+            scheduling.add(se);
+
+            // Full-fill output text
+            EV << "#" << WL << " without waiting" << endl;
+            return 0.0;
         }
-
-    // Test whether there are some unused WLs
-    if (freeWLs.size() > 0) {
-        it = freeWLs.begin();
-
-        // Randomly generate and test the generated WL
-        do {
-            int i = uniform(0, freeWLs.size());
-            std::advance(it, i);
-            WL = *it;
-        } while (!testOutputCombination(outPort, WL, simTime() + OT, simTime() + OT + len));
-
-        // Create scheduling entry and assign it to the SOA
-        SOAEntry *se = new SOAEntry(outPort, WL, true);
-        se->setStart(simTime() + OT);
-        se->setStop(simTime() + OT + len);
-        soa->assignSwitchingTableEntry(se, OT - d_s, len);
-        scheduling.add(se);
-
-        // Full-fill output text
-        EV << "#" << WL << " without waiting" << endl;
-        return 0.0;
     }
 
 
