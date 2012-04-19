@@ -70,7 +70,7 @@ void Sink::handleMessage(cMessage *msg)
     }
 
     EV  << endl;
-    delete msg;
+    delete pl;
 }
 
 void Sink::finish(){

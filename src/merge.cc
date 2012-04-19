@@ -36,5 +36,6 @@ void Merge::handleMessage(cMessage *msg)
     }
 
     // Drop empty container
+    delete car;
     delete msg;
 }
