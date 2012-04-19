@@ -61,10 +61,13 @@ void SOA::handleMessage(cMessage *msg) {
         return;
     }
 
-    incm++;
     if( !strcmp(msg->getArrivalGate()->getName(), "gate$i") ){
         /*  Ordinary Cars which are going to be transfered or disaggregated  */
         // Obtain informations about optical signal -- wavelength and incoming port
+
+        // Taking statistics about incoming bursts
+        incm++;
+
         msg->setSchedulingPriority(10);
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
         int inPort = msg->getArrivalGate()->getIndex();
@@ -200,7 +203,7 @@ SOAEntry * SOA::findOutput(int inPort, int inWl) {
 
 void SOA::finish() {
     /* Performance statistics */
-    recordScalar("Total switched bursts", incm);
+    recordScalar("Total switched bursts", incm);    // Does not mean they are not dropped
     recordScalar("Total dropped bursts", drpd);
     recordScalar("Wavelength conversion used", wcs);
 
