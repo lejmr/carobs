@@ -62,6 +62,7 @@ class SOA : public cSimpleModule
      *  drpd - a number of dropped bursts
      */
     int64_t incm, drpd;
+    int64_t wrong_scheduling;
 
     /**
      *  The number of wavelengths currently used

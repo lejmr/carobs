@@ -31,6 +31,7 @@ void SOA::initialize() {
     switchingTable = new cArray("switchingTable");
 
     incm=0; drpd=0;
+    wrong_scheduling=0;
 
     // Wavelength statistics
     wls=0;
@@ -57,8 +58,7 @@ void SOA::handleMessage(cMessage *msg) {
         /*  Self-message for destruction of switching entry */
         SOAEntry *tse = (SOAEntry *) msg->par("DeactivateSwitchingTableEntry").pointerValue();
         dropSwitchingTableEntry(tse);
-        delete msg;
-        return;
+        delete msg; return;
     }
 
     if( !strcmp(msg->getArrivalGate()->getName(), "gate$i") ){
@@ -132,11 +132,44 @@ void SOA::handleMessage(cMessage *msg) {
 }
 
 void SOA::addpSwitchingTableEntry(SOAEntry *e){
-    EV << " ADD " << e->info() << endl;
+    EV << " ADD " << e->info();
 
     // AOS mode and different lambdas on output and input
     if( !e->getBuffer() and e->getInLambda() != e->getOutLambda() ) wcs++;
 
+    // Test whether *e does not overlap any switching configuration
+    // There is no buffing constraint
+    if( !e->getBuffer() and !e->isDisaggregation() ){
+        simtime_t start= e->getStart();
+        simtime_t stop= e->getStop();
+        for (int i = 0; i < switchingTable->size(); i++) {
+            if( not switchingTable->exist(i) ) continue;
+            SOAEntry *se = (SOAEntry *) switchingTable->get(i);
+
+            //
+            if( se->getBuffer() and se->getBufferDirection() ) continue;
+
+            // Same entry as I want to use .. probably is here something to test.. overlap?
+            if( e->getOutPort() == se->getOutPort() and e->getOutLambda() == se->getOutLambda()){
+
+                if( se->getStart() - d_s > start and se->getStart() - d_s >= stop ){
+                    continue;
+                }
+
+                if( se->getStop() + d_s <= start and se->getStop() + d_s < stop ){
+                    continue;
+                }
+
+                EV << " already used time slot !!! ("<<se->info()<<")" << endl;
+                wrong_scheduling++;
+                opp_terminate("Wrong scheduling");
+                return;
+            }
+        }
+    }
+
+
+    EV << endl;
     // Reserve WL if it is not to buffer direction
     switchingTable->add(e);
 }
@@ -210,4 +243,5 @@ void SOA::finish() {
     /* Monitoring statistics */
     if(incm>0)recordScalar("Loss probability", (double) drpd/incm );
     if(bigOT>0)recordScalar(" ! Train reached header", bigOT );
+    if(wrong_scheduling>0) recordScalar(" ! Not enough time for switching", wrong_scheduling);
 }
