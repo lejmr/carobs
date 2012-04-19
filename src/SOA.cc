@@ -112,6 +112,7 @@ void SOA::handleMessage(cMessage *msg) {
             send(ol, "gate$o", sw->getOutPort());
         }else{
             EV << "Burst at "<<inPort<<"#"<<inWl<<" is to be dropped !!!" << endl;
+            drpd++;
             delete msg; return;
         }
 
@@ -196,7 +197,6 @@ SOAEntry * SOA::findOutput(int inPort, int inWl) {
     }
 
     // Nothing found.. butst is going to be lost
-    drpd++;
     return new SOAEntry(-1, -1, -1, -1);
 }
 
@@ -208,6 +208,6 @@ void SOA::finish() {
     recordScalar("Wavelength conversion used", wcs);
 
     /* Monitoring statistics */
-    if(incm>0)recordScalar("Loss probability", (double) drpd/(incm));
+    if(incm>0)recordScalar("Loss probability", (double) drpd/incm );
     if(bigOT>0)recordScalar(" ! Train reached header", bigOT );
 }
