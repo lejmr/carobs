@@ -89,46 +89,55 @@ void CityGenerator::handleMessage(cMessage *msg)
             double lambda= demand/C*1e9 * length/C;
             EV << " + alpha="<<alpha<<" demand="<<(*it)<<" alpha*demand="<<demand;
             EV << " lambda="<<lambda <<endl;
-            int sent= 0;
-            while( sent+step <= n ){
-                cMessage *t = new cMessage();
-                t->addPar("amount").setDoubleValue(step);
-                t->addPar("lambda").setDoubleValue(lambda);
-                t->addPar("src").setDoubleValue(src);
-                t->addPar("dst").setDoubleValue(dst);
-                t->addPar("scheduling");
-                scheduleAt(simTime(),t);
-                sent+=step;
-            }
 
-            if(sent < n ){
-                int toSend= n-sent;
-                cMessage *t = new cMessage();
-                t->addPar("amount").setDoubleValue(toSend);
-                t->addPar("lambda").setDoubleValue(lambda);
-                t->addPar("src").setDoubleValue(src);
-                t->addPar("dst").setDoubleValue(dst);
-                t->addPar("scheduling");
-                scheduleAt(simTime(), t);
-            }
-
-            /*
-            std::stringstream out;
-            out << "Send messages to " << dst;
-            recordScalar(out.str().c_str(), n);
-            */
+            // Initiate sending
+            cMessage *t = new cMessage();
+            t->addPar("lambda").setDoubleValue(lambda);
+            t->addPar("src").setDoubleValue(src);
+            t->addPar("dst").setDoubleValue(dst);
+            t->addPar("sent").setLongValue(0);
+            t->addPar("scheduling");
+            scheduleAt(simTime(), t);
 
         }
 
+        delete msg;
+        return;
     }
 
     //Initiate sending Payload packets
     if( msg->isSelfMessage() and msg->hasPar("scheduling")){
-        sendAmount( msg->par("amount").doubleValue(),
-                msg->par("src").doubleValue(),
-                msg->par("dst").doubleValue(),
-                msg->par("lambda").doubleValue(),
-                length );
+
+        // Test how many packet has been send
+        int64_t sent = msg->par("sent").longValue();
+        if (sent >= n) {
+            EV << " All (" << sent << "/" << n << ") packets has been sent to " << msg->par("dst").doubleValue() << endl;
+            delete msg;
+            return;
+        }
+
+        // There are some packets to send
+        int tosend= step;
+        if( sent+step > n ) tosend= n-sent;
+
+        // Send these packets
+        simtime_t next = sendAmount( tosend,
+                            msg->par("src").doubleValue(), msg->par("dst").doubleValue(),
+                            msg->par("lambda").doubleValue(), length);
+
+
+        // Initiate next sending blast
+        cMessage *t = new cMessage();
+        t->addPar("lambda").setDoubleValue( msg->par("lambda").doubleValue() );
+        t->addPar("src").setDoubleValue(src);
+        t->addPar("dst").setDoubleValue( msg->par("dst").doubleValue() );
+        t->addPar("sent").setLongValue( msg->par("sent").longValue()+tosend );
+        t->addPar("scheduling");
+        scheduleAt( next , t);
+
+        // Clean after last scheduling
+        delete msg;
+        return;
     }
 
     // Send prepared Payload packet
@@ -137,7 +146,7 @@ void CityGenerator::handleMessage(cMessage *msg)
     }
 }
 
-void CityGenerator::sendAmount(int amount, int src, int dst, double lambda, int length){
+simtime_t CityGenerator::sendAmount(int amount, int src, int dst, double lambda, int length){
     for (int i = 0; i < amount; i++) {
         simtime_t gap = exponential(lambda);
         Payload *pl = new Payload();
@@ -146,10 +155,13 @@ void CityGenerator::sendAmount(int amount, int src, int dst, double lambda, int 
         pl->setSrc(src);
         pl->setT0(arrivals[dst]);
         scheduleAt(arrivals[dst], pl);
-        arrivals[dst]+=gap;
         EV << " + " << src << "->" << dst << " (" << length / 8 << "B): " << arrivals[dst] << endl;
+        arrivals[dst]+=gap;
         psend++;
     }
+
+    EV << "Next sending is planned at " << arrivals[dst] << endl;
+    return arrivals[dst];
 }
 
 void CityGenerator::finish(){

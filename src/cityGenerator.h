@@ -39,7 +39,14 @@ class CityGenerator : public cSimpleModule
 
     std::map<int,int> counts;
 
-    virtual void sendAmount(int amount, int src, int dst, double lambda, int length);
+    /**
+     *  Function sendAmount sends a number of packets specified by param amount to destination
+     *  dst.
+     *  Interarrival intervals are specified by lambda which is feed to exponential random
+     *  number generator.
+     *  Returns time for next sending.
+     */
+    virtual simtime_t sendAmount(int amount, int src, int dst, double lambda, int length);
     std::map<int,simtime_t> arrivals;
 
 };
