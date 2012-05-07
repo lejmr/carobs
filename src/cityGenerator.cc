@@ -83,10 +83,10 @@ void CityGenerator::handleMessage(cMessage *msg)
             arrivals[dst]=simTime();
 
             EV << "Preparing "<<n<<" payload packets to " << dst << " with demand "<<demand <<"Gbps"<< endl;
-            // Mean time between incomens of the demands .. based on A= lambda*mu
-            // mu = lenghtB*8 / C  - Where lengthB is mean value of length and C is bitrate in bps
+            // Mean time between incomes of the demands .. based on A= lambda*mu
+            // mu = lenght / C  - Where lengthB is mean value of length and C is bitrate in bps
             // demand/C - in conversion of traffic matrix into Erlang notation
-            double lambda= demand/C*1e9 * length/C;
+            double lambda= demand/C*1e9 / (length/C);
             EV << " + alpha="<<alpha<<" demand="<<(*it)<<" alpha*demand="<<demand;
             EV << " lambda="<<lambda <<endl;
 
