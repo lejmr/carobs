@@ -66,7 +66,7 @@ void CityGenerator::handleMessage(cMessage *msg)
 {
     double alpha= par("alpha").doubleValue();
     int length = par("length").longValue();
-    int step = 500;
+    int step = 100;
 
     // Prepare sending
     if ( msg->isSelfMessage() and msg->hasPar("initiateSending") ){
@@ -86,9 +86,9 @@ void CityGenerator::handleMessage(cMessage *msg)
             // Mean time between incomes of the demands .. based on A= lambda*mu
             // mu = lenght / C  - Where lengthB is mean value of length and C is bitrate in bps
             // demand/C - in conversion of traffic matrix into Erlang notation
-            double lambda= demand/C*1e9 / (length/C);
+            double lambda= demand*1e9 / length ;
             EV << " + alpha="<<alpha<<" demand="<<(*it)<<" alpha*demand="<<demand;
-            EV << " lambda="<<lambda <<endl;
+            EV << " lambda="<<lambda << " instance>"<< exponential(lambda) <<endl;
 
             // Initiate sending
             cMessage *t = new cMessage();
