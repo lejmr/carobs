@@ -66,7 +66,7 @@ void CityGenerator::handleMessage(cMessage *msg)
 {
     double alpha= par("alpha").doubleValue();
     int length = par("length").longValue();
-    int step = 100;
+    int step = par("blast").longValue();
 
     // Prepare sending
     if ( msg->isSelfMessage() and msg->hasPar("initiateSending") ){
