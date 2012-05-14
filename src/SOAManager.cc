@@ -49,6 +49,9 @@ void SOAManager::initialize() {
     // W election method
     fifo= par("fifo").boolValue();
 
+    // Speed of O/E conversion
+    convPerformance=par("convPerformance").doubleValue();
+
     WATCH(OBS);
 }
 
@@ -138,6 +141,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
 
     // This node is not termination one, so we must check whether we need to disaggreate something
     int NoToDis = -1;
+    int longest_burst_length = 0;
     cQueue cars = H->getCars();
     bool dissaggregation=false;
     EV << "cars we have with OT=" << H->getOT() << ": " << endl;
@@ -148,6 +152,11 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         EV << " stop=" << (simtime_t) ((double)tmpc->getSize()*8/C) + simTime() + H->getOT() + tmpc->getD_c();
         EV << " length=" << (simtime_t) ((double)tmpc->getSize()*8/C);
         EV << " d_c=" << tmpc->getD_c();
+
+        // Capturing lenght of longest burst .. important for minimum buffering time
+        if( tmpc->getSize()*8 > longest_burst_length){
+            longest_burst_length= tmpc->getSize()*8;
+        }
 
         if (tmpc->getDst() == address) {
             EV << " - disaggregate";
@@ -206,7 +215,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     int outPort = R->getOutputPort(dst);
 
     // Assign this SOAEntry to SOA
-    SOAEntry *sef = getOptimalOutput(outPort, inPort, inWl, train_start, train_stop);
+    SOAEntry *sef = getOptimalOutput(outPort, inPort, inWl, train_start, train_stop, longest_burst_length);
     EV << " Switching: " << sef->info() << endl;
 
     // sef==NULL happens only if the buffering is turned off
@@ -314,7 +323,7 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
         delete msg;
 }
 
-SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop) {
+SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop, int length) {
     EV << "Get scheduling for " << inPort << "#" << inWL << " to port="
               << outPort << " for:" << start << "-" << stop;
 
@@ -379,10 +388,9 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
      */
 
     std::map<int, simtime_t> times;
-    // ! NO WC
     // table row: outputPort & outputWL -> time the outputWL is ready to be used again
     for (int i = 0; i < scheduling.size(); i++) {
-        if( scheduling[i] == NULL ) { continue; EV << "invalid2" << endl;}
+        if( scheduling[i] == NULL ) { continue; }
         SOAEntry *tmp = (SOAEntry *) scheduling[i];
 
         // Do the find only for One output port OutPort
@@ -402,8 +410,8 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
 
     if (times.find(inWL) == times.end()) {
         EV << " NO BUFFER outWL=" << inWL << endl;
-        EV << " ! Strange situation - it seems there is no scheduling for outPort="
-           << outPort << "#" << inWL << " do not have to buffer it !" << endl;
+        EV << " ! Strange situation - it seems there is no scheduling for outPort=";
+        EV << outPort << "#" << inWL << " do not have to buffer it !" << endl;
         SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
         e->setStart(start);
         e->setStop(stop);
@@ -411,44 +419,41 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
         return e;
     }
 
-    //  Time to stay in buffer
+    // Minum time the burst must stay in buffer .. it is approximation of limit conversio speed
+    double min_buffer= convPerformance*(double)length;
+
+    //  Time to stay in buffer in case we keep the same wavelength
     simtime_t BT = times[inWL] - start + d_s;
+    if( BT < min_buffer) BT= min_buffer;
     int outWL = inWL;
-    // Check WC options
-    if (WC) {
-        simtime_t tmpBT = BT;
-        int betterWL = inWL;
-        for (int i = 1; i <= maxWL; i++) {
-            if (i == inWL)
-                continue;
-            if (times.find(i) == times.end()) {
-                EV << " NO BUFFER WC->outWL=" << i << endl;
-                EV << " ! Strange situation - it seems there is no scheduling for outPort=";
-                EV << outPort << "#" << i << " do not have to buffer it !" << endl;
 
-                // Set the car-train to buffer
-                SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
-                e->setStart(start);
-                e->setStop(stop);
-                return e;
-            }
+    // Look for an output wavelength with shortest waiting time
+    simtime_t tmpBT = BT; //1e6
+    int betterWL = inWL;
+    for (int i = 1; i <= maxWL; i++) {
+        if (i == inWL) continue;
+        if (times.find(i) == times.end()) {
+            EV << " O/E/O only";
 
-            simtime_t tmpBTloop = times[i] - start;
-            if (tmpBTloop < tmpBT) {
-                // There is a candidate but WC is needed
-                tmpBT = tmpBTloop;
-                betterWL = i;
-            }
+            // Set the car-train to buffer
+            betterWL= i;
+            tmpBT= min_buffer;
+            break;
         }
 
-        outWL = betterWL;
-        BT = tmpBT+d_s; // d_s makes time offset for SOA reconfiguration
-
-        EV << " BUFFERED=" << BT << " WC->outWL=" << outWL << endl;
-        //  Return the record important for outgoing car-train from buffer - this
-        //  way SOAManager can assume the buffering time
+        simtime_t tmpBTloop = times[i] - start;
+        if (tmpBTloop < tmpBT and tmpBTloop >= min_buffer) {
+            tmpBT = tmpBTloop;
+            betterWL = i;
+        }
     }
 
+    // The winner is
+    outWL = betterWL;
+    BT = tmpBT + d_s; // d_s makes time offset for SOA reconfiguration
+
+    //  Return the record important for outgoing car-train from buffer - this
+    //  way SOAManager can assume the buffering time
     // Record which sends incoming car-train to buffer
     SOAEntry *e_in = new SOAEntry(inPort, inWL, outPort, outWL);
     e_in->setStart(start);
@@ -471,7 +476,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     e_in->bound= e_out;
 
     //  Buffered result
-    if (not WC) EV << " BUFFERED=" << BT << " outWL=" << inWL << endl;
+    EV << " BUFFERED=" << BT << " outWL=" << outWL << endl;
     EV << " Buffering: " << e_in->info() << endl;
 
     //  Return the record important for outgoing car-train from buffer - this

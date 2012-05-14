@@ -29,6 +29,7 @@ simple SOAManager
         double datarate= default(1Gbps) @unit(bps);	// Datarate
         bool buffering = default(true);			// All buffering at the CoreNode in order of loss-less
         bool fifo = default(true);				// Wavelength election method .. false= rand
+        double convPerformance = default(0.1e-9);	// ns/bit
         
     @display("i=block/cogwheel");
     gates:

@@ -72,6 +72,11 @@ class SOAManager : public cSimpleModule
     bool OBS;
 
     /**
+     *  Denotes O/E conversion speed in sec/bit
+     */
+    double convPerformance;
+
+    /**
      *  Array which keeps informations about time usage of output ports and its
      *  wavelengths over the time. It can be used for finding of free wavelengths
      *  if wavelength conversion is enabled
@@ -85,7 +90,7 @@ class SOAManager : public cSimpleModule
      *  if function returns -1 -1 -1 -1 it means there is no affordable output\
      *  so the burst must be either stored in memory or dropped
      */
-    virtual SOAEntry* getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop);
+    virtual SOAEntry* getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop, int length=0);
 
     /**
      *  Function testOutputCombination test whether combination of outPort and outWL at given time
