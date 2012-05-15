@@ -492,7 +492,7 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
         if( scheduling[i] == NULL ) { continue;}
         SOAEntry *tmp = (SOAEntry *) scheduling[i];
 
-        if( tmp->getBuffer() and tmp->getBufferDirection() ) continue;
+        //if( tmp->getBuffer() and tmp->getBufferDirection() ) continue;
 
         if (tmp->getOutLambda() == outWL and tmp->getOutPort() == outPort) {
             // There is some scheduling for my output combination, lets see whether it is overlapping
@@ -532,6 +532,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
     // Find the output gate
     outPort = R->getOutputPort(destination);
     EV << "Asking for destination=" << destination << " through port=" << outPort;
+    EV << " with OT="<<OT<<" len="<<len;
 
     if (scheduling.size() == 0) {
         // Fast forward - if there is no scheduling .. do bypas
@@ -557,22 +558,30 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         // Do the find only for One output port OutPort
         if (tmp->getOutPort() == outPort) {
 
-            if( tmp->getBuffer() and tmp->getBufferDirection() ) continue;
-
             // Gather spaces before a burst is comming on a WL
             simtime_t fitTime = tmp->getStart() - simTime();
             if (fitting.find(tmp->getOutLambda()) == fitting.end()) {
                 // Empty, lets assign it
                 fitting[tmp->getOutLambda()] = fitTime;
+                if( fitTime < 0) fitting[tmp->getOutLambda()]= 0;
                 continue;
             }
 
             // Update outputWL timing if it is not up-to-date
-            if (fitting[tmp->getOutLambda()] < fitTime) {
+            if ( fitting[tmp->getOutLambda()] > fitTime ) {
                 fitting[tmp->getOutLambda()] = fitTime;
+                if( fitTime < 0) fitting[tmp->getOutLambda()]= 0;
             }
         }
     }
+
+//    // Prints out list of wavelengths and its leading space
+//    // (time space before a burst caused by dissagreageted burst)
+//    EV << "leading spaces::" << endl;
+//    std::map<int, simtime_t>::iterator it;
+//    for(it=fitting.begin(); it!=fitting.end();it++){
+//        EV << "** WL "<<it->first<<" space="<< it->second << endl;
+//    }
 
     if( !fifo ){
         /* Random approach for aggreagation through MAC */
@@ -613,23 +622,30 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
 
     /*
      * GROOMING .. using the time of disaggregated car
-     * TODO: use the space before burst train
-    // Find WL that can accommodate CAR train
+     * Find WL that can accommodate CAR train in space which was created by car disaggregation
+     */
     simtime_t t0 = 0;
     bool fitted=false;
-    for(int i=0;i<=maxWL;i++){
-        if( fitting[i] > OT+len+d_s ){
+    for(int i=1;i<=maxWL;i++){
+        if( fitting[i] >= OT+len+2*d_s and
+            testOutputCombination(outPort, WL, simTime()+OT, simTime()+OT+len)){
             WL=i;
             fitted=true;
             EV << " - fitting "<< outPort;
             break;
         }
     }
-    fitted = false;
-    */
 
-    simtime_t t0 = 0;
-    bool fitted = false;
+//    //Print scheduling of designated wavelength
+//    EV << "DEBUG WL:" << endl;
+//    for (int i = 0; i < scheduling.size(); i++) {
+//            if( scheduling[i] == NULL ) { continue;}
+//            SOAEntry *tmp = (SOAEntry *) scheduling[i];
+//            // Do the find only for One output port OutPort
+//            if (tmp->getOutPort() == outPort and tmp->getOutLambda() == WL) {
+//                EV << "-- "<<tmp->info()<< " space="<< tmp->getStart()-simTime() <<endl;
+//            }
+//    }
 
     /* If there is no space for fitting cars must be appended */
     if (not fitted) {
@@ -697,7 +713,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
     soa->assignSwitchingTableEntry(se,t0+OT-d_s, len);
     scheduling.add(se);
 
-    // Inform MAC how log mus wait before sending CAROBS Header and Cars after OT
+    // Inform MAC how log mus wait before sending CAROBS Header and Cars after OT respectively
     return t0;
 }
 
