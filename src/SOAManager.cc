@@ -550,75 +550,83 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
     }
 
     // Make a map of spaces for all WLs
-    std::map<int, simtime_t> fitting;
-    for (int i = 0; i < scheduling.size(); i++) {
-        if( scheduling[i] == NULL ) { continue; EV << "invalid" << endl;}
-        SOAEntry *tmp = (SOAEntry *) scheduling[i];
+        std::map<int, simtime_t> fitting;
+        for (int i = 0; i < scheduling.size(); i++) {
+            if( scheduling[i] == NULL ) { continue; EV << "invalid" << endl;}
+            SOAEntry *tmp = (SOAEntry *) scheduling[i];
 
-        // Do the find only for One output port OutPort
-        if (tmp->getOutPort() == outPort) {
+            // Do the find only for One output port OutPort
+            if (tmp->getOutPort() == outPort) {
 
-            // Gather spaces before a burst is comming on a WL
-            simtime_t fitTime = tmp->getStart() - simTime();
-            if (fitting.find(tmp->getOutLambda()) == fitting.end()) {
-                // Empty, lets assign it
-                fitting[tmp->getOutLambda()] = fitTime;
-                if( fitTime < 0) fitting[tmp->getOutLambda()]= 0;
-                continue;
-            }
+                // Gather spaces before a burst is comming on a WL
+                simtime_t fitTime = tmp->getStart() - simTime();
+                if (fitting.find(tmp->getOutLambda()) == fitting.end()) {
+                    // Empty, lets assign it
+                    fitting[tmp->getOutLambda()] = fitTime;
+                    if( fitTime < 0) fitting[tmp->getOutLambda()]= 0;
+                    continue;
+                }
 
-            // Update outputWL timing if it is not up-to-date
-            if ( fitting[tmp->getOutLambda()] > fitTime ) {
-                fitting[tmp->getOutLambda()] = fitTime;
-                if( fitTime < 0) fitting[tmp->getOutLambda()]= 0;
+                // Update outputWL timing if it is not up-to-date
+                if ( fitting[tmp->getOutLambda()] > fitTime ) {
+                    fitting[tmp->getOutLambda()] = fitTime;
+                    if( fitTime < 0) fitting[tmp->getOutLambda()]= 0;
+                }
             }
         }
-    }
 
-//    // Prints out list of wavelengths and its leading space
-//    // (time space before a burst caused by dissagreageted burst)
-//    EV << "leading spaces::" << endl;
-//    std::map<int, simtime_t>::iterator it;
-//    for(it=fitting.begin(); it!=fitting.end();it++){
-//        EV << "** WL "<<it->first<<" space="<< it->second << endl;
-//    }
+    //    // Prints out list of wavelengths and its leading space
+    //    // (time space before a burst caused by dissagreageted burst)
+    //    EV << "leading spaces::" << endl;
+    //    std::map<int, simtime_t>::iterator it;
+    //    for(it=fitting.begin(); it!=fitting.end();it++){
+    //        EV << "** WL "<<it->first<<" space="<< it->second << endl;
+    //    }
 
-    if( !fifo ){
-        /* Random approach for aggreagation through MAC */
-        std::set<int> freeWLs;
-        std::set<int>::iterator it = freeWLs.begin();
+    /* Random approach for aggreagation through MAC */
+    std::set<int> freeWLs;
+    std::set<int>::iterator it = freeWLs.begin();
 
-        // Map of used and unsed WLs
-        for (int i = 1; i <= maxWL; i++)
-            if (fitting.find(i) == fitting.end()) {
-                freeWLs.insert(i);
-                EV << i << " ";
-            }
+    // Map of used and unsed WLs
+    for (int i = 1; i <= maxWL; i++)
+        if (fitting.find(i) == fitting.end()) {
+            freeWLs.insert(i);
+            EV << i << " ";
+        }
 
-        // Test whether there are some unused WLs
-        if (freeWLs.size() > 0) {
-            it = freeWLs.begin();
+    // Test whether there are some unused WLs
+    if (freeWLs.size() > 0) {
+        it = freeWLs.begin();
 
+
+        if (fifo) {
+            // First unused wavelength is used
+            do{
+                WL = *it++;
+                // FIFO but also test if it is really empty
+            } while (!testOutputCombination(outPort,WL,simTime()+OT, simTime()+OT+len) );
+
+        } else {
             // Randomly generate and test the generated WL
             do {
                 int i = uniform(0, freeWLs.size());
                 std::advance(it, i);
                 WL = *it;
-            } while (!testOutputCombination(outPort, WL, simTime() + OT, simTime() + OT + len));
+            } while (!testOutputCombination(outPort,WL,simTime()+OT, simTime()+OT+len) );
 
-            // Create scheduling entry and assign it to the SOA
-            SOAEntry *se = new SOAEntry(outPort, WL, true);
-            se->setStart(simTime() + OT);
-            se->setStop(simTime() + OT + len);
-            soa->assignSwitchingTableEntry(se, OT - d_s, len);
-            scheduling.add(se);
-
-            // Full-fill output text
-            EV << "#" << WL << " without waiting" << endl;
-            return 0.0;
         }
-    }
 
+        // Create scheduling entry and assign it to the SOA
+        SOAEntry *se = new SOAEntry(outPort, WL, true);
+        se->setStart(simTime() + OT);
+        se->setStop(simTime() + OT + len);
+        soa->assignSwitchingTableEntry(se, OT - d_s, len);
+        scheduling.add(se);
+
+        // Full-fill output text
+        EV << "#" << WL << " without waiting" << endl;
+        return 0.0;
+    }
 
     /*
      * GROOMING .. using the time of disaggregated car
@@ -688,6 +696,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
                 t0 = 0;
                 WL = i;
                 //TODO: Mel by zde byt asi break
+                break;
             }
 
             // If the WL is blocked now but wont be blocked at the time of cat arrival
