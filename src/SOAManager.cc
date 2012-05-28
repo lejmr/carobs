@@ -53,6 +53,7 @@ void SOAManager::initialize() {
     convPerformance=par("convPerformance").doubleValue();
 
     WATCH(OBS);
+    WATCH_MAP(mfcounter);
 }
 
 void SOAManager::handleMessage(cMessage *msg) {
@@ -226,7 +227,6 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     }
 
     simtime_t d_w_extra = 0;
-
     if (sef->getBuffer()) {
         // Calculate extra waiting time
         simtime_t SOA_nset = sef->getStart();
@@ -387,6 +387,18 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
      *             through configuration of simulation
      */
 
+
+    // IA: Taking statistics about current load of an output wavelength
+    // I am using inWL here because I could not find proper output WL with WC and my
+    // original WL (inWL) is blocked as well, so inWL is reason why I need to undergo
+    // optical regeneration and optical detectors need to tuned for inWL.. Essentialy
+    // I am counting the number of optical detectors here at the given wavelength in WL.
+    if( mfcounter.find(inWL) == mfcounter.end() ){
+        mfcounter[ inWL ] = 0;
+    }
+    mfcounter[ inWL ]++;
+
+
     std::map<int, simtime_t> times;
     // table row: outputPort & outputWL -> time the outputWL is ready to be used again
     for (int i = 0; i < scheduling.size(); i++) {
@@ -523,6 +535,24 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
 
 void SOAManager::dropSwitchingTableEntry(SOAEntry *e) {
     Enter_Method("dropSwitchingTableEntry()");
+
+    // Snapshoting maximum number of merging flows at given wavelength..
+    // It means, since now the wavelength is going to be usable
+    if( not e->getBuffer() and not e->isAggregation() and not e->isDisaggregation() ){
+        int inwl= e->getInLambda();
+        if( mfcounter.find(inwl) != mfcounter.end() ){
+
+            if( mf_max.find(inwl) == mf_max.end() )
+                mf_max[inwl] = 0;
+
+            if( mfcounter[inwl] > mf_max[inwl] )
+                mf_max[inwl]= mfcounter[inwl];
+
+            mfcounter[inwl] = 0;
+        }
+    }
+
+
     scheduling.remove(e);
 }
 
@@ -728,4 +758,14 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
 
 void SOAManager::finish(){
     recordScalar("Bursts to be dropped", tbdropped);
+
+    // Merging flows part
+    int total_reg=0;
+    for( it_mfc=mf_max.begin(); it_mfc!=mf_max.end(); it_mfc++ ){
+        std::stringstream out;
+        out << "Number of merging flows at wl#" << (*it_mfc).first;
+        recordScalar(out.str().c_str(), (*it_mfc).second);
+        total_reg += (*it_mfc).second;
+    }
+    recordScalar("Total number of detectors", total_reg);
 }

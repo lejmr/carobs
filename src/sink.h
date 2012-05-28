@@ -32,6 +32,8 @@ class Sink : public cSimpleModule
 
     std::map<int,int> counts;
     std::map<int,cOutVector *> vects;
+    std::map<int, long double> throughput;
+
     cOutVector avg_delay;
     simtime_t avg_e2e;
     int address;

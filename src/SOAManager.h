@@ -139,6 +139,15 @@ class SOAManager : public cSimpleModule
      */
     bool fifo;
 
+    /**
+     *  Merging flows counters
+     *  - first int index stands for # of wavelength
+     *  - second int index stands for #of concurent merging flows
+     */
+    std::map<int, int> mfcounter;
+    std::map<int, int> mf_max;
+    std::map<int, int>::iterator it_mfc;
+
   public:
     /**
      *  When the SOAEntry is not needed SOA informas SOAManager to tear it down through
@@ -158,3 +167,4 @@ class SOAManager : public cSimpleModule
 };
 
 #endif
+// TODO: pri zapnute WC a omezenem poctu bufferovani@WL nutno WC usmernit, aby vybirala i podle intenzity vyuzivani WL

@@ -48,6 +48,13 @@ void Sink::handleMessage(cMessage *msg)
         vects[src]->setName( out.str().c_str() );
     }
 
+    if (throughput.find(src) == throughput.end()){
+        throughput[src]= 0;
+    }
+
+    // Throughput per src
+    throughput[src] += (double)pl->getBitLength()/delay;
+
     vects[src]->record(delay);
     avg_delay.record(delay);
     received++;
@@ -101,5 +108,20 @@ void Sink::finish(){
     }
     if(total>0) recordScalar(" ! Total misdelivered packets", total);
 
+    long double thrpt_all= 0;
+    long double thrpt_pp = 0;
+    int srcs = 0;
+    std::map<int, long double>::iterator it3;
+    for(it3=throughput.begin();it3!=throughput.end();it3++){
+        std::stringstream out;
+        out << "Average throughput from " << (*it3).first;
+        double thrpt= (*it3).second/(double)counts[(*it3).first];
+        recordScalar(out.str().c_str(), thrpt );
+        thrpt_all += (*it3).second;
+        thrpt_pp += thrpt;
+        srcs++;
+    }
+    recordScalar("Avererage throughput", thrpt_all/(double)received);
+    recordScalar("Avererage throughput pp", thrpt_pp/(double)srcs);
 
 }
