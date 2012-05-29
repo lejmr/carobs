@@ -19,10 +19,10 @@ package carobs.modules;
 module EdgeNode
 {
     parameters:
-        int address= default( uniform(1, 1000));	// TODO: watchout might overlap
+        int address = default(uniform(1, 1000));	// TODO: watchout might overlap
         int maxWL = default(10);		// Max number number of wavelengths
-        
-    @display("bgb=300,278;i=abstract/router;t=$address");
+
+        @display("bgb=300,278;i=abstract/router;t=$address");
     gates:
         inout gate[] @labels(CAROBS);
         inout tributary[] @labels(Payload);
@@ -43,9 +43,6 @@ module EdgeNode
             @display("p=223,48");
         }
 
-        APm: AggregationPoolManager {
-            @display("p=137,48");
-        }
         MAC: MAC {
             parameters:
                 maxWL = maxWL;
@@ -58,10 +55,6 @@ module EdgeNode
             gates:
                 in[sizeof(tributary)];
         }
-        PM: PortManager {
-            @display("p=56,48");
-        }
-
     connections:
         INT.outgoing --> AQ.in;
         AQ.out <--> TA.in;

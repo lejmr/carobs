@@ -19,9 +19,7 @@ Define_Module(PayloadInterface);
 
 void PayloadInterface::initialize()
 {
-    // Making link with AQ
-    cModule *calleeModule = getParentModule()->getSubmodule("PM");
-    PM = check_and_cast<PortManager *>(calleeModule);
+    WATCH_MAP(pairing);
 }
 
 void PayloadInterface::handleMessage(cMessage *msg)
@@ -31,14 +29,23 @@ void PayloadInterface::handleMessage(cMessage *msg)
 
     // Payload packet disassembled from a car
     if ( !strcmp(msg->getArrivalGate()->getName(), "incoming") ) {
-        int port = PM->getOutputPort( pl->getDst() );
+        int port = getOutputPort( pl->getDst() );
         send(msg, "in$o", port);
         return;
     }
 
     // Update pairing informations
-    PM->updatePairing( msg->getArrivalGate()->getIndex(), pl->getSrc() );
+    updatePairing( msg->getArrivalGate()->getIndex(), pl->getSrc() );
 
     // Forward the message to AQ module get processed
     send( msg, "outgoing" );
+}
+
+void PayloadInterface::updatePairing(int port, int src){
+    Enter_Method("updatePairing()");
+    pairing[src] = port;
+}
+
+int PayloadInterface::getOutputPort(int dst){
+    return pairing[dst];
 }

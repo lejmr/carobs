@@ -14,7 +14,6 @@
 // 
 
 #include "aggregationQueues.h"
-#include <aggregationPoolManager.h>
 
 
 Define_Module(AggregationQueues);
@@ -22,10 +21,14 @@ Define_Module(AggregationQueues);
 void AggregationQueues::initialize()
 {
 
-    cModule *calleeModule = getParentModule()->getSubmodule("routing");
-    R = check_and_cast<Routing *>(calleeModule);
+    // Initiate Aggregation Pools
+    cMessage *i = new cMessage("InitAPs");
+    i->addPar("InitiateAggregationPools");
+    scheduleAt(simTime(), i);
 
     bufferLengthT = par("bufferLengthT").doubleValue();
+    poolTreshold = par("poolTreshold").doubleValue();
+
     WATCH_MAP( scheduled );
     WATCH_MAP( AQSizeCache );
 }
@@ -41,9 +44,15 @@ void AggregationQueues::handleMessage(cMessage *msg)
     if( msg->hasPar("initTBSDst") and msg->isSelfMessage() ){
         EV << "Initialising the time based sending procedure for AQ "<< msg->par("initTBSDst").longValue() << endl;
         cModule *calleeModule = getParentModule()->getSubmodule("APm");
-        AggregationPoolManager *APm = check_and_cast<AggregationPoolManager *>(calleeModule);
-        APm->initialiseTimeBasedSending(msg->par("initTBSDst").longValue());
+        initialiseTimeBasedSending(msg->par("initTBSDst").longValue());
         delete msg;
+        return;
+    }
+
+    if (msg->isSelfMessage() and msg->hasPar("InitiateAggregationPools")) {
+        initiateAggregationPools();
+        delete msg;
+        return;
     }
 
 }
@@ -51,7 +60,7 @@ void AggregationQueues::handleMessage(cMessage *msg)
 void AggregationQueues::handlePayload(cMessage *msg){
     Payload *pmsg = dynamic_cast<Payload *>(msg);
 
-    int AQdst =  R->getTerminationNodeAddress( pmsg->getDst() );
+    int AQdst =  100 +  pmsg->getDst(); // TODO: Need to be fixed;
     if( AQdst == -1 ){
         EV << "Wrong paring for dst address " << pmsg->getDst() << " !!!"<<endl;
         return;
@@ -80,9 +89,7 @@ void AggregationQueues::handlePayload(cMessage *msg){
     this->countAggregationQueueSize(AQdst);
 
     // Inform TA about AQ change
-    cModule *calleeModule = getParentModule()->getSubmodule("APm");
-    AggregationPoolManager *TA = check_and_cast<AggregationPoolManager *>(calleeModule);
-    TA->aggregationQueueNotificationInterface(AQdst);
+    aggregationQueueNotificationInterface(AQdst);
 }
 
 int64_t AggregationQueues::getAggregationQueueSize(int AQId){
@@ -164,4 +171,99 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
 
 void AggregationQueues::setAggregationQueueReleaseTime( int AQid, simtime_t release_time ){
 
+}
+
+
+void AggregationQueues::initiateAggregationPools() {
+    cTopology EPtopo, topo;
+    std::map< int, std::set<int> >::iterator it;
+    EPtopo.extractByNedTypeName(cStringTokenizer("carobs.modules.PayloadInterface").asVector());
+    topo.extractByNedTypeName(cStringTokenizer("carobs.modules.EdgeNode carobs.modules.CoreNode").asVector());
+    for (int i = 0; i < EPtopo.getNumNodes(); i++) {
+        cTopology::Node *endnode = EPtopo.getNode(i);
+
+        // Skip finding pool for myself - AP is for different nodes not same ones
+        if( endnode->getModule()->getParentModule() == getParentModule() ) continue;
+
+        // Obtain Endnode address
+        int ENaddress= endnode->getModule()->getParentModule()->par("address").longValue();
+        // EV << "address="<<ENaddress << " " << endnode->getModule()->getParentModule()->getFullPath() << endl;
+
+        // Calculate path from THIS -> Far Endnode and prepare path-pool[FarEndnode#]
+        topo.calculateUnweightedSingleShortestPathsTo(topo.getNodeFor( endnode->getModule()->getParentModule() ));
+        cTopology::Node *node = topo.getNodeFor(getParentModule());
+        while (node != topo.getTargetNode()) {
+            cTopology::LinkOut *path = node->getPath(0);
+            node = path->getRemoteNode();
+            AP[ENaddress].insert( node->getModule()->par("address").longValue() );
+        }
+    }
+
+    // Print Path-pools
+    std::set<int>::iterator it2;
+    for( it = AP.begin(); it != AP.end(); it++ ){
+        EV << "AP["<< (*it).first <<"]:";
+        std::set<int> tmp= (*it).second;
+        for ( it2=tmp.begin() ; it2 != tmp.end(); it2++ ){
+            EV << " " << *it2;
+        }
+        EV << endl;
+    }
+}
+
+int64_t AggregationQueues::aggregationPoolSize(int poolId) {
+    std::set<int>::iterator it;
+    int64_t size = 0;
+
+    for (it = AP[poolId].begin(); it != AP[poolId].end(); it++) {
+        size += getAggregationQueueSize(*it);
+    }
+
+    return size;
+}
+
+
+void AggregationQueues::initialiseTimeBasedSending(int AQId) {
+    Enter_Method("initialiseTimeBasedSending()");
+    EV << "AQ " << AQId << " has reached its time to be released thus";
+
+    int biggestPool = -1, biggestSize = 0, tmpSize = 0;
+    for (int i = 0; i < AP.size(); i++) {
+        // If AQId is not part of a path-pool, then is the pool skipped
+        if (AP[i].find(AQId) == AP[i].end())
+            continue;
+
+        // AQId is part of the pool i, so lets count current size of the buffer
+        // Test whether any pool containing AQId is biggest and then schedule.
+        tmpSize = aggregationPoolSize(i);
+        if (tmpSize > biggestSize) {
+            biggestSize = tmpSize;
+            biggestPool = i;
+        }
+    }
+
+    EV << "AP " << biggestPool << " is initiated" << endl;
+    // Initialise sending
+    if (biggestPool >= 0 and biggestPool <= AP.size())
+        releaseAggregationQueues(AP[biggestPool], biggestPool);
+}
+
+void AggregationQueues::aggregationQueueNotificationInterface(int AQId) {
+    Enter_Method("aggregationQueuesNotificationInterface()");
+    int poolSize = 0;
+
+    // Test all the pools managed by this module for its size
+    for (int i = 0; i < AP.size(); i++) {
+        // If AQId is not part of a path-pool, then is the pool skipped
+        if (AP[i].find(AQId) == AP[i].end())
+            continue;
+
+        // AQId is part of the pool i, so lets count current size of the buffer
+        // Test whether any pool containing AQId is full enough to be scheduled
+        poolSize = aggregationPoolSize(i);
+        if (poolSize >= poolTreshold) {
+            EV << "AP " << i << " has reached its limit. Will be initiated." << endl;
+            releaseAggregationQueues(AP[i], i);
+        }
+    }
 }

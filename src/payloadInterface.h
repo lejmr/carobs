@@ -17,7 +17,6 @@
 #define __CAROBS_PAYLOADINTERFACE_H_
 
 #include <omnetpp.h>
-#include <portManager.h>
 #include <messages/Payload_m.h>
 
 
@@ -31,8 +30,31 @@ class PayloadInterface : public cSimpleModule
   protected:
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
+
   private:
-    PortManager *PM;
+    /**
+     *  Pairing information of port - src/dst .. structure is as follows
+     *  pairing[ src/dst ] = port
+     */
+    std::map<int, int> pairing;
+
+    /**
+     *    Function updatePairing is remotely called by PayloadInterface to
+     *    update informations about src address to port pairing
+     *
+     *    @param port: #of input port obtained from incoming message
+     *    @param src: source address of incoming port
+     */
+    virtual void updatePairing(int port, int src);
+
+    /**
+     *    Function getOutputPort resolves outgoing port for given destination
+     *
+     *    @param dst: destination of de-cared Payload packet
+     *    @return: index of outgoing port
+     */
+    virtual int getOutputPort(int dst);
+
 
 };
 

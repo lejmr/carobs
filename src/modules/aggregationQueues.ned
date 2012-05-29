@@ -22,6 +22,7 @@ simple AggregationQueues
 {
     parameters:
         double bufferLengthT @unit(s) = default(10ms); // ms
+        int poolTreshold @unit(b)= default(9000b); 	// bites
 
         @display("i=block/classifier");
     gates:

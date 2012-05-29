@@ -37,7 +37,7 @@ module CoreNode
 
     submodules:
         routing: Routing {
-            @display("p=143,44");
+            @display("p=356,127");
         }
 
         mux[sizeof(gate)]: MUX {
@@ -63,7 +63,7 @@ module CoreNode
                 d_p = d_p;
                 maxWL = maxWL;
                 WC = WC;
-                buffering= buffering;
+                buffering = buffering;
                 @display("p=228,127");
             gates:
                 control[sizeof(gate)];
@@ -73,17 +73,11 @@ module CoreNode
             gates:
                 in[sizeof(tributary)];
         }
-        APm: AggregationPoolManager {
-            @display("p=228,44");
-        }
         AQ: AggregationQueues {
             @display("p=399,226;is=s");
         }
         disaggregation: Merge {
             @display("p=356,266;is=s");
-        }
-        PM: PortManager {
-            @display("p=314,44");
         }
         TA: TrainAssembler {
             @display("p=355,226;is=s");
