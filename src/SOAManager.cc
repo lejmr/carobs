@@ -45,9 +45,6 @@ void SOAManager::initialize() {
     // Hard-coded datarte
     C = par("datarate").doubleValue();
     tbdropped=0;
-    mf_colorless = 0;
-    mf_colorless_max= 0;
-    mf_vcolorless.setName("Total number of merging flows");
 
     // W election method
     fifo= par("fifo").boolValue();
@@ -59,9 +56,12 @@ void SOAManager::initialize() {
     inSplitTable.setName("Items managed by split tables");
     scheduling.setName("Scheduling table");
 
+    // Merging Flows counters
+    inMFcounter.setName("Merging Flows");
+
     WATCH(OBS);
-    WATCH_MAP(mfcounter);
-    WATCH(mf_colorless);
+    WATCH_MAP(mf_max);
+    WATCH_MAP(reg_max);
 }
 
 void SOAManager::handleMessage(cMessage *msg) {
@@ -400,19 +400,6 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
      */
 
 
-    // IA: Taking statistics about current load of an output wavelength
-    // I am using inWL here because I could not find proper output WL with WC and my
-    // original WL (inWL) is blocked as well, so inWL is reason why I need to undergo
-    // optical regeneration and optical detectors need to tuned for inWL.. Essentialy
-    // I am counting the number of optical detectors here at the given wavelength in WL.
-    if( mfcounter.find(inWL) == mfcounter.end() ){
-        mfcounter[ inWL ] = 0;
-    }
-    mfcounter[ inWL ]++;
-    mf_colorless++;
-    mf_vcolorless.record(mf_colorless); // Total number of merging flows
-
-
     std::map<int, simtime_t> times;
     // table row: outputPort & outputWL -> time the outputWL is ready to be used again
     for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
@@ -546,41 +533,27 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
 void SOAManager::dropSwitchingTableEntry(SOAEntry *e) {
     Enter_Method("dropSwitchingTableEntry()");
 
-    // Snapshoting maximum number of merging flows at given wavelength..
-    // It means, since now the wavelength is going to be usable
-    if( not e->isAggregation() and not e->isDisaggregation() and e->getBuffer() and e->getBufferDirection() ){
-        int inwl= e->getInLambda();
-
-        bool updated= false;
-        if( mfcounter.find(inwl) != mfcounter.end() ){
-            mfcounter[inwl] = 0;
-            updated= true;
-        }
-
-        if( mf_max.find(inwl) == mf_max.end() )
-            mf_max[inwl] = 0;
-
-        // Store WL sensitive maximum
-        if( mfcounter[inwl] > mf_max[inwl] )
-            mf_max[inwl]= mfcounter[inwl];
-        if(!updated)mfcounter[inwl]--;
-
-        // Store color less maximum
-        if( mf_colorless > mf_colorless_max )
-            mf_colorless_max= mf_colorless;
-        mf_colorless--;
-    }
-
-    // Erase res
+    // Erase res record from split scheduling table
     if( e->getOutPort() > -1  and inSplitTable.length() > 0 and inSplitTable.contains(e) ){
 
         // Test if this split table exists ..needs to exists otherwise it is incausal
         if( splitTable.find(e->getOutPort()) == splitTable.end() ){
-            opp_terminate("Delating from splittable which does not exist!!!");
+            opp_terminate("Deleting from splittable which does not exist!!!");
         }
 
         splitTable[e->getOutPort()].remove(e);
         inSplitTable.remove(e);
+    }
+
+    // Erase MFcounter
+    if (e->getBuffer() and e->getBufferDirection() and inMFcounter.contains(e)) {
+        // Test if this split table exists ..needs to exists otherwise it is incausal
+        if (mf_table.find(e->getInLambda()) == mf_table.end()) {
+            opp_terminate("Deleting from mf_table which does not exist!!!");
+        }
+
+        mf_table[e->getInLambda()].remove(e);
+        inMFcounter.remove(e);
     }
 
     // Remove from scheduling
@@ -593,7 +566,7 @@ void SOAManager::addSwitchingTableEntry(SOAEntry *e){
         // initiate switching table associated with output port if needed
         if( splitTable.find(e->getOutPort()) == splitTable.end() ){
             std::stringstream out;
-            out << "Port " << e->getOutPort() << " scheduling table";
+            out << "ST for output#"<<e->getOutPort();
             splitTable[ e->getOutPort() ]= cQueue();
             splitTable[ e->getOutPort() ].setName(out.str().c_str());
         }
@@ -601,6 +574,24 @@ void SOAManager::addSwitchingTableEntry(SOAEntry *e){
         // Reference switching table entry with one output port
         splitTable[ e->getOutPort() ].insert(e);
         inSplitTable.insert(e);
+    }
+
+    if( e->getBuffer() and e->getBufferDirection() ){
+        // SOAEntry which directs to the buffer
+
+        if (mf_table.find( e->getInLambda() ) == mf_table.end()) {
+            std::stringstream out;
+            out << "MF for wl#" << e->getInLambda();
+            mf_table[e->getInLambda()] = cQueue();
+            mf_table[e->getInLambda()].setName(out.str().c_str());
+        }
+
+        // Adding itself
+        mf_table[e->getInLambda()].insert(e);
+        inMFcounter.insert(e);
+
+        // Counting of MF
+        countMergingFlows(e->getInLambda(), e);
     }
 
     // Add to the global switching table
@@ -813,5 +804,71 @@ void SOAManager::finish(){
         recordScalar(out.str().c_str(), (*it_mfc).second);
         total_reg += (*it_mfc).second;
     }
-    recordScalar("Total number of detectors", total_reg);
+    recordScalar("Total number of merging flows", total_reg);
+
+    // Regenerators
+    total_reg = 0;
+    for (it_mfc = mf_max.begin(); it_mfc != mf_max.end(); it_mfc++) {
+        std::stringstream out;
+        out << "Number of regenerators at wl#" << (*it_mfc).first;
+        recordScalar(out.str().c_str(), (*it_mfc).second);
+        total_reg += (*it_mfc).second;
+    }
+    recordScalar("Total number of regenerators", total_reg);
+}
+
+
+void SOAManager::countMergingFlows(int inWL, SOAEntry *e){
+    simtime_t start = e->getStart();
+    simtime_t stop = e->getStop();
+    int mfc = 0;
+    int regs= 0;
+
+
+    // MF and Reg# counting
+    for( int outPort=0; outPort<getParentModule()->gateSize("gate");outPort++){
+
+        // Color full counting
+        for (cQueue::Iterator iter(mf_table[e->getInLambda()], 0); !iter.end(); iter++) {
+            SOAEntry *tmp = (SOAEntry *) iter();
+            // Check how many merging we have for given period start-stop at output port
+            if (outPort != tmp->getOutPort()) continue;
+
+            // Verification of merging flows.. allowed states
+            // 1.
+            //  ........|----|..... incumbent
+            //  .|----|............ the new
+            if (tmp->getStart() > stop and tmp->getStop() > stop) continue;
+            // 2.
+            //  .|----|............ the new
+            //  ........|----|..... incumbent
+            if (tmp->getStart() < start and tmp->getStop() < start) continue;
+
+            // Otherwise we have met a merging flow..
+            regs++;
+
+            // Focus on MF
+            if (e->getOutPort() == tmp->getOutPort()) {
+                mfc++;
+            }
+        }
+    }
+
+    /** Merging flows */
+    // If there is no result for this wavelength, lets make it
+    if( mf_max.find(e->getInLambda()) == mf_max.end() )
+        mf_max[e->getInLambda()]= mfc;
+
+    // Check if this new record is higher than our current max..
+    if( mfc > mf_max[e->getInLambda()])
+        mf_max[e->getInLambda()]= mfc;
+
+    /** Regenerators */
+    // If there is no result for this wavelength, lets make it
+    if( reg_max.find(e->getInLambda()) == reg_max.end() )
+        reg_max[e->getInLambda()]= regs;
+
+    // Check if this new record is higher than our current max..
+    if( regs > reg_max[e->getInLambda()])
+        reg_max[e->getInLambda()]= regs;
 }

@@ -143,11 +143,10 @@ class SOAManager : public cSimpleModule
      *  - first int index stands for # of wavelength
      *  - second int index stands for #of concurent merging flows
      */
-    std::map<int, int> mfcounter;
     std::map<int, int> mf_max;
+    std::map<int, int> reg_max;
     std::map<int, int>::iterator it_mfc;
-    int64_t mf_colorless, mf_colorless_max;
-    cOutVector mf_vcolorless;
+
 
     /**
      *  Implentation of split switching table
@@ -155,6 +154,22 @@ class SOAManager : public cSimpleModule
     cQueue inSplitTable;
     std::map<int, cQueue> splitTable;
     std::map<int, cQueue>::iterator it_st;
+
+    /**
+     * Merging flows counters
+     * - Based on a similar mechanism used in splitTable.. we are having separate
+     *   set of SOAEntries which are heading to the buffer with same input wavelength
+     * - Everytime a new one is added counting is initiated and if there is more of
+     *   merging flows than in previous step, statitstics are updated
+     *
+     *    int - stands for input wavelegth
+     *    cQueue- is used for storing of SOAEntries
+     */
+    std::map<int, cQueue> mf_table;
+    cQueue inMFcounter;
+
+    // Function which provides counting
+    virtual void countMergingFlows(int inWL, SOAEntry *e);
 
     /**
      *  Wrapper around adding SOAEntry
