@@ -25,11 +25,6 @@
 #include <messages/CAROBSCarHeader_m.h>
 #include <aggregationQueues.h>
 
-struct lambdaMarker{
-    int wl;
-    simtime_t end;
-};
-
 class SOAManager : public cSimpleModule
 {
   protected:
@@ -155,21 +150,8 @@ class SOAManager : public cSimpleModule
     cOutVector mf_vcolorless;
 
     /**
-     *  SOA table cache.. it is designed in order to reduce time for lookups when buffering
-     *  it is based on multimap where key is the output port and value is a struct consisting
-     *  output wavelength and time it is free;;
-     *
-     *      outPort -> outWL, time
-     */
-    std::multimap<int, lambdaMarker> outPortTimingCache;
-    std::multimap<int, lambdaMarker>::iterator it_optc;
-
-    /**
      *  Implentation of split switching table
      */
-//    std::multimap<int, SOAEntry *> splitTable;
-//    std::multimap<int,SOAEntry *>::iterator it_st;
-//    std::pair<std::multimap<int,SOAEntry *>::iterator, std::multimap<int,SOAEntry *>::iterator> ret_st;
     cQueue inSplitTable;
     std::map<int, cQueue> splitTable;
     std::map<int, cQueue>::iterator it_st;

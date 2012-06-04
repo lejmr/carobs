@@ -433,14 +433,6 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
         }
     }
 
-    if (outPortTimingCache.find(outPort) == outPortTimingCache.end()) {
-        lambdaMarker tmp;
-        tmp.wl = inWL;
-        tmp.end = stop;
-        outPortTimingCache.insert(std::pair<int, lambdaMarker>(outPort, tmp));
-        EV << "cache(warm-up): NB owl="<<inWL << endl;
-    }
-
     if (times.find(inWL) == times.end()) {
         EV << " NO BUFFER outWL=" << inWL << endl;
         EV << " ! Strange situation - it seems there is no scheduling for outPort=";
