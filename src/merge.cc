@@ -17,7 +17,9 @@
 
 Define_Module(Merge);
 
-void Merge::initialize(){}
+void Merge::initialize(){
+    number_of_hops.setName("The number of buffering");
+}
 
 void Merge::handleMessage(cMessage *msg)
 {
@@ -34,6 +36,9 @@ void Merge::handleMessage(cMessage *msg)
         Payload *p= (Payload *) q.pop();
         send(p, "out");
     }
+
+    // Record buffering performance
+    number_of_hops.record( car->getBuffered() );
 
     // Drop empty container
     delete car;

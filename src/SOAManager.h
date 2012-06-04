@@ -25,6 +25,10 @@
 #include <messages/CAROBSCarHeader_m.h>
 #include <aggregationQueues.h>
 
+struct lambdaMarker{
+    int wl;
+    simtime_t end;
+};
 
 class SOAManager : public cSimpleModule
 {
@@ -81,7 +85,7 @@ class SOAManager : public cSimpleModule
      *  wavelengths over the time. It can be used for finding of free wavelengths
      *  if wavelength conversion is enabled
      */
-    cArray scheduling;
+    cQueue scheduling;
 
     /**
      *  Function tries to find proper output such that there is no collision or
@@ -147,6 +151,33 @@ class SOAManager : public cSimpleModule
     std::map<int, int> mfcounter;
     std::map<int, int> mf_max;
     std::map<int, int>::iterator it_mfc;
+    int64_t mf_colorless, mf_colorless_max;
+    cOutVector mf_vcolorless;
+
+    /**
+     *  SOA table cache.. it is designed in order to reduce time for lookups when buffering
+     *  it is based on multimap where key is the output port and value is a struct consisting
+     *  output wavelength and time it is free;;
+     *
+     *      outPort -> outWL, time
+     */
+    std::multimap<int, lambdaMarker> outPortTimingCache;
+    std::multimap<int, lambdaMarker>::iterator it_optc;
+
+    /**
+     *  Implentation of split switching table
+     */
+//    std::multimap<int, SOAEntry *> splitTable;
+//    std::multimap<int,SOAEntry *>::iterator it_st;
+//    std::pair<std::multimap<int,SOAEntry *>::iterator, std::multimap<int,SOAEntry *>::iterator> ret_st;
+    cQueue inSplitTable;
+    std::map<int, cQueue> splitTable;
+    std::map<int, cQueue>::iterator it_st;
+
+    /**
+     *  Wrapper around adding SOAEntry
+     */
+    virtual void addSwitchingTableEntry(SOAEntry *e);
 
   public:
     /**
@@ -154,6 +185,8 @@ class SOAManager : public cSimpleModule
      *  this interface taking as input parameter pointer to the SOAEntry.
      */
     virtual void dropSwitchingTableEntry(SOAEntry *e);
+
+
 
     /**
      *   Function getAggregationWaitingTime return waiting time of burst train such that

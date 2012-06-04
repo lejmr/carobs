@@ -30,6 +30,7 @@ class Merge : public cSimpleModule
   protected:
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
+    cOutVector number_of_hops;
 };
 
 #endif

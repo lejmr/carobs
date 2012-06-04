@@ -40,6 +40,7 @@ void CoreNodeMAC::initialize() {
     buffered=0;
     vbuffertime.setName("Buffering delay");
     vwaitingtime.setName("Access delay");
+    buffered_data.setName("Data stored in memory");
 
 
     WATCH(capacity);
@@ -48,12 +49,13 @@ void CoreNodeMAC::initialize() {
 void CoreNodeMAC::handleMessage(cMessage *msg) {
     /**
      *  This part of the code is executed when an OpticalLayer message approaches
-     *  the MAC layer. This might happend only in case of buffering .. this is the
+     *  the MAC layer. This might happen only in case of buffering .. this is the
      *  code which buffers incoming Cars and creates scheduler to resend them back
      */
     if (dynamic_cast<OpticalLayer *>(msg) != NULL) {
         OpticalLayer *ol= dynamic_cast<OpticalLayer *>(msg);
         Car *car= (Car *) ol->decapsulate();    // OE conversion
+        car->setBuffered( car->getBuffered() + 1 );
         EV << "The car "<< car->getName() << " is to be stored in buffer";
 
         // Calculate buffer usage and create record for statistics
@@ -61,20 +63,17 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         if( capacity > max_buffersize )max_buffersize= capacity;
         if( avg_buffersize == 0 ) avg_buffersize= capacity;
         avg_buffersize= (avg_buffersize+capacity)/2;
+        buffered_data.record(capacity);
 
         // Determine description of incoming signal. Since it is optical only port and WL
         int inPort= msg->getArrivalGate()->getIndex();
         int inWL= ol->getWavelengthNo();
+        double ot= ol->par("ot").doubleValue();
 
         // Withdraws the marker from OL
         SOAEntry *olsw= (SOAEntry *) ol->par("marker").pointerValue();
 
-        /*
-        EV << "Received se= "<<olsw->info();
-        EV << " -> ";
-        EV << olsw->bound->info();
-        EV << "waiting= "<< waitings[olsw->bound] <<endl;
-        */
+        // Drop OL, cause all data are already in electrical domain
         delete ol;
 
 //        EV << "List of SOAEntries" << endl;
@@ -89,24 +88,28 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 //            EV << ((*it).first)->info() << " : " << (*it).second << endl;
 //        }
 
-            cMessage *msg = new cMessage("ReleaseBuffer");
-            msg->addPar("RelaseStoredCar");
-            msg->addPar("RelaseStoredCar_CAR");
-            msg->par("RelaseStoredCar").setPointerValue(olsw->bound);
-            msg->par("RelaseStoredCar_CAR").setPointerValue(car);
-            msg->setSchedulingPriority(1);
+        // Schedule unbuffering
+        cMessage *msg = new cMessage("ReleaseBuffer");
+        msg->addPar("RelaseStoredCar");
+        msg->addPar("RelaseStoredCar_CAR");
+        msg->par("RelaseStoredCar").setPointerValue(olsw->bound);
+        msg->par("RelaseStoredCar_CAR").setPointerValue(car);
+        msg->setSchedulingPriority(1);
+        msg->addPar("ot").setDoubleValue( ot );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
 
-            usage[olsw->bound]++;
-            EV << " and released in: " << (simtime_t) waitings[olsw->bound] << " at=" << simTime() + waitings[olsw->bound] << endl;
+        usage[olsw->bound]++;
+        EV << " and released in: " << (simtime_t) waitings[olsw->bound];
+        EV << " at=" << simTime() + waitings[olsw->bound] << endl;
 
-            // Security test of waiting assignment for the SOAEntry
-            if (waitings.find(olsw->bound) == waitings.end()) {
-                EV << "Unable to find waiting time" << endl;
-            }
+        // Security test of waiting assignment for the SOAEntry
+        if (waitings.find(olsw->bound) == waitings.end()) {
+            EV << "Unable to find waiting time" << endl;
+        }
 
-            // Schedules out of buffer CAR release
-            scheduleAt(simTime() + waitings[olsw->bound], msg);
+        // Schedules out of buffer CAR release
+        scheduleAt(simTime() + waitings[olsw->bound], msg);
 
+        // Finish buffering procedure
         return;
     }
 
@@ -132,6 +135,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         OpticalLayer *ol= new OpticalLayer( car->getName() );
         ol->setWavelengthNo( se->getOutLambda() );
         ol->encapsulate( car );
+        ol->addPar("ot").setDoubleValue( msg->par("ot").doubleValue() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
 
         // Calculate buffer usage and create record for statistics
         capacity -= car->getByteLength();
@@ -216,6 +220,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         OpticalLayer *OC = new OpticalLayer(buffer_name);
         OC->setWavelengthNo(WL);
         OC->encapsulate(tcar);
+        OC->addPar("ot").setDoubleValue( su->getStart().dbl() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
 
         EV << " + Sending car to " << su->getDst() << " at " << simTime()+t0 + su->getStart() << " of length=" << su->getLength() << endl;
         // Send the car onto proper wl at proper time

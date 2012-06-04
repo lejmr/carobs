@@ -45,6 +45,9 @@ void SOAManager::initialize() {
     // Hard-coded datarte
     C = par("datarate").doubleValue();
     tbdropped=0;
+    mf_colorless = 0;
+    mf_colorless_max= 0;
+    mf_vcolorless.setName("Total number of merging flows");
 
     // W election method
     fifo= par("fifo").boolValue();
@@ -52,8 +55,13 @@ void SOAManager::initialize() {
     // Speed of O/E conversion
     convPerformance=par("convPerformance").doubleValue();
 
+    // Naming helper container
+    inSplitTable.setName("Items managed by split tables");
+    scheduling.setName("Scheduling table");
+
     WATCH(OBS);
     WATCH_MAP(mfcounter);
+    WATCH(mf_colorless);
 }
 
 void SOAManager::handleMessage(cMessage *msg) {
@@ -82,8 +90,8 @@ void SOAManager::handleMessage(cMessage *msg) {
         EV << " to " << outPort<<"#"<<H->getWL() << endl;
         EV << "cars we have with OT=" << H->getOT() << ": " << endl;
         cQueue cars = H->getCars();
-        for(int i=0;i<cars.length();i++){
-            CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(i);
+        for( cQueue::Iterator iter(cars,0); !iter.end(); iter++){
+            CAROBSCarHeader *tmpc = (CAROBSCarHeader *) iter();
             simtime_t tmplen= (simtime_t) ((double) tmpc->getSize() * 8 / C);
             EV << " * car=" << tmpc->getDst();
             EV << " start=" << simTime() + H->getOT() + tmpc->getD_c();
@@ -122,10 +130,12 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     /*  Disaggregation - This burst train is destined here   */
     int inWl = H->getWL();
     int dst = H->getDst();
+    cQueue cars = H->getCars();
 
     // Car train reached its termination Node -> Disaggregation
     if (H->getDst() == address) {
-        CAROBSCarHeader *first_car = (CAROBSCarHeader *) H->getCars().get(0);
+        cQueue::Iterator iter(cars,0);
+        CAROBSCarHeader *first_car = (CAROBSCarHeader *) iter();
         SOAEntry *se = new SOAEntry(inPort, inWl, false);
         se->setStart(simTime() + H->getOT() );
         se->setStop(simTime() + H->getOT()+H->getLength());
@@ -134,7 +144,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         EV << " Dissagregation: " << se->info() << endl;
 
         soa->assignSwitchingTableEntry(se, H->getOT()-d_s, H->getLength());
-        scheduling.add(se);
+        addSwitchingTableEntry(se);
         // And that is it, nothing more to do
         delete msg;
         return;
@@ -143,11 +153,11 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // This node is not termination one, so we must check whether we need to disaggreate something
     int NoToDis = -1;
     int longest_burst_length = 0;
-    cQueue cars = H->getCars();
     bool dissaggregation=false;
     EV << "cars we have with OT=" << H->getOT() << ": " << endl;
-    for (int i = 0; i < cars.length(); i++) {
-        CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(i);
+    int i = 0;
+    for( cQueue::Iterator iter(cars,0); !iter.end(); iter++){
+        CAROBSCarHeader *tmpc = (CAROBSCarHeader *) iter();
         EV << " * car=" << tmpc->getDst();
         EV << " start=" << simTime() + H->getOT() + tmpc->getD_c();
         EV << " stop=" << (simtime_t) ((double)tmpc->getSize()*8/C) + simTime() + H->getOT() + tmpc->getD_c();
@@ -164,6 +174,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
             NoToDis = i;
             dissaggregation=true;
         }
+        i++;
         EV << endl;
     }
 
@@ -174,8 +185,9 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
 
     if (NoToDis>=0 and NoToDis + 1 < H->getN()) {
         // Count times for car-train
-        CAROBSCarHeader *tmpc0 = (CAROBSCarHeader *) cars.get(NoToDis);
-        CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(NoToDis + 1);
+        cQueue::Iterator iter(cars,0);
+        CAROBSCarHeader *tmpc0 = (CAROBSCarHeader *) iter(); iter++;
+        CAROBSCarHeader *tmpc = (CAROBSCarHeader *) iter();
         train_start += tmpc->getD_c();
         train_length-= tmpc->getD_c();
 
@@ -187,7 +199,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
 
         // Add Switching Entry to SOA a SOAManager scheduler
         soa->assignSwitchingTableEntry(se, H->getOT()- d_s, tmpc->getD_c()-d_s);
-        scheduling.add(se);
+        addSwitchingTableEntry(se);
         EV << " Dissagregation: " << se->info() << endl;
 
         // Remove CAR Header from CAROBS Header of this disaggregated car
@@ -197,8 +209,8 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
 
         simtime_t shift= tmpc->getD_c();
         EV << "Zkracuji o " << shift << endl;
-        for(int i=0;i<cars.length();i++){
-            CAROBSCarHeader *tc= (CAROBSCarHeader *) cars.get(i);
+        for( cQueue::Iterator iter(cars,0); !iter.end(); iter++){
+            CAROBSCarHeader *tc = (CAROBSCarHeader *) iter();
             EV << " - CAR " << tc->getDst() << " d_c="<<tc->getD_c()-shift << endl;
             tc->setD_c( tc->getD_c()-shift );
         }
@@ -327,14 +339,14 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     EV << "Get scheduling for " << inPort << "#" << inWL << " to port="
               << outPort << " for:" << start << "-" << stop;
 
-    if (scheduling.size() == 0) {
+    if (scheduling.length() == 0) {
         // Fast forward - if there is no scheduling .. do bypas
         SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
         e->setStart(start);
         e->setStop(stop);
 
         // And add it to scheduling table
-        scheduling.add(e);
+        addSwitchingTableEntry(e);
         EV << " outWL=" << inWL << endl;
         return e;
     }
@@ -346,7 +358,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
         e->setStart(start);
         e->setStop(stop);
         // And add it to scheduling table
-        scheduling.add(e);
+        addSwitchingTableEntry(e);
         EV << " outWL=" << inWL << endl;
         return e;
     }
@@ -361,7 +373,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
                 e->setStart(start);
                 e->setStop(stop);
                 // And add it to scheduling table
-                scheduling.add(e);
+                addSwitchingTableEntry(e);
                 EV << " WC->outWL=" << i << endl;
                 return e;
             }
@@ -397,13 +409,14 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
         mfcounter[ inWL ] = 0;
     }
     mfcounter[ inWL ]++;
+    mf_colorless++;
+    mf_vcolorless.record(mf_colorless); // Total number of merging flows
 
 
     std::map<int, simtime_t> times;
     // table row: outputPort & outputWL -> time the outputWL is ready to be used again
-    for (int i = 0; i < scheduling.size(); i++) {
-        if( scheduling[i] == NULL ) { continue; }
-        SOAEntry *tmp = (SOAEntry *) scheduling[i];
+    for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
+        SOAEntry *tmp = (SOAEntry *) iter();
 
         // Do the find only for One output port OutPort
         if (tmp->getOutPort() == outPort) {
@@ -420,6 +433,14 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
         }
     }
 
+    if (outPortTimingCache.find(outPort) == outPortTimingCache.end()) {
+        lambdaMarker tmp;
+        tmp.wl = inWL;
+        tmp.end = stop;
+        outPortTimingCache.insert(std::pair<int, lambdaMarker>(outPort, tmp));
+        EV << "cache(warm-up): NB owl="<<inWL << endl;
+    }
+
     if (times.find(inWL) == times.end()) {
         EV << " NO BUFFER outWL=" << inWL << endl;
         EV << " ! Strange situation - it seems there is no scheduling for outPort=";
@@ -427,7 +448,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
         SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
         e->setStart(start);
         e->setStop(stop);
-        scheduling.add(e);
+        addSwitchingTableEntry(e);
         return e;
     }
 
@@ -472,7 +493,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     e_in->setStop(stop);
     e_in->setBuffer(true);
     e_in->setInBuffer();
-    scheduling.add(e_in);
+    addSwitchingTableEntry(e_in);
     soa->assignSwitchingTableEntry(e_in, start - simTime() - d_s, stop - start);
 
     // Withdraw car-train from buffer and reserver output port
@@ -481,7 +502,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     e_out->setStop(stop + BT);
     e_out->setBuffer(true);
     e_out->setOutBuffer();
-    scheduling.add(e_out);
+    addSwitchingTableEntry(e_out);
 
     // Bond this two together
     e_out->bound= e_in;
@@ -500,11 +521,8 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
     std::set<bool>::iterator it;
     std::set<bool> tests;
 
-    for (int i = 0; i < scheduling.size(); i++) {
-        if( scheduling[i] == NULL ) { continue;}
-        SOAEntry *tmp = (SOAEntry *) scheduling[i];
-
-        //if( tmp->getBuffer() and tmp->getBufferDirection() ) continue;
+    for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
+        SOAEntry *tmp = (SOAEntry *) iter();
 
         if (tmp->getOutLambda() == outWL and tmp->getOutPort() == outPort) {
             // There is some scheduling for my output combination, lets see whether it is overlapping
@@ -538,23 +556,65 @@ void SOAManager::dropSwitchingTableEntry(SOAEntry *e) {
 
     // Snapshoting maximum number of merging flows at given wavelength..
     // It means, since now the wavelength is going to be usable
-    if( not e->getBuffer() and not e->isAggregation() and not e->isDisaggregation() ){
+    if( not e->isAggregation() and not e->isDisaggregation() and e->getBuffer() and e->getBufferDirection() ){
         int inwl= e->getInLambda();
+
+        bool updated= false;
         if( mfcounter.find(inwl) != mfcounter.end() ){
-
-            if( mf_max.find(inwl) == mf_max.end() )
-                mf_max[inwl] = 0;
-
-            if( mfcounter[inwl] > mf_max[inwl] )
-                mf_max[inwl]= mfcounter[inwl];
-
             mfcounter[inwl] = 0;
+            updated= true;
         }
+
+        if( mf_max.find(inwl) == mf_max.end() )
+            mf_max[inwl] = 0;
+
+        // Store WL sensitive maximum
+        if( mfcounter[inwl] > mf_max[inwl] )
+            mf_max[inwl]= mfcounter[inwl];
+        if(!updated)mfcounter[inwl]--;
+
+        // Store color less maximum
+        if( mf_colorless > mf_colorless_max )
+            mf_colorless_max= mf_colorless;
+        mf_colorless--;
     }
 
+    // Erase res
+    if( e->getOutPort() > -1  and inSplitTable.length() > 0 and inSplitTable.contains(e) ){
 
+        // Test if this split table exists ..needs to exists otherwise it is incausal
+        if( splitTable.find(e->getOutPort()) == splitTable.end() ){
+            opp_terminate("Delating from splittable which does not exist!!!");
+        }
+
+        splitTable[e->getOutPort()].remove(e);
+        inSplitTable.remove(e);
+    }
+
+    // Remove from scheduling
     scheduling.remove(e);
 }
+
+void SOAManager::addSwitchingTableEntry(SOAEntry *e){
+    int outPort= e->getOutPort();
+    if( e->getOutPort() > -1 and not (e->getBuffer() and e->getBufferDirection() ) ){
+        // initiate switching table associated with output port if needed
+        if( splitTable.find(e->getOutPort()) == splitTable.end() ){
+            std::stringstream out;
+            out << "Port " << e->getOutPort() << " scheduling table";
+            splitTable[ e->getOutPort() ]= cQueue();
+            splitTable[ e->getOutPort() ].setName(out.str().c_str());
+        }
+
+        // Reference switching table entry with one output port
+        splitTable[ e->getOutPort() ].insert(e);
+        inSplitTable.insert(e);
+    }
+
+    // Add to the global switching table
+    scheduling.insert(e);
+}
+
 
 simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, simtime_t len, int &WL, int &outPort) {
     Enter_Method("getAggregationWaitingTime()");
@@ -564,7 +624,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
     EV << "Asking for destination=" << destination << " through port=" << outPort;
     EV << " with OT="<<OT<<" len="<<len;
 
-    if (scheduling.size() == 0) {
+    if (scheduling.length() == 0) {
         // Fast forward - if there is no scheduling .. do bypas
         WL= 1;
         if( !fifo ) WL = (int)uniform(1,maxWL+1);
@@ -572,7 +632,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         se->setStart(simTime() + OT);
         se->setStop(simTime() + OT + len);
         soa->assignSwitchingTableEntry(se, OT - d_s, len);
-        scheduling.add(se);
+        addSwitchingTableEntry(se);
 
         // Full-fill output text
         EV << "#" << WL << " without waiting" << endl;
@@ -580,30 +640,27 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
     }
 
     // Make a map of spaces for all WLs
-        std::map<int, simtime_t> fitting;
-        for (int i = 0; i < scheduling.size(); i++) {
-            if( scheduling[i] == NULL ) { continue; EV << "invalid" << endl;}
-            SOAEntry *tmp = (SOAEntry *) scheduling[i];
+    std::map<int, simtime_t> fitting;
+    for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
+        SOAEntry *tmp = (SOAEntry *) iter();
 
-            // Do the find only for One output port OutPort
-            if (tmp->getOutPort() == outPort) {
-
-                // Gather spaces before a burst is comming on a WL
-                simtime_t fitTime = tmp->getStart() - simTime();
-                if (fitting.find(tmp->getOutLambda()) == fitting.end()) {
-                    // Empty, lets assign it
-                    fitting[tmp->getOutLambda()] = fitTime;
-                    if( fitTime < 0) fitting[tmp->getOutLambda()]= 0;
-                    continue;
-                }
-
-                // Update outputWL timing if it is not up-to-date
-                if ( fitting[tmp->getOutLambda()] > fitTime ) {
-                    fitting[tmp->getOutLambda()] = fitTime;
-                    if( fitTime < 0) fitting[tmp->getOutLambda()]= 0;
-                }
-            }
+        // Gather spaces before a burst is comming on a WL
+        simtime_t fitTime = tmp->getStart() - simTime();
+        if (fitting.find(tmp->getOutLambda()) == fitting.end()) {
+            // Empty, lets assign it
+            fitting[tmp->getOutLambda()] = fitTime;
+            if (fitTime < 0)
+                fitting[tmp->getOutLambda()] = 0;
+            continue;
         }
+
+        // Update outputWL timing if it is not up-to-date
+        if (fitting[tmp->getOutLambda()] > fitTime) {
+            fitting[tmp->getOutLambda()] = fitTime;
+            if (fitTime < 0)
+                fitting[tmp->getOutLambda()] = 0;
+        }
+    }
 
     //    // Prints out list of wavelengths and its leading space
     //    // (time space before a burst caused by dissagreageted burst)
@@ -651,7 +708,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         se->setStart(simTime() + OT);
         se->setStop(simTime() + OT + len);
         soa->assignSwitchingTableEntry(se, OT - d_s, len);
-        scheduling.add(se);
+        addSwitchingTableEntry(se);
 
         // Full-fill output text
         EV << "#" << WL << " without waiting" << endl;
@@ -690,24 +747,21 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         // Procedure of find less waiting egress port
         std::map<int, simtime_t> times;
         // table row: outputPort & outputWL -> time the outputWL is ready to be used again
-        for (int i = 0; i < scheduling.size(); i++) {
-            if( scheduling[i] == NULL ) { continue; EV << "invalid1" << endl;}
-            SOAEntry *tmp = (SOAEntry *) scheduling[i];
+        for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
+            SOAEntry *tmp = (SOAEntry *) iter();
 
             // Do the find only for One output port OutPort
-            if (tmp->getOutPort() == outPort) {
-                // test whether table times contains such outputWL .. unless fix it
-                simtime_t waitTime = tmp->getStop() - simTime();
-                if (times.find(tmp->getOutLambda()) == times.end()) {
-                    // Empty, lets assign it
-                    times[tmp->getOutLambda()] = waitTime;
-                    continue;
-                }
+            // test whether table times contains such outputWL .. unless fix it
+            simtime_t waitTime = tmp->getStop() - simTime();
+            if (times.find(tmp->getOutLambda()) == times.end()) {
+                // Empty, lets assign it
+                times[tmp->getOutLambda()] = waitTime;
+                continue;
+            }
 
-                // Update outputWL timing if it is not up-to-date
-                if (times[tmp->getOutLambda()] < waitTime) {
-                    times[tmp->getOutLambda()] = waitTime;
-                }
+            // Update outputWL timing if it is not up-to-date
+            if (times[tmp->getOutLambda()] < waitTime) {
+                times[tmp->getOutLambda()] = waitTime;
             }
         }
 
@@ -750,7 +804,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
     se->setStart(simTime()+t0+OT);
     se->setStop( simTime()+t0+OT+len);
     soa->assignSwitchingTableEntry(se,t0+OT-d_s, len);
-    scheduling.add(se);
+    addSwitchingTableEntry(se);
 
     // Inform MAC how log mus wait before sending CAROBS Header and Cars after OT respectively
     return t0;

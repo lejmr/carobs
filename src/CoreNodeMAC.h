@@ -63,6 +63,7 @@ class CoreNodeMAC : public cSimpleModule
     int64_t wrong_output;
     cOutVector vwaitingtime;
     cOutVector vbuffertime;
+    cOutVector buffered_data;
 
     /**
      *  Statistics of grooming process

@@ -32,7 +32,7 @@ class SOA : public cSimpleModule
     virtual void finish();
 
   private:
-    cArray *switchingTable;
+    cQueue switchingTable;
     /**
      *  switching time
      */
@@ -63,6 +63,7 @@ class SOA : public cSimpleModule
      */
     int64_t incm, drpd;
     int64_t wrong_scheduling;
+    cOutVector blpevo;
 
     /**
      *  The number of wavelengths currently used

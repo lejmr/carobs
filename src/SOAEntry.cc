@@ -71,3 +71,7 @@ std::string SOAEntry::info() const
     return out.str();
 }
 
+SOAEntry *SOAEntry::dup() const
+{
+    return new SOAEntry(*this);
+}

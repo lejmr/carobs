@@ -22,6 +22,7 @@ void Sink::initialize()
     received=0;
     total_delay = 0;
     avg_delay.setName("End-to-End delay");
+    avg_throughput.setName("Average thoughput");
     avg_e2e=0;
 
     if( getParentModule()->hasPar("address"))
@@ -49,6 +50,13 @@ void Sink::handleMessage(cMessage *msg)
     }
 
     if (throughput.find(src) == throughput.end()){
+            throughputs[src]= new cOutVector();
+            std::stringstream out;
+            out << "Throughput from " << src;
+            throughputs[src]->setName( out.str().c_str() );
+        }
+
+    if (throughput.find(src) == throughput.end()){
         throughput[src]= 0;
     }
 
@@ -56,7 +64,9 @@ void Sink::handleMessage(cMessage *msg)
     throughput[src] += (double)pl->getBitLength()/delay;
 
     vects[src]->record(delay);
+    throughputs[src]->record( (double)pl->getBitLength()/delay );
     avg_delay.record(delay);
+    avg_throughput.record( (double)pl->getBitLength()/delay );
     received++;
     total_delay += delay;
 

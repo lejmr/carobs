@@ -21,4 +21,5 @@ class noncobject cQueue;
 
 packet Car {
     cQueue payload;
+    int buffered;	// Keeps information about the number of buffering the car undergoes on the way
 }

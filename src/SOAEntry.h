@@ -42,6 +42,7 @@ class SOAEntry : public cPolymorphic
     SOAEntry(int op, int ol, bool aggregation);
     virtual ~SOAEntry() {}
     virtual std::string info() const;
+    virtual SOAEntry *dup() const;
 
     // field getter/setter methods
     int getInPort() const {return inPort_var;};

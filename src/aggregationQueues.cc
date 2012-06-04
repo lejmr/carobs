@@ -141,6 +141,7 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag 
 
             car->addPar("TSId");
             car->par("TSId").setLongValue(TSId);
+            car->setBuffered( 0 );
         }
 
         cMessage *msg= scheduled[*it];

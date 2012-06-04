@@ -28,7 +28,7 @@ void SOA::initialize() {
     WC = par("WC").boolValue();
 
     //switchingTable = new cQueue("switchingTable");
-    switchingTable = new cArray("switchingTable");
+    switchingTable.setName("switchingTable");
 
     incm=0; drpd=0;
     wrong_scheduling=0;
@@ -37,6 +37,7 @@ void SOA::initialize() {
     wls=0;
     wcs=0;
     bigOT = 0;
+    blpevo.setName("Evolution of BLP");
 }
 
 void SOA::handleMessage(cMessage *msg) {
@@ -108,11 +109,19 @@ void SOA::handleMessage(cMessage *msg) {
             // Wavelength conversion
             ol->setWavelengthNo(sw->getOutLambda());
 
+            // Update ot of optical layer
+            double ot= ol->par("ot").doubleValue();
+            ol->par("ot").setDoubleValue( ot - getParentModule()->par("d_p").doubleValue() );
+
+            if ( ot < 0 )
+                opp_terminate("ASi tu mame smycku");
+
             // Sending to output port
             send(ol, "gate$o", sw->getOutPort());
         }else{
             EV << "Burst at "<<inPort<<"#"<<inWl<<" is to be dropped !!!" << endl;
             drpd++;
+            blpevo.record( (double) drpd/incm );
             delete msg; return;
         }
 
@@ -123,6 +132,14 @@ void SOA::handleMessage(cMessage *msg) {
         /*      Cars coming from aggregation port    */
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
         int inPort = msg->getArrivalGate()->getIndex();
+
+        // Update ot of optical layer
+        double ot = ol->par("ot").doubleValue();
+        ol->par("ot").setDoubleValue(ot-getParentModule()->par("d_p").doubleValue());
+
+        if (ot < 0)
+            opp_terminate("ASi tu mame smycku v agregovani");
+
         EV << "Agreguji pres port " << inPort << endl;
         if (inPort >= 0 ) {
             send(ol, "gate$o", inPort );
@@ -142,9 +159,9 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
     if( !e->getBuffer() and !e->isDisaggregation() ){
         simtime_t start= e->getStart();
         simtime_t stop= e->getStop();
-        for (int i = 0; i < switchingTable->size(); i++) {
-            if( not switchingTable->exist(i) ) continue;
-            SOAEntry *se = (SOAEntry *) switchingTable->get(i);
+
+        for( cQueue::Iterator iter(switchingTable,0); !iter.end(); iter++){
+            SOAEntry *se = (SOAEntry *) iter();
 
             //
             if( se->getBuffer() and se->getBufferDirection() ) continue;
@@ -171,7 +188,7 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
 
     EV << endl;
     // Reserve WL if it is not to buffer direction
-    switchingTable->add(e);
+    switchingTable.insert(e);
 }
 
 void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
@@ -215,13 +232,14 @@ void SOA::dropSwitchingTableEntry(SOAEntry *e) {
     EV << " DROP " << e->info() << endl;
 
     // Reserve WL if it is not buffered
-    delete switchingTable->remove(e);
+    delete switchingTable.remove(e);
 }
 
 SOAEntry * SOA::findOutput(int inPort, int inWl) {
-    for (int i = 0; i < switchingTable->size(); i++) {
-        if( not switchingTable->exist(i) ) continue;
-        SOAEntry *se = (SOAEntry *) switchingTable->get(i);
+
+    for( cQueue::Iterator iter(switchingTable,0); !iter.end(); iter++){
+        SOAEntry *se = (SOAEntry *) iter();
+
         // It searches proper port#wl combination and the combination is not out-of-buffer records
         if (se->getInPort() == inPort and se->getInLambda() == inWl ){
             if( se->getBuffer() and not se->getBufferDirection()) continue;
