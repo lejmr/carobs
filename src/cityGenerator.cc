@@ -60,6 +60,12 @@ void CityGenerator::initialize()
     }
 
     psend=0;
+    // Informations for Routing
+    cMessage *r = new cMessage("MyIDs");
+    r->addPar("myMinID").setLongValue(src);
+    r->addPar("myMaxID").setLongValue(src);
+    r->setSchedulingPriority(-10);
+    scheduleAt(0,r);
 }
 
 void CityGenerator::handleMessage(cMessage *msg)
@@ -67,6 +73,11 @@ void CityGenerator::handleMessage(cMessage *msg)
     double alpha= par("alpha").doubleValue();
     int length = par("length").longValue();
     int step = par("blast").longValue();
+
+    if( msg->isSelfMessage() and msg->hasPar("myMinID") ){
+        send(msg,"out");
+        return;
+    }
 
     // Prepare sending
     if ( msg->isSelfMessage() and msg->hasPar("initiateSending") ){
@@ -155,6 +166,7 @@ simtime_t CityGenerator::sendAmount(int amount, int src, int dst, double lambda,
         pl->setDst(dst);
         pl->setSrc(src);
         pl->setT0(arrivals[dst]);
+        pl->setSchedulingPriority(10); // Gives way to the autoconfiguration of CoreNode
         scheduleAt(arrivals[dst], pl);
         EV << " + " << src << "->" << dst << " (" << length / 8 << "B): " << arrivals[dst] << endl;
         arrivals[dst]+=gap;

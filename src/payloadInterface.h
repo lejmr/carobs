@@ -18,7 +18,7 @@
 
 #include <omnetpp.h>
 #include <messages/Payload_m.h>
-
+#include <routing.h>
 
 /**
  *   PayloadInterface is transient module helping with first/last step

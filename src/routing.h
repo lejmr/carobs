@@ -50,6 +50,12 @@ class Routing : public cSimpleModule
     virtual int getOutputPort(int destination);
 
     /**
+     *  Function sourceAddressUpdate is usd by PayloadInterface to inform Routing
+     *  about list of address which this CoreNode terminates
+     */
+    virtual void sourceAddressUpdate(int min, int max);
+
+    /**
      *  Function getTerminatingIDs return set of IDs which this node terminates
      */
     virtual std::set<int> getTerminatingIDs();
@@ -64,11 +70,6 @@ class Routing : public cSimpleModule
      *
      */
     virtual bool canForwardHeader(int destination);
-
-    /**
-     *  Get set of reachable destinations which has OT in range up,down
-     */
-    virtual std::set<int> getDestinationsWithOt(simtime_t down, simtime_t up);
 
   private:
     std::map<int, simtime_t> OT;   // First step development, later it obsoletes by cTopolog
@@ -96,16 +97,6 @@ class Routing : public cSimpleModule
      *  Set of IDs which are terminated by this Node
      */
     std::set<int> terminatingIDs;
-
-    /**
-     *  Function doNetworkTranslationDiscovery make Network translation discovery (NTD) which is needed
-     *  for pairing of last All optical node (EdgeNode) ID and network destination address.
-     *  NTD is realized based on DestMap map variable.
-     *  Function works as follows:
-     *   - 1st step: It checks all nodes having a Routing module to obtain terminatingIDs
-     *   - 2nd step: Add all discovered IDs into DestMap such that DestID -> EdgeNode address
-     */
-    virtual void doNetworkTranslationDiscovery();
 
 };
 

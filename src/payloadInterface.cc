@@ -24,6 +24,19 @@ void PayloadInterface::initialize()
 
 void PayloadInterface::handleMessage(cMessage *msg)
 {
+
+    if( msg->hasPar("myMinID") ){
+       EV << "Autoconfiguration from Endpoint: dst=" << msg->par("myMinID").longValue();
+       EV << "-"<<msg->par("myMaxID").longValue() << endl;
+
+       cModule *calleeModule = getParentModule()->getSubmodule("routing");
+       Routing *R = check_and_cast<Routing *>(calleeModule);
+       R->sourceAddressUpdate(msg->par("myMinID").longValue(), msg->par("myMaxID").longValue());
+       delete msg;
+       return;
+    }
+
+
     // cMessage to Payload conversion
     Payload *pl = dynamic_cast<Payload *>(msg);
 

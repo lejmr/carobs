@@ -222,7 +222,8 @@ $O/merge.o: merge.cc \
 	messages/car_m.h
 $O/payloadInterface.o: payloadInterface.cc \
 	messages/Payload_m.h \
-	payloadInterface.h
+	payloadInterface.h \
+	routing.h
 $O/routing.o: routing.cc \
 	routing.h
 $O/routingTable.o: routingTable.cc \
