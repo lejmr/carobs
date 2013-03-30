@@ -20,10 +20,7 @@ Define_Module(Sink);
 void Sink::initialize()
 {
     received=0;
-    total_delay = 0;
-    avg_delay.setName("End-to-End delay");
-    avg_throughput.setName("Average thoughput");
-    avg_e2e=0;
+    thr_window = par("thr_window").doubleValue();
 
     if( getParentModule()->hasPar("address"))
         address = getParentModule()->par("address").longValue();
@@ -34,48 +31,13 @@ void Sink::initialize()
 
 void Sink::handleMessage(cMessage *msg)
 {
+    // Calculations
     Payload *pl = dynamic_cast<Payload *>(msg);
     simtime_t delay = simTime()-pl->getT0();
     int src = pl->getSrc();
-
-    if (counts.find(src) == counts.end())
-        counts[src] = 0;
-    counts[src]++;
-
-    if (vects.find(src) == vects.end()){
-        vects[src]= new cOutVector();
-        std::stringstream out;
-        out << "End-to-End Delay from " << src;
-        vects[src]->setName( out.str().c_str() );
-    }
-
-    if (throughput.find(src) == throughput.end()){
-            throughputs[src]= new cOutVector();
-            std::stringstream out;
-            out << "Throughput from " << src;
-            throughputs[src]->setName( out.str().c_str() );
-        }
-
-    if (throughput.find(src) == throughput.end()){
-        throughput[src]= 0;
-    }
-
-    // Throughput per src
-    throughput[src] += (double)pl->getBitLength()/delay;
-
-    vects[src]->record(delay);
-    throughputs[src]->record( (double)pl->getBitLength()/delay );
-    avg_delay.record(delay);
-    avg_throughput.record( (double)pl->getBitLength()/delay );
-    received++;
-    total_delay += delay;
-
     EV<< "Packet from "<<src<<" was sent at="<<pl->getT0()<<" it makes delay="<<delay<<"s ";
-    // Scalar E2E measturemtn
-    if(avg_e2e==0) avg_e2e= delay;
-    avg_e2e= (avg_e2e+delay)/2;
 
-    // Misdelivered packets statistics
+    // Misdelivered packets statistics - verification of proper behaviour
     int dst = pl->getDst();
     if( dst != address ){
         if( misdelivered.find(dst) == misdelivered.end( ))
@@ -86,6 +48,46 @@ void Sink::handleMessage(cMessage *msg)
         opp_terminate("misdelivery");
     }
 
+
+    /**
+     * Statistics
+     */
+
+    // Packet measurement - how many has been received
+    if (counts.find(src) == counts.end())
+        counts[src] = 0;
+    counts[src]++;
+
+    // Vectors initialisation
+    if (throughput.find(src) == throughput.end()) {
+        // Throughput
+        throughput[src] = new cOutVector();
+        std::stringstream out;
+        out << "Throughput from " << src << " [bps]";
+        throughput[src]->setName(out.str().c_str());
+        thr_t0[src] = simTime();
+        thr_bites[src]=0;
+
+        //  E2E
+        e2e[src] = new cOutVector();
+        std::stringstream out1;
+        out1 << "End-to-End Delay from " << src << " [s]";
+        e2e[src]->setName(out1.str().c_str());
+    }
+
+    // End-to-End delay measurement
+    e2e[src]->record(delay);
+
+    // Throughput measurements
+    thr_bites[src] += pl->getBitLength();
+    if( simTime() - thr_t0[src] >= thr_window){
+        double thr= thr_bites[src] / (simTime()-thr_t0[src] );
+        thr_t0[src] = simTime();
+        thr_bites[src] = pl->getBitLength();
+        throughput[src]->record( thr );
+    }
+
+    received++;
     EV  << endl;
     delete pl;
 }
@@ -94,20 +96,7 @@ void Sink::finish(){
     recordScalar("Simulation duration", simTime());
     recordScalar("Packets received", received);
 
-    if( received != 0 ) recordScalar("End-to-End delay (total)", total_delay/received);
-    else recordScalar("Average delay", 0 );
-
-    int received=0;
-    std::map<int,int>::iterator it;
-    for(it=counts.begin();it!=counts.end();it++){
-        std::stringstream out;
-        out << "Received from " << (*it).first;
-        //recordScalar(out.str().c_str(), (*it).second);
-        received += (*it).second;
-    }
-    recordScalar("Avererage End-to-End delay", avg_e2e);
-
-    /* Monitoring variables.. shown only when models behave bad */
+    /* Monitoring variables.. shown only when models behave badly */
     int64_t total=0;
     std::map<int, int64_t>::iterator it2;
     for(it2=misdelivered.begin();it2!=misdelivered.end();it2++){
@@ -118,20 +107,12 @@ void Sink::finish(){
     }
     if(total>0) recordScalar(" ! Total misdelivered packets", total);
 
-    long double thrpt_all= 0;
-    long double thrpt_pp = 0;
-    int srcs = 0;
-    std::map<int, long double>::iterator it3;
-    for(it3=throughput.begin();it3!=throughput.end();it3++){
+    // Statistics of the number of received packets
+    std::map<int,int>::iterator it3;
+    for(it3=counts.begin();it3!=counts.end();it3++){
         std::stringstream out;
-        out << "Average throughput from " << (*it3).first;
-        double thrpt= (*it3).second/(double)counts[(*it3).first];
-        recordScalar(out.str().c_str(), thrpt );
-        thrpt_all += (*it3).second;
-        thrpt_pp += thrpt;
-        srcs++;
+        out << "Packets from " << (*it3).first;
+        recordScalar(out.str().c_str(), counts[(*it3).first] );
     }
-    recordScalar("Avererage throughput", thrpt_all/(double)received);
-    recordScalar("Avererage throughput pp", thrpt_pp/(double)srcs);
 
 }

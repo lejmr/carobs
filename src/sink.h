@@ -18,29 +18,35 @@
 
 #include <omnetpp.h>
 #include <messages/Payload_m.h>
-/**
- * TODO - Generated class
- */
+
+
 class Sink : public cSimpleModule
 {
   protected:
     virtual void initialize();
     virtual void finish();
     virtual void handleMessage(cMessage *msg);
-    int64_t received;
-    simtime_t total_delay;
 
-    std::map<int,int> counts;
-    std::map<int,cOutVector *> vects;
-    std::map<int,cOutVector *> throughputs;
-    std::map<int, long double> throughput;
-
-    cOutVector avg_delay;
-    cOutVector avg_throughput;
-    simtime_t avg_e2e;
+    // Address of the endnode
     int address;
-    std::map<int, int64_t> misdelivered;
 
+    // How many packets were handled
+    int64_t received;
+
+    // Packet measurement - how many has been received
+    std::map<int,int> counts;
+
+    // Ent-to-End delay measurement
+    std::map<int,cOutVector *> e2e;
+
+    // Throughput measurements
+    simtime_t thr_window;
+    std::map<int, simtime_t> thr_t0;
+    std::map<int, int64_t> thr_bites;
+    std::map<int,cOutVector *> throughput;
+
+    // Verification of proper behaviour
+    std::map<int, int64_t> misdelivered;
 };
 
 #endif

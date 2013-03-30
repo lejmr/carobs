@@ -20,6 +20,8 @@ package carobs.modules;
 //
 simple CoreNodeMAC
 {
+    parameters:
+    	int address = default(uniform(1000, 2000));	// TODO: watchout mi overlap
     @display("i=block/tx");
     gates:
         inout soa[];

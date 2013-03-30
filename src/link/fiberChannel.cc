@@ -25,13 +25,23 @@ void FiberChannel::initialize()
     // Hard-coded datarte
     C = par("datarate").doubleValue();
     d_s = par("d_s").doubleValue();
+    length = par("length").doubleValue();
     overlap=0;
     scheduling=0;
     trans=0;
+
+    // Bandwidth measurements
+    thr_window = par("thr_window").doubleValue();
+
+    cDisplayString& dispStr = getDisplayString();
+    std::stringstream out;
+    out << "Parameters:"<<endl;
+    out<<" * length:\t" << length<<"km"<< endl;
+    out<<" * delay:\t"<< par("delay").doubleValue() <<"s" << endl;
+    getDisplayString().setTagArg("tt", 0, out.str().c_str());
 }
 
 void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
-
 
     OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
 //    EV << "paket na WL="<< ol->getWavelengthNo();
@@ -59,6 +69,63 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
         trans++;
     }
 
+
+    /**
+     * Performance analysis
+     */
+    if( WL > 0 ){
+    /**
+     * Bandwidth usage measurements - bit count method
+     * Counting incoming bits which are averaged in a window thr_window
+     */
+        if( bw_start.find(WL) == bw_start.end() ){
+            bw_start[WL]= simTime();
+            bw_usage[WL]= 0;
+
+            std::stringstream out;
+            out << "Bandwidth of wl#" << WL<<" [bps]";
+            bandwidth[WL] = new cOutVector(out.str().c_str());
+        }
+
+        // Bit count
+        bw_usage[WL]+= ol->getBitLength();
+
+        // Averaging window full filed so lets make math and graphs
+        if( simTime() - bw_start[WL] >= thr_window ){
+            simtime_t dur= simTime() - bw_start[WL];
+            bandwidth[WL]->record( bw_usage[WL]/dur );
+            bw_start[WL]= simTime();
+            bw_usage[WL]= 0;
+        }
+
+    /**
+     * Throughput estimation - per destination
+     * Countin
+     */
+        int dst= ol->getEncapsulatedPacket()->par("dst").doubleValue()-100;
+        int src= ol->getEncapsulatedPacket()->par("src").doubleValue()-100;
+        int ident= src*10000+dst;
+
+        if( thr_start.find(ident) == thr_start.end() ){
+            thr_start[ident]= simTime();
+            thr_usage[ident]= 0;
+
+            std::stringstream out;
+            out << "Throughput of " << src <<"-"<< dst << " [bps]";
+            throughput[ident] = new cOutVector(out.str().c_str());
+        }
+
+        // Bit count
+        thr_usage[ident]+= ol->getBitLength();
+
+        // Averaging window full filed so lets make math and graphs
+        if( simTime() - thr_start[ident] >= thr_window ){
+            simtime_t dur= simTime() - thr_start[ident];
+            throughput[ident]->record( thr_usage[ident]/dur );
+            thr_start[ident]= simTime();
+            thr_usage[ident]= 0;
+        }
+    }
 
     cDelayChannel::processMessage(msg,t,result);
 }

@@ -38,10 +38,20 @@ void CoreNodeMAC::initialize() {
     total_buffertime=0;
     avg_buffertime=0;
     buffered=0;
-    vbuffertime.setName("Buffering delay");
-    vwaitingtime.setName("Access delay");
-    buffered_data.setName("Data stored in memory");
+    vbuffertime.setName("Buffering delay [s]");
+    vwaitingtime.setName("Access delay [s]");
+    buffered_data.setName("Data stored in memory [B]");
 
+    // Address asignement
+    address = par("address").doubleValue();
+
+    // Initialising port monitoring
+    for( int i =0; i<gateSize("soa");i++){
+        vbuffertime_port[i] = new cOutVector();
+        std::stringstream out;
+        out << "Buffering delay - port #" << i <<" [s]";
+        vbuffertime_port[i]->setName(out.str().c_str());
+    }
 
     WATCH(capacity);
 }
@@ -219,6 +229,10 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         sprintf(buffer_name, "Car %d", su->getDst());
         OpticalLayer *OC = new OpticalLayer(buffer_name);
         OC->setWavelengthNo(WL);
+        tcar->addPar("dst");
+        tcar->par("dst").setDoubleValue( su->getDst() );
+        tcar->addPar("src");
+        tcar->par("src").setDoubleValue( address );
         OC->encapsulate(tcar);
         OC->addPar("ot").setDoubleValue( su->getStart().dbl() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
 
@@ -250,6 +264,7 @@ void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
     if( avg_buffertime==0 ) avg_buffertime=wait;
     avg_buffertime= (avg_buffertime+wait)/2;
     vbuffertime.record(wait);
+    vbuffertime_port[e->getInPort()]->record(wait);
 
     // Overall ones
     total_buffertime+=wait;

@@ -13,27 +13,26 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.link;
+#ifndef __ManualCAROBS_GENERATOR_H_
+#define __ManualCAROBS_GENERATOR_H_
 
-import ned.DelayChannel;
+#include <omnetpp.h>
+#include <routingTable.h>
 
-
-channel FiberChannel extends DelayChannel
+class ManualGenerator : public cSimpleModule
 {
-	// OMNeT++ properties
-	@class(FiberChannel);
-    @display("ls=blue");
-     
-	// Physical properties parameters   
-    double length @unit(km);
-    delay = this.length / 200km * 1ms;
-	
-    // Informational parameters .. in future will be extended
-    double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
-    double datarate @unit(bps) = default(1Gbps);	// Datarate	
-    
-    // Bandwidth measurements
-    double thr_window @unit(s) = default(100us);
-	
-    
-}
+  protected:
+    virtual void initialize();
+    virtual void handleMessage(cMessage *msg);
+    virtual void sendMessages(int n);
+
+  private:
+    int address;
+    int dst;
+    int n, n_done;
+    double bandwidth, lambda;
+    int length, blast;
+    simtime_t last_send;
+};
+
+#endif

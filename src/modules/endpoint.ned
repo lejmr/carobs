@@ -22,6 +22,7 @@ simple Sink
     parameters:
         int myMinID;
         int myMaxID;
+        double thr_window @unit(s) = default(1ms);
 
         @display("i=block/rx");
     gates:
@@ -95,11 +96,14 @@ simple CityGenerator
         int address;
         string ipDemandFile;
         double datarate @unit(bps) = default(1Gbps);	// Datarate
-		bool send = default(true);
-		double alpha= default(1);
-		int length @unit(b)= default(100b);	// bit
-		int blast = default(100);	// Says how many packets are sent at one moment
-		
+        bool send = default(true);
+        double alpha = default(1);
+        int length @unit(b) = default(100b);	// bit
+        int blast = default(100);	// Says how many packets are sent at one moment
+
+
+
+
         @display("i=block/tx,#FF8000");
 
     gates:
@@ -113,8 +117,8 @@ module City
         int address;
         int myMinID = address;
         int myMaxID = address;
-        
-        @display("i=misc/town;bgb=179,98;t=$address;tc=gray");
+
+        @display("i=misc/town2;bgb=179,98;t=$address;tc=gray");
     gates:
         inout gate @labels(Payload);
 
@@ -136,3 +140,53 @@ module City
         sink.in <-- gate$i;
 }
 
+
+//
+// Generator sending frames onto DST node
+//
+simple ManualGenerator
+{
+    parameters:
+        int address;
+        int n = default(10);
+        double bandwidth @unit(bps) = default(1Gbps);
+        bool send = default(false);
+        int dst = default(-1);
+        int blast= default(10);
+        int length @unit(b) = default(100b);
+
+        @display("i=block/tx");
+
+    gates:
+        output out;
+}
+
+module ManualCity
+{
+    parameters:
+        int address;
+        int myMinID = address;
+        int myMaxID = address;
+
+        @display("i=misc/town2;bgb=179,98;t=$address;tc=gray");
+    gates:
+        inout gate @labels(Payload);
+
+    submodules:
+        sink: Sink {
+            parameters:
+                myMaxID = address;
+                myMinID = address;
+                @display("p=51,53");
+        }
+        generator: ManualGenerator {
+            parameters:
+                address = address;
+                
+                @display("p=127,53");
+        }
+
+    connections:
+        generator.out --> gate$o;
+        sink.in <-- gate$i;
+}

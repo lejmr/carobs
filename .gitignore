@@ -2,3 +2,5 @@
 .*
 out/
 Makefile
+simulations
+*_m.*

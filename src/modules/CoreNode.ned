@@ -83,6 +83,8 @@ module CoreNode
             @display("p=355,226;is=s");
         }
         MAC: CoreNodeMAC {
+			parameters:
+                address = address;
             @display("p=313,226;is=s");
             gates:
                 soa[sizeof(gate)];

@@ -29,42 +29,43 @@ O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 
 # Object files for local .cc and .msg files
 OBJS = \
-    $O/aggregationQueues.o \
+    $O/SOAEntry.o \
     $O/cityGenerator.o \
-    $O/CoreNodeMAC.o \
     $O/deMux.o \
     $O/generator.o \
-    $O/MAC.o \
-    $O/MACEntry.o \
     $O/merge.o \
-    $O/payloadInterface.o \
-    $O/routing.o \
-    $O/routingTable.o \
+    $O/MACEntry.o \
+    $O/MAC.o \
     $O/sink.o \
-    $O/SOA.o \
-    $O/SOAEntry.o \
-    $O/SOAManager.o \
+    $O/routing.o \
+    $O/aggregationQueues.o \
+    $O/routingTable.o \
     $O/trainAssembler.o \
+    $O/manualGenerator.o \
+    $O/payloadInterface.o \
+    $O/SOAManager.o \
+    $O/SOA.o \
+    $O/CoreNodeMAC.o \
     $O/link/fiberChannel.o \
-    $O/messages/car_m.o \
-    $O/messages/CAROBSCarHeader_m.o \
-    $O/messages/CAROBSHeader_m.o \
-    $O/messages/MACContainer_m.o \
-    $O/messages/OpticalLayer_m.o \
-    $O/messages/Payload_m.o \
+    $O/messages/trainContainer_m.o \
     $O/messages/schedulerUnit_m.o \
-    $O/messages/trainContainer_m.o
+    $O/messages/Payload_m.o \
+    $O/messages/OpticalLayer_m.o \
+    $O/messages/CAROBSCarHeader_m.o \
+    $O/messages/MACContainer_m.o \
+    $O/messages/CAROBSHeader_m.o \
+    $O/messages/car_m.o
 
 # Message files
 MSGFILES = \
-    messages/car.msg \
-    messages/CAROBSCarHeader.msg \
-    messages/CAROBSHeader.msg \
-    messages/MACContainer.msg \
-    messages/OpticalLayer.msg \
-    messages/Payload.msg \
+    messages/trainContainer.msg \
     messages/schedulerUnit.msg \
-    messages/trainContainer.msg
+    messages/Payload.msg \
+    messages/OpticalLayer.msg \
+    messages/CAROBSCarHeader.msg \
+    messages/MACContainer.msg \
+    messages/CAROBSHeader.msg \
+    messages/car.msg
 
 #------------------------------------------------------------------------------
 
@@ -213,6 +214,10 @@ $O/deMux.o: deMux.cc \
 	messages/OpticalLayer_m.h
 $O/generator.o: generator.cc \
 	generator.h \
+	messages/Payload_m.h \
+	routingTable.h
+$O/manualGenerator.o: manualGenerator.cc \
+	manualGenerator.h \
 	messages/Payload_m.h \
 	routingTable.h
 $O/merge.o: merge.cc \

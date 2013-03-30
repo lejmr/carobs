@@ -27,6 +27,10 @@ class FiberChannel : public cDelayChannel
     virtual void finish();
     void processMessage(cMessage *msg, simtime_t t, result_t& result);
 
+    // Fiber physical properties
+    double length;
+
+    // Statistics
     std::map<int,simtime_t> free_time;
     std::map<int,simtime_t> stop_time;
     int64_t overlap, scheduling, trans;
@@ -36,6 +40,21 @@ class FiberChannel : public cDelayChannel
      */
     int64_t C;
     simtime_t d_s;
+
+    /**
+     * Bandwidth measurements
+     */
+    std::map<int, simtime_t> bw_start;
+    std::map<int, int64_t> bw_usage;
+    std::map<int, cOutVector *> bandwidth;
+    simtime_t thr_window;
+
+    /**
+     * Throughput estimation
+     */
+    std::map<int, simtime_t> thr_start;
+    std::map<int, cOutVector *> throughput;
+    std::map<int, int64_t> thr_usage;
 };
 
 #endif

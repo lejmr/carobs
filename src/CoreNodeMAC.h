@@ -64,6 +64,7 @@ class CoreNodeMAC : public cSimpleModule
     cOutVector vwaitingtime;
     cOutVector vbuffertime;
     cOutVector buffered_data;
+    std::map<int,cOutVector *> vbuffertime_port;
 
     /**
      *  Statistics of grooming process
@@ -71,6 +72,8 @@ class CoreNodeMAC : public cSimpleModule
     simtime_t total_buffertime, avg_buffertime;
     int64_t buffered;
 
+    // CoreNode address -- needs to be put to the Car for flow purporse of flow monitoring
+    int address;
 
   public:
 

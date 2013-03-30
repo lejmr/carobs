@@ -500,28 +500,32 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
     std::set<bool>::iterator it;
     std::set<bool> tests;
 
+    EV << "Visualizce> "<< start<<" - "<< stop << "("<<start+d_s<<"-"<<stop+d_s<<") "<< endl;
     for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
         SOAEntry *tmp = (SOAEntry *) iter();
 
         if (tmp->getOutLambda() == outWL and tmp->getOutPort() == outPort) {
             // There is some scheduling for my output combination, lets see whether it is overlapping
-
-            if( stop < tmp->getStart()-d_s and start < tmp->getStart()-d_s ){
-                // Overlap start time with respect to d_s
+            EV << tmp->info() <<" : ";
+            if( stop <= tmp->getStart()-d_s and start < tmp->getStart() ){
+                // Overlap stop time with respect to d_s
                 //   in table:           |-------|
                 //the new one:    |----|
                 tests.insert(true);
+                EV << " start ";
                 continue;
             }
 
-            if( start > tmp->getStop()+d_s and stop > tmp->getStop()+d_s ){
+            if( start >= tmp->getStop()+d_s and stop > tmp->getStop() ){
                 // Overlap start time with respect to d_s
                 //   in table:   |-------|
                 //the new one:             |----|
                 tests.insert(true);
+                EV << " stop ";
                 continue;
             }
 
+            EV << " both " << endl;
             tests.insert(false);
         }
     }
