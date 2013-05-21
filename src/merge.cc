@@ -18,7 +18,7 @@
 Define_Module(Merge);
 
 void Merge::initialize(){
-    number_of_hops.setName("The number of buffering");
+    number_of_hops.setName("The number of buffering (along the path)");
 }
 
 void Merge::handleMessage(cMessage *msg)

@@ -30,7 +30,7 @@ class ManualGenerator : public cSimpleModule
     int address;
     int dst;
     int n, n_done;
-    double bandwidth, lambda;
+    float bandwidth, lambda;
     int length, blast;
     simtime_t last_send;
 };

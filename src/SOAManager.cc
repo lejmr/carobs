@@ -42,8 +42,9 @@ void SOAManager::initialize() {
     calleeModule = getParentModule()->getSubmodule("soa");
     soa = check_and_cast<SOA *>(calleeModule);
 
-    // Hard-coded datarte
-    C = par("datarate").doubleValue();
+    // Hard-coded datarate ...
+    // TODO: fix and make in more scalable from d_s point of view .. this constant assumes 10e-9
+    C = par("datarate").doubleValue() * par("datarate_correction").doubleValue();
     tbdropped=0;
 
     // W election method
@@ -63,6 +64,8 @@ void SOAManager::initialize() {
     WATCH_MAP(mf_max);
     WATCH_MAP(reg_max);
 }
+
+bool myfunction (SOAEntry *i, SOAEntry *j) { return (i->getStart()>j->getStart()); }
 
 void SOAManager::handleMessage(cMessage *msg) {
     // Obtaining information about source port
@@ -150,7 +153,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         return;
     }
 
-    // This node is not termination one, so we must check whether we need to disaggreate something
+    // This node is not terminating one, so we must check whether we need to disaggreate somthing or not
     int NoToDis = -1;
     int longest_burst_length = 0;
     bool dissaggregation=false;
@@ -248,6 +251,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         cModule *calleeModule = getParentModule()->getSubmodule("MAC");
         CoreNodeMAC *mac = check_and_cast<CoreNodeMAC *>(calleeModule);
         mac->storeCar(sef, d_w_extra);
+        //opp_terminate("Bufferuje");
     }
 
     // Add Switching Entry to SOA a SOAManager scheduler
@@ -302,7 +306,6 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
     }
 
     simtime_t d_w_extra = 0;
-
     if (se->getBuffer()) {
         // Calculate extra waiting time
         simtime_t SOA_set = simTime() + H->getOT();
@@ -313,6 +316,7 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
         cModule *calleeModule = getParentModule()->getSubmodule("MAC");
         CoreNodeMAC *mac = check_and_cast<CoreNodeMAC *>(calleeModule);
         mac->storeCar(se, d_w_extra);
+        //opp_terminate("Bufferuje");
     }
 
     // Send switching configuration to SOA - with/without extra waiting time in case of buffering
@@ -399,70 +403,72 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
      *             through configuration of simulation
      */
 
-
-    std::map<int, simtime_t> times;
-    // table row: outputPort & outputWL -> time the outputWL is ready to be used again
-    for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
-        SOAEntry *tmp = (SOAEntry *) iter();
-
-        // Do the find only for One output port OutPort
-        if (tmp->getOutPort() == outPort) {
-            // test whether table times contains such outputWL .. unless fix it
-            if (times.find(tmp->getOutLambda()) == times.end()) {
-                times[tmp->getOutLambda()] = tmp->getStop();
-                continue;
-            }
-
-            // Update outputWL timing if it is not up-to-date
-            if (times[tmp->getOutLambda()] < tmp->getStop()) {
-                times[tmp->getOutLambda()] = tmp->getStop();
-            }
-        }
-    }
-
-    if (times.find(inWL) == times.end()) {
-        EV << " NO BUFFER outWL=" << inWL << endl;
-        EV << " ! Strange situation - it seems there is no scheduling for outPort=";
-        EV << outPort << "#" << inWL << " do not have to buffer it !" << endl;
-        SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
-        e->setStart(start);
-        e->setStop(stop);
-        addSwitchingTableEntry(e);
-        return e;
-    }
-
     // Minum time the burst must stay in buffer .. it is approximation of limit conversio speed
     double min_buffer= convPerformance*(double)length;
+    EV << " Min buffer> "<< min_buffer << endl;
 
-    //  Time to stay in buffer in case we keep the same wavelength
-    simtime_t BT = times[inWL] - start + d_s;
-    if( BT < min_buffer) BT= min_buffer;
-    int outWL = inWL;
+    // SOAEntry mapping for sorting
+    std::map<int, simtime_t> waiting;
+    std::map<int, simtime_t>::iterator it_waiting;
+    std::map<int, std::vector<SOAEntry *> > mapa;
+    std::map<int, std::vector<SOAEntry *> >::iterator it2;
+    std::set<int> free_wl;
+    for (int i = 1; i <= maxWL; i++) free_wl.insert(i);
+    std::set<int>::iterator wlit;
 
-    // Look for an output wavelength with shortest waiting time
-    simtime_t tmpBT = BT; //1e6
-    int betterWL = inWL;
-    for (int i = 1; i <= maxWL; i++) {
-        if (i == inWL) continue;
-        if (times.find(i) == times.end()) {
-            EV << " O/E/O only";
+    for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
+            SOAEntry *tmp = (SOAEntry *) iter();
+            mapa[ tmp->getOutLambda() ].push_back( tmp);
+    }
 
-            // Set the car-train to buffer
-            betterWL= i;
-            tmpBT= min_buffer;
-            break;
+    // Sorting function and finding a space
+    for (it2=mapa.begin(); it2!=mapa.end(); ++it2){
+        //EV << it2->first << " => " << endl;
+        //for (std::vector<SOAEntry *>::iterator itv = (it2->second).begin() ; itv != (it2->second).end(); ++itv)
+        //    EV << " " << (*itv)->info();
+        //EV << endl;
+
+        // Soting
+        std::sort ((it2->second).begin(), (it2->second).end(), myfunction);
+
+        // Finding of an useful space
+        std::vector<SOAEntry *>::iterator itv = (it2->second).begin();
+        simtime_t tmp_start=  (*itv)->getStart();
+        simtime_t tmp_stop=  (*itv)->getStop();
+        int tmp_wl= (*itv)->getOutLambda();
+        bool space_found= false;
+        for (itv = (it2->second).begin() ; itv != (it2->second).end(); ++itv){
+            simtime_t t_space= (*itv)->getStart() - tmp_stop - 2*d_s;
+            simtime_t t_ot = tmp_stop - start;
+
+            if( t_ot >= min_buffer and t_space >= (stop-start) ){
+                waiting[tmp_wl]=t_ot;
+                space_found= true;
+            }
+
+            // Next round
+            simtime_t tmp_start= (*itv)->getStart();
+            simtime_t tmp_stop=  (*itv)->getStop();
         }
 
-        simtime_t tmpBTloop = times[i] - start;
-        if (tmpBTloop < tmpBT and tmpBTloop >= min_buffer) {
-            tmpBT = tmpBTloop;
-            betterWL = i;
+        // There was no space so simply append
+        if( ! space_found ){
+            waiting[tmp_wl]= tmp_stop - start;
         }
     }
 
-    // The winner is
-    outWL = betterWL;
-    BT = tmpBT + d_s; // d_s makes time offset for SOA reconfiguration
+    int outWL= inWL;
+    simtime_t BT = 1e6;
+    for (it_waiting = waiting.begin(); it_waiting != waiting.end(); ++it_waiting) {
+        EV << " WL#" << it_waiting->first << " .. " << it_waiting->second << endl;
+        if( it_waiting->second < BT ){
+            BT= it_waiting->second;
+            outWL= it_waiting->first;
+        }
+    }
+
+    // Dont forget about inter burst space
+    BT += d_s;
 
     //  Return the record important for outgoing car-train from buffer - this
     //  way SOAManager can assume the buffering time
@@ -512,7 +518,7 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
                 //   in table:           |-------|
                 //the new one:    |----|
                 tests.insert(true);
-                EV << " start ";
+                EV << " start " << endl;
                 continue;
             }
 
@@ -521,7 +527,7 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
                 //   in table:   |-------|
                 //the new one:             |----|
                 tests.insert(true);
-                EV << " stop ";
+                EV << " stop " << endl;
                 continue;
             }
 
@@ -625,6 +631,115 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         EV << "#" << WL << " without waiting" << endl;
         return 0.0;
     }
+
+    // SOAEntry mapping for sorting
+    std::map<int, simtime_t> agg;
+    std::map<int, simtime_t>::iterator it_agg;
+    std::map<int, std::vector<SOAEntry *> > mapa;
+    std::map<int, std::vector<SOAEntry *> >::iterator it2;
+    std::set<int> free_wl;
+    for (int i = 1; i <= maxWL; i++) free_wl.insert(i);
+    std::set<int>::iterator wlit;
+
+    for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
+            SOAEntry *tmp = (SOAEntry *) iter();
+            mapa[ tmp->getOutLambda() ].push_back( tmp);
+    }
+
+    // Sorting function
+    for (it2=mapa.begin(); it2!=mapa.end(); ++it2){
+        /*EV << it2->first << " => " << endl;
+        for (std::vector<SOAEntry *>::iterator itv = (it2->second).begin() ; itv != (it2->second).end(); ++itv)
+            EV << " " << (*itv)->info();
+        EV << endl; */
+
+        // Soting
+        std::sort ((it2->second).begin(), (it2->second).end(), myfunction);
+
+        // Finding of an useful space
+        std::vector<SOAEntry *>::iterator itv = (it2->second).begin();
+        simtime_t tmp_start=  (*itv)->getStart();
+        simtime_t tmp_stop=  (*itv)->getStop();
+        int tmp_wl= (*itv)->getOutLambda();
+        bool space_found= false;
+        for (itv = (it2->second).begin() ; itv != (it2->second).end(); ++itv){
+            simtime_t t_space= (*itv)->getStart() - tmp_stop - 2*d_s;
+            simtime_t t_ot = tmp_stop - simTime();
+
+            if( t_ot>= OT and t_space >= len ){
+                agg[tmp_wl]=t_ot;
+                space_found= true;
+                break;
+            }
+
+            // Next round
+            simtime_t tmp_start= (*itv)->getStart();
+            simtime_t tmp_stop=  (*itv)->getStop();
+        }
+
+        // There was no space so simply append
+        if( ! space_found ){
+            agg[tmp_wl]= tmp_stop - simTime();
+        }
+
+        // Erase this wavelength from set of free ones
+        if( free_wl.find( tmp_wl  ) != free_wl.end() )
+            free_wl.erase( tmp_wl );
+    }
+
+    if( free_wl.size() > 0 ){
+        // There are some free wavelength that can be used for allocation
+        WL= 0;
+        if( !fifo ) WL = (int)uniform(0,free_wl.size());
+        std::advance( wlit, WL );
+
+        SOAEntry *se = new SOAEntry(outPort, *wlit, true);
+        se->setStart(simTime() + OT);
+        se->setStop(simTime() + OT + len);
+        soa->assignSwitchingTableEntry(se, OT - d_s, len);
+        addSwitchingTableEntry(se);
+
+        // Full-fill output text
+        EV << "#" << WL << " without waiting" << endl;
+        return 0.0;
+    }
+
+    // Find closest space
+    simtime_t shortest= 1e6;
+    for (it_agg=agg.begin(); it_agg!=agg.end(); ++it_agg){
+        if( shortest > it_agg->second ){
+            shortest= (it_agg->second);
+            WL= it_agg->first;
+        }
+    }
+
+    //EV << "Volim WL " << WL << " s cekanim "<< shortest-OT << endl;
+
+    simtime_t waiting= (shortest-OT<0)?0:shortest-OT+d_s;
+
+    SOAEntry *sew = new SOAEntry(outPort, WL, true);
+    sew->setStart(simTime() + OT + waiting);
+    sew->setStop(simTime() + OT + len + waiting);
+    soa->assignSwitchingTableEntry(sew, waiting + OT - d_s, len);
+    addSwitchingTableEntry(sew);
+
+    // Full-fill output text
+    EV << "#" << WL << " with waiting "<< waiting << endl;
+    return waiting;
+
+
+
+    /*
+    EV << "Setridene" << endl;
+    for (it2 = mapa.begin(); it2 != mapa.end(); ++it2) {
+        EV << it2->first << " => ";
+        for (std::vector<SOAEntry *>::iterator itv = (it2->second).begin();
+                itv != (it2->second).end(); ++itv)
+            EV << " " << (*itv)->info();
+        EV << endl;
+    }
+    */
+
 
     // Make a map of spaces for all WLs
     std::map<int, simtime_t> fitting;

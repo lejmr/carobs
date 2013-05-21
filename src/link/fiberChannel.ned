@@ -31,6 +31,7 @@ channel FiberChannel extends DelayChannel
     // Informational parameters .. in future will be extended
     double d_s @unit(s) = default(10us);	// Switching time of SOA Matrix
     double datarate @unit(bps) = default(1Gbps);	// Datarate	
+    double datarate_correction = default(1.00009616);	// Modification used in order overcome gap between datarate and bandwidth speed
     
     // Bandwidth measurements
     double thr_window @unit(s) = default(100us);

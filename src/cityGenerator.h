@@ -32,11 +32,6 @@ class CityGenerator : public cSimpleModule
     std::vector<double> demads;
     int64_t psend;
 
-    /**
-     *  Hardcoded datarate
-     */
-    int64_t C;
-
     std::map<int,int> counts;
 
     /**

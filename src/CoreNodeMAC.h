@@ -64,6 +64,7 @@ class CoreNodeMAC : public cSimpleModule
     cOutVector vwaitingtime;
     cOutVector vbuffertime;
     cOutVector buffered_data;
+    cOutVector carMsgs, carLength;
     std::map<int,cOutVector *> vbuffertime_port;
 
     /**

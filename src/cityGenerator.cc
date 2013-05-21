@@ -26,7 +26,6 @@ void CityGenerator::initialize()
 {
     src = par("address").longValue();
     n = par("n").longValue();
-    C = par("datarate").doubleValue();
 
     // Read data from ipDemandFile
     const char *filename = par("ipDemandFile");

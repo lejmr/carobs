@@ -79,13 +79,14 @@ void Sink::handleMessage(cMessage *msg)
     e2e[src]->record(delay);
 
     // Throughput measurements
-    thr_bites[src] += pl->getBitLength();
     if( simTime() - thr_t0[src] >= thr_window){
         double thr= thr_bites[src] / (simTime()-thr_t0[src] );
+        EV << endl << " ** data> " << thr_bites[src] << " cas "<< simTime()-thr_t0[src] << endl;
         thr_t0[src] = simTime();
-        thr_bites[src] = pl->getBitLength();
+        thr_bites[src] = 0;
         throughput[src]->record( thr );
     }
+    thr_bites[src] += pl->getBitLength();
 
     received++;
     EV  << endl;

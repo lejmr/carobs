@@ -33,6 +33,7 @@ class FiberChannel : public cDelayChannel
     // Statistics
     std::map<int,simtime_t> free_time;
     std::map<int,simtime_t> stop_time;
+    std::map<int,cOutVector *> inter_arrival;
     int64_t overlap, scheduling, trans;
 
     /**

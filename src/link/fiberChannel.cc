@@ -22,8 +22,9 @@ void FiberChannel::initialize()
     // Call the original function
     cDelayChannel::initialize();
 
-    // Hard-coded datarte
-    C = par("datarate").doubleValue();
+    // TODO: fix and make in more scalable from d_s point of view .. this constant assumes 10e-9
+    C = par("datarate").doubleValue() * par("datarate_correction").doubleValue();
+
     d_s = par("d_s").doubleValue();
     length = par("length").doubleValue();
     overlap=0;
@@ -55,6 +56,16 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
 
     // We take car of bursts not control packets
     if(WL > 0 ){
+
+        // Inter-arrival time measurements
+        simtime_t inter_arrival_t= t - stop_time[WL];
+        if (inter_arrival.find(WL) == inter_arrival.end()) {
+            std::stringstream out_inter;
+            out_inter << "Inter-arrival time of wl#" << WL << " [s]";
+            inter_arrival[WL] = new cOutVector(out_inter.str().c_str());
+        }
+        inter_arrival[WL]->record(inter_arrival_t);
+
         if( free_time.find(WL) != free_time.end() ){
             if( t < free_time[WL] )overlap++;
         }
@@ -73,7 +84,7 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
     /**
      * Performance analysis
      */
-    if( WL > 0 ){
+    if( WL  >= 0 ){
     /**
      * Bandwidth usage measurements - bit count method
      * Counting incoming bits which are averaged in a window thr_window
@@ -87,9 +98,6 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
             bandwidth[WL] = new cOutVector(out.str().c_str());
         }
 
-        // Bit count
-        bw_usage[WL]+= ol->getBitLength();
-
         // Averaging window full filed so lets make math and graphs
         if( simTime() - bw_start[WL] >= thr_window ){
             simtime_t dur= simTime() - bw_start[WL];
@@ -98,6 +106,11 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
             bw_usage[WL]= 0;
         }
 
+        // Bit count
+        bw_usage[WL]+= ol->getBitLength();
+    }
+
+    if( WL  > 0 ){
     /**
      * Throughput estimation - per destination
      * Countin
@@ -115,9 +128,6 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
             throughput[ident] = new cOutVector(out.str().c_str());
         }
 
-        // Bit count
-        thr_usage[ident]+= ol->getBitLength();
-
         // Averaging window full filed so lets make math and graphs
         if( simTime() - thr_start[ident] >= thr_window ){
             simtime_t dur= simTime() - thr_start[ident];
@@ -125,6 +135,9 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
             thr_start[ident]= simTime();
             thr_usage[ident]= 0;
         }
+
+        // Bit count
+        thr_usage[ident]+= ol->getBitLength();
     }
 
     cDelayChannel::processMessage(msg,t,result);

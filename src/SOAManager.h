@@ -24,6 +24,7 @@
 #include <messages/OpticalLayer_m.h>
 #include <messages/CAROBSCarHeader_m.h>
 #include <aggregationQueues.h>
+#include <algorithm>    // std::sort
 
 class SOAManager : public cSimpleModule
 {

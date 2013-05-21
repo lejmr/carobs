@@ -27,6 +27,7 @@ simple SOAManager
         bool WC = default(true);				// Wavelength conversion
         bool OBS = default(true);	// Sets OBS mode or CAROBS mode = false
         double datarate= default(1Gbps) @unit(bps);	// Datarate
+        double datarate_correction = default(1.00009616);	// Modification used in order overcome gap between datarate and bandwidth speed
         bool buffering = default(true);			// All buffering at the CoreNode in order of loss-less
         bool fifo = default(true);				// Wavelength election method .. false= rand
         double convPerformance = default(0.1e-9);	// ns/bit

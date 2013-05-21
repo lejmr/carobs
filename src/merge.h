@@ -30,6 +30,11 @@ class Merge : public cSimpleModule
   protected:
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
+
+  /*
+   * This vector represents number of buffering along the path, i.e. how many times
+   * a burst was buffered.. along the path until it reached the end..
+   */
     cOutVector number_of_hops;
 };
 

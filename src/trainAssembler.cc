@@ -28,7 +28,8 @@ void TrainAssembler::initialize() {
     ASSERT(d_p>d_s);
 
     // Hard-coded datarte
-    C = par("datarate").doubleValue();
+    // TODO: fix and make in more scalable from d_s point of view .. this constant assumes 10e-9
+    C = par("datarate").doubleValue() * par("datarate_correction").doubleValue();
     CTA = par("CTA").boolValue();
 
     // Making link for communication with Routing module

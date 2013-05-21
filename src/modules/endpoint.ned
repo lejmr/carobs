@@ -95,14 +95,10 @@ simple CityGenerator
         int n = default(10);
         int address;
         string ipDemandFile;
-        double datarate @unit(bps) = default(1Gbps);	// Datarate
         bool send = default(true);
         double alpha = default(1);
         int length @unit(b) = default(100b);	// bit
         int blast = default(100);	// Says how many packets are sent at one moment
-
-
-
 
         @display("i=block/tx,#FF8000");
 

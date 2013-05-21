@@ -29,7 +29,7 @@ void ManualGenerator::initialize()
     length = par("length").doubleValue();
     n_done= 0;
     last_send= 0;
-    lambda= bandwidth / length / 8;
+    lambda= bandwidth / length/8;
     blast = par("blast").doubleValue();
 
     EV << "Preparing "<<n<<" payload packets to " << dst << " with bandwidth "<<bandwidth/1e9;
@@ -84,6 +84,7 @@ void ManualGenerator::sendMessages(int amount){
         scheduleAt(last_send, msg);
         EV << " + " << address << "->" << dst << " (" << length << "B): " << last_send << endl;
         last_send += exponential(1/lambda);
+        //last_send += 1/lambda;
         n_done++;
     }
     EV << "Next sending is planned at " << last_send << endl;

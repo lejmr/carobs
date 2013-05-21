@@ -41,6 +41,8 @@ void CoreNodeMAC::initialize() {
     vbuffertime.setName("Buffering delay [s]");
     vwaitingtime.setName("Access delay [s]");
     buffered_data.setName("Data stored in memory [B]");
+    carMsgs.setName("Number of packets in a car [-]");
+    carLength.setName("Car's length [s]");
 
     // Address asignement
     address = par("address").doubleValue();
@@ -215,6 +217,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     OpticalLayer *OH = new OpticalLayer(buffer_name);
     OH->setWavelengthNo(0); //Signalisation is always on the first channel
     OH->encapsulate(H);
+    OH->setByteLength(50);
     sendDelayed(OH, t0, "control");
 
     // Cars to the SOA
@@ -236,7 +239,11 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         OC->encapsulate(tcar);
         OC->addPar("ot").setDoubleValue( su->getStart().dbl() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
 
-        EV << " + Sending car to " << su->getDst() << " at " << simTime()+t0 + su->getStart() << " of length=" << su->getLength() << endl;
+        // Car loading statistics
+        carMsgs.record(tcar->getPayload().length());
+        carLength.record(su->getLength());
+
+        EV << " + Sending car to " << su->getDst() << " at " << simTime()+t0 + su->getStart() << " of length=" << su->getLength() << " == "<< tcar->getPayload().length() << " packets" << endl;
         // Send the car onto proper wl at proper time
         sendDelayed(OC, t0 + su->getStart(), "soa$o", outPort);
 
