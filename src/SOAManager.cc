@@ -691,9 +691,11 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         // There are some free wavelength that can be used for allocation
         WL= 0;
         if( !fifo ) WL = (int)uniform(0,free_wl.size());
+        wlit= free_wl.begin();
         std::advance( wlit, WL );
+        WL= *wlit;
 
-        SOAEntry *se = new SOAEntry(outPort, *wlit, true);
+        SOAEntry *se = new SOAEntry(outPort, WL, true);
         se->setStart(simTime() + OT);
         se->setStop(simTime() + OT + len);
         soa->assignSwitchingTableEntry(se, OT - d_s, len);
