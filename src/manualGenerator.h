@@ -33,6 +33,9 @@ class ManualGenerator : public cSimpleModule
     float bandwidth, lambda;
     int length, blast;
     simtime_t last_send;
+
+  public:
+    virtual void updateLambda(int bandwidth);
 };
 
 #endif

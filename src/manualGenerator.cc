@@ -29,7 +29,7 @@ void ManualGenerator::initialize()
     length = par("length").doubleValue();
     n_done= 0;
     last_send= 0;
-    lambda= bandwidth / length/8;
+    updateLambda(bandwidth);
     blast = par("blast").doubleValue();
 
     EV << "Preparing "<<n<<" payload packets to " << dst << " with bandwidth "<<bandwidth/1e9;
@@ -40,6 +40,10 @@ void ManualGenerator::initialize()
         t->addPar("initiateSending");
         scheduleAt(0, t);
     }
+}
+
+void ManualGenerator::updateLambda(int bandwidth){
+    lambda= bandwidth / length/8;
 }
 
 void ManualGenerator::handleMessage(cMessage *msg)

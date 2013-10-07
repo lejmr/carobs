@@ -15,16 +15,13 @@
 
 package carobs.modules;
 
-//
-// TODO auto-generated module
-//
-simple CoreNodeMAC
+simple LoadSetup
 {
     parameters:
-    	int address = default(uniform(1000, 2000));	// TODO: watchout mi overlap
-    @display("i=block/tx");
-    gates:
-        inout soa[];
-        input in;
-        output control;
+        double load = default(1);
+        int sources= default(2);
+        double datarate @unit(bps) = default(1Gbps);
+        @display("i=block/cogwheel;is=s");
 }
+
+

@@ -13,18 +13,20 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package carobs.modules;
+#ifndef __CAROBS_LoadSetup_H_
+#define __CAROBS_LoadSetup_H_
 
-//
-// TODO auto-generated module
-//
-simple CoreNodeMAC
+#include <omnetpp.h>
+
+class LoadSetup : public cSimpleModule
 {
-    parameters:
-    	int address = default(uniform(1000, 2000));	// TODO: watchout mi overlap
-    @display("i=block/tx");
-    gates:
-        inout soa[];
-        input in;
-        output control;
-}
+  protected:
+    virtual void initialize();
+    virtual void handleMessage(cMessage *msg);
+
+  private:
+    float load;
+    int n;
+};
+
+#endif

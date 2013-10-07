@@ -34,6 +34,7 @@ OBJS = \
     $O/CoreNodeMAC.o \
     $O/deMux.o \
     $O/generator.o \
+    $O/loadSetup.o \
     $O/MAC.o \
     $O/MACEntry.o \
     $O/manualGenerator.o \
@@ -215,6 +216,10 @@ $O/deMux.o: deMux.cc \
 $O/generator.o: generator.cc \
 	generator.h \
 	messages/Payload_m.h \
+	routingTable.h
+$O/loadSetup.o: loadSetup.cc \
+	loadSetup.h \
+	manualGenerator.h \
 	routingTable.h
 $O/manualGenerator.o: manualGenerator.cc \
 	manualGenerator.h \
