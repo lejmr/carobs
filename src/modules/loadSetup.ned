@@ -20,6 +20,7 @@ simple LoadSetup
     parameters:
         double load = default(1);
         int sources= default(2);
+        int maxWL= default(1);
         double datarate @unit(bps) = default(1Gbps);
         @display("i=block/cogwheel;is=s");
 }

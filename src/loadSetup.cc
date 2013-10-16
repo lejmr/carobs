@@ -24,11 +24,14 @@ void LoadSetup::initialize()
 {
     load= par("load").doubleValue();
     n= par("sources").longValue();
-    int datarate= par("datarate").longValue();
+    maxWL= par("maxWL").longValue();
+    double datarate= par("datarate").doubleValue();
+
+
 
     double to_alloc=load;
     int i = 1;
-
+    double allocated= 0;
     for (cSubModIterator iter(*getParentModule()); !iter.end(); iter++)
     {
         if( !strcmp(iter()->getFullName(),"e1")) continue;
@@ -39,9 +42,10 @@ void LoadSetup::initialize()
                     ta= uniform(0, to_alloc);
                     to_alloc-=ta;
                 }
-                EV << "Setting up " << iter()->getFullName() << ".generator to ("<<ta<<")" << ta*datarate << endl;
+                EV << "Setting up " << iter()->getFullName() << ".generator to ("<<ta<<")" << ta*datarate <<"*"<<maxWL<< endl;
                 //ManualGenerator mg= (ManualGenerator) iter2();
-                iter2()->par("bandwidth").setLongValue(ta*datarate);
+                iter2()->par("bandwidth").setLongValue(ta*datarate*maxWL);
+                allocated+= ta*datarate*maxWL;
 
                 cModule *calleeModule = iter2();
                 ManualGenerator *callee = check_and_cast<ManualGenerator *>(calleeModule);
@@ -49,6 +53,9 @@ void LoadSetup::initialize()
             }
         }
     }
+
+    EV << "Allocated: "<<allocated<<"/"<<load*datarate*maxWL<<" ("<<load<<"*"<<datarate<<"*"<<maxWL<<")" << endl;
+    EV << "Allocation coef: "<< allocated/(load*datarate*maxWL) << endl;
 
 }
 

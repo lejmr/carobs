@@ -42,7 +42,7 @@ void ManualGenerator::initialize()
     }
 }
 
-void ManualGenerator::updateLambda(int bandwidth){
+void ManualGenerator::updateLambda(double bandwidth){
     lambda= bandwidth / length/8;
 }
 

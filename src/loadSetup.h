@@ -27,6 +27,7 @@ class LoadSetup : public cSimpleModule
   private:
     float load;
     int n;
+    int maxWL;
 };
 
 #endif
