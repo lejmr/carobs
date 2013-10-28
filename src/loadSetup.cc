@@ -49,7 +49,7 @@ void LoadSetup::initialize()
 
                 cModule *calleeModule = iter2();
                 ManualGenerator *callee = check_and_cast<ManualGenerator *>(calleeModule);
-                callee->updateLambda(ta*datarate);
+                callee->updateLambda(ta*datarate*maxWL);
             }
         }
     }
