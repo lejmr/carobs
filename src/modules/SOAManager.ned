@@ -31,6 +31,7 @@ simple SOAManager
         bool buffering = default(true);			// All buffering at the CoreNode in order of loss-less
         bool fifo = default(true);				// Wavelength election method .. false= rand
         double convPerformance = default(0.1e-9);	// ns/bit
+        bool prioritizeBuffered = default(false);				// Gives extra priority (extra OT) when the burst train was buffered
         
     @display("i=block/cogwheel");
     gates:

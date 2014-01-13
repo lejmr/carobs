@@ -49,6 +49,7 @@ void SOAManager::initialize() {
 
     // W election method
     fifo= par("fifo").boolValue();
+    prioritizeBuffered= par("prioritizeBuffered").boolValue();
 
     // Speed of O/E conversion
     convPerformance=par("convPerformance").doubleValue();
@@ -259,8 +260,16 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     sef->setStop(train_stop+d_w_extra);
     soa->assignSwitchingTableEntry(sef, d_w_extra+H->getOT()-d_s, train_length);
 
+    // Priorite buffered burst trains for next HOPs
+    simtime_t OT_extra= 0;
+    simtime_t DELAY_extra= d_w_extra;
+    if( prioritizeBuffered ){
+        simtime_t OT_extra= d_w_extra;
+        simtime_t DELAY_extra= 0;
+    }
+
     // Update of OT for continuing car train
-    H->setOT(H->getOT()-d_p);
+    H->setOT(H->getOT()-d_p+OT_extra);
 
     // If there was changed wavelength of train Header must carry such information further
     H->setWL(sef->getOutLambda());
@@ -271,7 +280,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // Test whether this is last CoreNode on the path is so CAROBS Header is not passed towards
     if (R->canForwardHeader(H->getDst())) {
         // Resending CAROBS Header to next CoreNode
-        sendDelayed(ol, d_p+d_w_extra, "control$o", outPort);
+        sendDelayed(ol, d_p+DELAY_extra, "control$o", outPort);
     }else
         delete msg;
 

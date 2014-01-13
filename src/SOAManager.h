@@ -140,6 +140,11 @@ class SOAManager : public cSimpleModule
     bool fifo;
 
     /**
+     * prioritizeBuffered
+     */
+    bool prioritizeBuffered;
+
+    /**
      *  Merging flows counters
      *  - first int index stands for # of wavelength
      *  - second int index stands for #of concurent merging flows
