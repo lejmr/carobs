@@ -61,12 +61,43 @@ void SOAManager::initialize() {
     // Merging Flows counters
     inMFcounter.setName("Merging Flows");
 
+    // Buffering statistics
+    bbp_switched= 0;
+    bbp_buffered= 0;
+    bbp_dropped=0;
+    bbp_total=0;
+    bbp_interval=0;
+    bbp_interval_max=100;
+    BBP.setName("Burst buffering probability");
+    BLP.setName("Burst loss probability");
+    BOKP.setName("Burst cut-throught probability");
+
     WATCH(OBS);
     WATCH_MAP(mf_max);
     WATCH_MAP(reg_max);
 }
 
 bool myfunction (SOAEntry *i, SOAEntry *j) { return (i->getStart()>j->getStart()); }
+
+void SOAManager::countProbabilities(){
+    /* Function that is used for evaluation of probabilities during the simulation */
+
+    // BLP
+    BLP.record( (double)bbp_dropped/bbp_total );
+
+    // BBP
+    BBP.record( (double)bbp_buffered/bbp_total );
+
+    // BOKP
+    BOKP.record( (double)bbp_switched/bbp_total );
+
+    // Erease for another counting
+    bbp_switched= 0;
+    bbp_buffered= 0;
+    bbp_dropped=0;
+    bbp_total=0;
+    bbp_interval=0;
+}
 
 void SOAManager::handleMessage(cMessage *msg) {
     // Obtaining information about source port

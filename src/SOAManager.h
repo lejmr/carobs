@@ -182,6 +182,16 @@ class SOAManager : public cSimpleModule
      */
     virtual void addSwitchingTableEntry(SOAEntry *e);
 
+    /**
+     * Buffering probability counters
+     */
+    int64 bbp_switched, bbp_buffered, bbp_dropped, bbp_total;
+    int bbp_interval, bbp_interval_max;
+    cOutVector BBP, BLP, BOKP;
+
+    // Count function
+    virtual void countProbabilities();
+
   public:
     /**
      *  When the SOAEntry is not needed SOA informas SOAManager to tear it down through
