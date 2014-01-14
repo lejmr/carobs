@@ -36,6 +36,10 @@ class Merge : public cSimpleModule
    * a burst was buffered.. along the path until it reached the end..
    */
     cOutVector number_of_hops;
+
+   // The upper one per flow
+   std::map<int,cOutVector *> number_of_buffering_flowvise;
+
 };
 
 #endif

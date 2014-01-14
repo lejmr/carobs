@@ -40,6 +40,18 @@ void Merge::handleMessage(cMessage *msg)
     // Record buffering performance
     number_of_hops.record( car->getBuffered() );
 
+    // Per source statistics
+    int src= car->par("src").doubleValue();
+    if (number_of_buffering_flowvise.find(src) == number_of_buffering_flowvise.end()) {
+        // Create
+        number_of_buffering_flowvise[src]= new cOutVector();
+        std::stringstream out;
+        out << "The number of buffering (along the path) from " << src << " [-]";
+        number_of_buffering_flowvise[src]->setName(out.str().c_str());
+    }
+    number_of_buffering_flowvise[src]->record( car->getBuffered() );
+
+
     // Drop empty container
     delete car;
     delete msg;
