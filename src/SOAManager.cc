@@ -71,6 +71,7 @@ void SOAManager::initialize() {
     BLP.setName("Burst loss probability");
     BOKP.setName("Burst cut-throught probability");
     BTOTAL.setName("Number of bursts in statistics");
+    SECRATIO.setName("Secondary contention ratio");
 
     WATCH(OBS);
     WATCH_MAP(mf_max);
@@ -401,6 +402,36 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
         delete msg;
 }
 
+void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, simtime_t stop) {
+    /**
+     *  This function simply calculates how much the reagregated burst cause buffering of new comming bursts.
+     *
+     */
+
+    EV << "********** evaluateSecondaryContentionRatio ******************" << endl;
+    // Contention evaluation  primary vs secondary contention
+    int contenting = 0;
+    int buffering = 0;
+    for (cQueue::Iterator iter(splitTable[outPort], 0); !iter.end(); iter++) {
+        SOAEntry *tmp = (SOAEntry *) iter();
+
+        // Filter out not contenting entries
+        if (tmp->getStop() + d_s <= start or tmp->getStart() + d_s >= stop)
+            continue;
+
+        contenting++;
+        if (tmp->getBuffer() and !tmp->getBufferDirection() )
+            buffering++;
+
+        EV << start << " - " << stop;
+        EV <<": "<<tmp->info()<<" "<<buffering<<"/"<<contenting;
+        EV << endl;
+    }
+
+    if (contenting > 0)
+        SECRATIO.record((double) buffering / contenting);
+}
+
 SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop, int length) {
     EV << "Get scheduling for " << inPort << "#" << inWL << " to port="
               << outPort << " for:" << start << "-" << stop;
@@ -444,12 +475,11 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
                 return e;
             }
         }
-
     }
+
 
     if( not buffering ){
         // The buffering is turned off so We will take some statistics and finish it
-        tbdropped++;
         EV << " DROPPED" << endl;
         return NULL;
     }
@@ -665,6 +695,9 @@ void SOAManager::addSwitchingTableEntry(SOAEntry *e){
         // Counting of MF
         countMergingFlows(e->getInLambda(), e);
     }
+
+    // Evaluate Secondary contention ratio
+    evaluateSecondaryContentionRatio(e->getOutPort(), e->getStart(), e->getStop());
 
     // Add to the global switching table
     scheduling.insert(e);

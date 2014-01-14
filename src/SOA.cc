@@ -40,6 +40,9 @@ void SOA::initialize() {
     bigOT = 0;
     blpevo.setName("Evolution of BLP");
 
+    // RRPD
+    OE.setName("Number of O/E blocks used [-]");
+    EO.setName("Number of E/O blocks used [-]");
 
 }
 
@@ -157,11 +160,12 @@ void SOA::handleMessage(cMessage *msg) {
 void SOA::addpSwitchingTableEntry(SOAEntry *e){
     EV << " ADD " << e->info();
 
+    int t_oe=0;
+
     // AOS mode and different lambdas on output and input
     if( !e->getBuffer() and e->getInLambda() != e->getOutLambda() ) wcs++;
 
     // Test whether *e does not overlap any switching configuration
-    // There is no buffing constraint
     if( !e->getBuffer() and !e->isDisaggregation() ){
         simtime_t start= e->getStart();
         simtime_t stop= e->getStop();
@@ -169,8 +173,23 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
         for( cQueue::Iterator iter(switchingTable,0); !iter.end(); iter++){
             SOAEntry *se = (SOAEntry *) iter();
 
-            //
-            if( se->getBuffer() and se->getBufferDirection() ) continue;
+            // O/E calculations ... if both SOAentry denote buffering, we have to check whether they overlap, if so OE++
+            if( se->getBuffer() and se->getBufferDirection() and e->getBuffer() and e->getBufferDirection() ){
+                bool overlap=true;
+                if( se->getStop() + d_s <= start or se->getStart() - d_s >= stop ){
+                    overlap=false;
+                }
+
+                // If these two SOA instructions buffer bursts at the same time = O/E + 1
+                if( overlap ){
+                    t_oe++;
+                }
+            }
+
+
+            if (se->getBuffer() and se->getBufferDirection()) {
+                continue;
+            }
 
             // Same entry as I want to use .. probably is here something to test.. overlap?
             if( e->getOutPort() == se->getOutPort() and e->getOutLambda() == se->getOutLambda()){
@@ -191,10 +210,14 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
         }
     }
 
-
     EV << endl;
     // Reserve WL if it is not to buffer direction
     switchingTable.insert(e);
+
+    if( e->getBuffer() and e->getBufferDirection() )
+        t_oe++;
+
+    OE.record(t_oe);
 }
 
 void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {

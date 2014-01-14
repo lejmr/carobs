@@ -72,6 +72,11 @@ class SOA : public cSimpleModule
     int wcs;    // number of WC
     int bigOT;  // If OT goes to the past
 
+    /**
+     * RRPD statistics
+     */
+    cOutVector OE, EO;
+
   public:
 
     /**
