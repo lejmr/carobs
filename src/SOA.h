@@ -61,7 +61,7 @@ class SOA : public cSimpleModule
      *  incm - all processed OpticalLayer packets which are not dropped
      *  drpd - a number of dropped bursts
      */
-    int64_t incm, drpd;
+    int64_t incm, drpd, buff;
     int64_t wrong_scheduling;
     cOutVector blpevo;
 

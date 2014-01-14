@@ -36,8 +36,11 @@ void SOA::initialize() {
     // Wavelength statistics
     wls=0;
     wcs=0;
+    buff=0;
     bigOT = 0;
     blpevo.setName("Evolution of BLP");
+
+
 }
 
 void SOA::handleMessage(cMessage *msg) {
@@ -94,6 +97,9 @@ void SOA::handleMessage(cMessage *msg) {
 
             //
             send(ol, "aggregation$o",inPort);
+
+            // Statisticis
+            buff++;
             return;
         }
 
@@ -256,10 +262,14 @@ void SOA::finish() {
     /* Performance statistics */
     recordScalar("Total switched bursts", incm);    // Does not mean they are not dropped
     recordScalar("Total dropped bursts", drpd);
+    recordScalar("Total buffered bursts", buff);
     recordScalar("Wavelength conversion used", wcs);
 
     /* Monitoring statistics */
-    if(incm>0)recordScalar("Loss probability", (double) drpd/incm );
+    if(incm>0){
+        recordScalar("Loss probability", (double) drpd/incm );
+        recordScalar("Buffering probability", (double) buff/incm );
+    }
     if(bigOT>0)recordScalar(" ! Train reached header", bigOT );
     if(wrong_scheduling>0) recordScalar(" ! Not enough time for switching", wrong_scheduling);
 }
