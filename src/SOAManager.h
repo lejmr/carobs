@@ -185,9 +185,8 @@ class SOAManager : public cSimpleModule
     /**
      * Buffering probability counters
      */
-    int64 bbp_switched, bbp_buffered, bbp_dropped, bbp_total;
-    int bbp_interval, bbp_interval_max;
-    cOutVector BBP, BLP, BOKP;
+    int64 bbp_switched, bbp_buffered, bbp_dropped, bbp_total, bbp_interval_max;
+    cOutVector BBP, BLP, BOKP, BTOTAL;
 
     // Count function
     virtual void countProbabilities();

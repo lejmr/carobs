@@ -66,11 +66,11 @@ void SOAManager::initialize() {
     bbp_buffered= 0;
     bbp_dropped=0;
     bbp_total=0;
-    bbp_interval=0;
     bbp_interval_max=100;
     BBP.setName("Burst buffering probability");
     BLP.setName("Burst loss probability");
     BOKP.setName("Burst cut-throught probability");
+    BTOTAL.setName("Number of bursts in statistics");
 
     WATCH(OBS);
     WATCH_MAP(mf_max);
@@ -82,21 +82,25 @@ bool myfunction (SOAEntry *i, SOAEntry *j) { return (i->getStart()>j->getStart()
 void SOAManager::countProbabilities(){
     /* Function that is used for evaluation of probabilities during the simulation */
 
-    // BLP
-    BLP.record( (double)bbp_dropped/bbp_total );
+    if(bbp_total > 0){
+        // BLP
+        BLP.record( (double)bbp_dropped/bbp_total );
 
-    // BBP
-    BBP.record( (double)bbp_buffered/bbp_total );
+        // BBP
+        BBP.record( (double)bbp_buffered/bbp_total );
 
-    // BOKP
-    BOKP.record( (double)bbp_switched/bbp_total );
+        // BOKP
+        BOKP.record( (double)bbp_switched/bbp_total );
+
+        // Backkground of the number of stuff :)
+        BTOTAL.record(bbp_total);
+    }
 
     // Erease for another counting
     bbp_switched= 0;
     bbp_buffered= 0;
     bbp_dropped=0;
     bbp_total=0;
-    bbp_interval=0;
 }
 
 void SOAManager::handleMessage(cMessage *msg) {
@@ -146,10 +150,16 @@ void SOAManager::handleMessage(cMessage *msg) {
     }
 
     // Behaves as full-featured or not CoreNode
+    bbp_total++;
     if (OBS)
         obsBehaviour(msg, inPort);
     else
         carobsBehaviour(msg, inPort);
+
+    // When there is enough data calculate statistics
+    if( bbp_total >= bbp_interval_max ){
+        countProbabilities();
+    }
 
 }
 
@@ -270,6 +280,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     if( sef == NULL ){
         // No buffering allowed so the CAROBS Header is to be dropped and processing is stopped
         delete msg;
+        bbp_dropped++;
         return;
     }
 
@@ -284,7 +295,13 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         CoreNodeMAC *mac = check_and_cast<CoreNodeMAC *>(calleeModule);
         mac->storeCar(sef, d_w_extra);
         //opp_terminate("Bufferuje");
+        bbp_buffered++;
     }
+    else{
+        // Burst is simply switched
+        bbp_switched++;
+    }
+
 
     // Add Switching Entry to SOA a SOAManager scheduler
     sef->setStart(train_start+d_w_extra);
@@ -342,6 +359,7 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
     if (se == NULL) {
         // No buffering allowed so the CAROBS Header is to be dropped and processing is stopped
         delete msg; delete H;
+        bbp_dropped++;
         return;
     }
 
@@ -356,7 +374,11 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
         cModule *calleeModule = getParentModule()->getSubmodule("MAC");
         CoreNodeMAC *mac = check_and_cast<CoreNodeMAC *>(calleeModule);
         mac->storeCar(se, d_w_extra);
-        //opp_terminate("Bufferuje");
+        bbp_buffered++;
+    }
+    else{
+        // Burst is simply switched
+        bbp_switched++;
     }
 
     // Send switching configuration to SOA - with/without extra waiting time in case of buffering
@@ -976,6 +998,9 @@ void SOAManager::finish(){
         total_reg += (*it_mfc).second;
     }
     recordScalar("Total number of regenerators", total_reg);
+
+    // Calculate vector statistics
+    countProbabilities();
 }
 
 
