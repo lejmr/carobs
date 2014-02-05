@@ -106,6 +106,7 @@ void SOA::handleMessage(cMessage *msg) {
             return;
         }
 
+        /*      All-optical Bypass    */
         int outPort = sw->getOutPort();
         int outWl = sw->getOutLambda();
         // Chceck whether exit is real or faked one
@@ -124,6 +125,10 @@ void SOA::handleMessage(cMessage *msg) {
 
             if ( ot < 0 )
                 opp_terminate("ASi tu mame smycku");
+
+            // Monitor bypass into CAR section
+            Car *car= (Car *)ol->getEncapsulatedPacket();
+            car->setBypass( car->getBypass() + 1 );
 
             // Sending to output port
             send(ol, "gate$o", sw->getOutPort());

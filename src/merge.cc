@@ -19,6 +19,9 @@ Define_Module(Merge);
 
 void Merge::initialize(){
     number_of_hops.setName("The number of buffering (along the path)");
+    number_of_bypass.setName("The number of bypass (along the path)");
+    bypass_inclination.setName("Bypass inclination");
+    buffering_inclination.setName("Buffering inclination");
 }
 
 void Merge::handleMessage(cMessage *msg)
@@ -39,18 +42,31 @@ void Merge::handleMessage(cMessage *msg)
 
     // Record buffering performance
     number_of_hops.record( car->getBuffered() );
+    number_of_bypass.record( car->getBypass() );
 
     // Per source statistics
     int src= car->par("src").doubleValue();
     if (number_of_buffering_flowvise.find(src) == number_of_buffering_flowvise.end()) {
-        // Create
+        // Create buffering monitoring
         number_of_buffering_flowvise[src]= new cOutVector();
         std::stringstream out;
         out << "The number of buffering (along the path) from " << src << " [-]";
         number_of_buffering_flowvise[src]->setName(out.str().c_str());
+
+        // Create bypass monitoring
+        number_of_bypass_flowvise[src] = new cOutVector();
+        std::stringstream out2;
+        out2 << "The number of bypass (along the path) from " << src << " [-]";
+        number_of_bypass_flowvise[src]->setName(out2.str().c_str());
+
     }
     number_of_buffering_flowvise[src]->record( car->getBuffered() );
+    number_of_bypass_flowvise[src]->record( car->getBypass() );
 
+    // Inclination analysis
+    int total= car->getBuffered() + car->getBypass();
+    bypass_inclination.record( (float)car->getBypass()/total );
+    buffering_inclination.record( (float)car->getBuffered()/total );
 
     // Drop empty container
     delete car;

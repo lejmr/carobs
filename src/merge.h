@@ -36,9 +36,12 @@ class Merge : public cSimpleModule
    * a burst was buffered.. along the path until it reached the end..
    */
     cOutVector number_of_hops;
+    cOutVector number_of_bypass;
 
    // The upper one per flow
    std::map<int,cOutVector *> number_of_buffering_flowvise;
+   std::map<int,cOutVector *> number_of_bypass_flowvise;
+   std::map<int,cOutVector *> bypass_inclination, buffering_inclination;
 
 };
 
