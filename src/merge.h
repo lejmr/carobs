@@ -37,11 +37,11 @@ class Merge : public cSimpleModule
    */
     cOutVector number_of_hops;
     cOutVector number_of_bypass;
+    cOutVector bypass_inclination, buffering_inclination;
 
    // The upper one per flow
    std::map<int,cOutVector *> number_of_buffering_flowvise;
    std::map<int,cOutVector *> number_of_bypass_flowvise;
-   std::map<int,cOutVector *> bypass_inclination, buffering_inclination;
 
 };
 
