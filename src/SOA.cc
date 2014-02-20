@@ -178,24 +178,6 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
         for( cQueue::Iterator iter(switchingTable,0); !iter.end(); iter++){
             SOAEntry *se = (SOAEntry *) iter();
 
-            // O/E calculations ... if both SOAentry denote buffering, we have to check whether they overlap, if so OE++
-            if( se->getBuffer() and se->getBufferDirection() and e->getBuffer() and e->getBufferDirection() ){
-                bool overlap=true;
-                if( se->getStop() + d_s <= start or se->getStart() - d_s >= stop ){
-                    overlap=false;
-                }
-
-                // If these two SOA instructions buffer bursts at the same time = O/E + 1
-                if( overlap ){
-                    t_oe++;
-                }
-            }
-
-
-            if (se->getBuffer() and se->getBufferDirection()) {
-                continue;
-            }
-
             // Same entry as I want to use .. probably is here something to test.. overlap?
             if( e->getOutPort() == se->getOutPort() and e->getOutLambda() == se->getOutLambda()){
 
@@ -214,14 +196,18 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
             }
         }
     }
-
     EV << endl;
+
     // Reserve WL if it is not to buffer direction
     switchingTable.insert(e);
 
-    if( e->getBuffer() and e->getBufferDirection() )
-        t_oe++;
-
+    // Count number of O/E blocks
+    for( cQueue::Iterator iter(switchingTable,0); !iter.end(); iter++){
+        SOAEntry *se = (SOAEntry *) iter();
+        if( se->getBuffer() and se->getBufferDirection() ){
+            t_oe++;
+        }
+    }
     OE.record(t_oe);
 }
 
@@ -267,6 +253,15 @@ void SOA::dropSwitchingTableEntry(SOAEntry *e) {
 
     // Reserve WL if it is not buffered
     delete switchingTable.remove(e);
+
+    // Count number of O/E blocks
+    for (cQueue::Iterator iter(switchingTable, 0); !iter.end(); iter++) {
+        SOAEntry *se = (SOAEntry *) iter();
+        if (se->getBuffer() and se->getBufferDirection()) {
+            t_oe++;
+        }
+    }
+    OE.record(t_oe);
 }
 
 SOAEntry * SOA::findOutput(int inPort, int inWl) {
