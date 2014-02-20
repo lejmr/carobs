@@ -255,6 +255,7 @@ void SOA::dropSwitchingTableEntry(SOAEntry *e) {
     delete switchingTable.remove(e);
 
     // Count number of O/E blocks
+    int t_oe=0;
     for (cQueue::Iterator iter(switchingTable, 0); !iter.end(); iter++) {
         SOAEntry *se = (SOAEntry *) iter();
         if (se->getBuffer() and se->getBufferDirection()) {
