@@ -178,6 +178,10 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
         for( cQueue::Iterator iter(switchingTable,0); !iter.end(); iter++){
             SOAEntry *se = (SOAEntry *) iter();
 
+            // This SE is for buffering
+            if( se->getBuffer() and se->getBufferDirection() )
+                continue;
+
             // Same entry as I want to use .. probably is here something to test.. overlap?
             if( e->getOutPort() == se->getOutPort() and e->getOutLambda() == se->getOutLambda()){
 
@@ -191,6 +195,9 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
 
                 EV << " already used time slot !!! ("<<se->info()<<")" << endl;
                 wrong_scheduling++;
+                EV << "****** Wrong scheduling" << endl;
+                EV << e->info() << endl << se->info() <<endl;
+                EV << "Output configuration " <<se->getOutPort() << "#" << se->getOutLambda() << endl;
                 opp_terminate("Wrong scheduling");
                 return;
             }
