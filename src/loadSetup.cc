@@ -26,22 +26,27 @@ void LoadSetup::initialize()
     n= par("sources").longValue();
     maxWL= par("maxWL").longValue();
     double datarate= par("datarate").doubleValue();
+    std::stringstream out;
 
+    float data[n], sum=0;
+    for(int i=0;i<n;i++){
+        data[i]= (float) uniform(0, load);
+        sum+=data[i];
+    }
 
+    for(int i=0;i<n;i++){
+        EV << "Recalculated "<<i<<" "<< data[i]<<"->"<<data[i]*load/sum << endl;
+        data[i]= data[i]*load/sum;
+    }
 
-    double to_alloc=load;
-    int i = 1;
+    int i = 0;
     double allocated= 0;
     for (cSubModIterator iter(*getParentModule()); !iter.end(); iter++)
     {
         if( !strcmp(iter()->getFullName(),"e1")) continue;
         for( cSubModIterator iter2(*iter());!iter2.end(); iter2++){
             if( !strcmp( iter2()->getFullName(), "generator") ){
-                double ta= to_alloc;
-                if( i++ < n ){
-                    ta= uniform(0, to_alloc);
-                    to_alloc-=ta;
-                }
+                float ta= data[i++];
                 EV << "Setting up " << iter()->getFullName() << ".generator to ("<<ta<<")" << ta*datarate <<"*"<<maxWL<< endl;
                 //ManualGenerator mg= (ManualGenerator) iter2();
                 iter2()->par("bandwidth").setLongValue(ta*datarate*maxWL);
@@ -50,6 +55,11 @@ void LoadSetup::initialize()
                 cModule *calleeModule = iter2();
                 ManualGenerator *callee = check_and_cast<ManualGenerator *>(calleeModule);
                 callee->updateLambda(ta*datarate*maxWL);
+
+                // Log the value
+                out.str("");
+                out <<  "Setting up " << iter()->getFullName() << ".generator to";
+                recordScalar(out.str().c_str(), ta*datarate*maxWL );
             }
         }
     }
