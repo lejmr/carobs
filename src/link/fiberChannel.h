@@ -35,6 +35,25 @@ class FiberChannel : public cDelayChannel
     std::map<int,simtime_t> stop_time;
     std::map<int,cOutVector *> inter_arrival;
     int64_t overlap, scheduling, trans;
+    int64_t osnr_drop;
+
+
+    // Simulation parameters
+    double c_0, f_0; // Shortest wavelength
+
+    // Fiber physical properties
+    double att;
+    double att_total;
+
+    // Amplifier parameters
+    double B_0, G_0, P_sat, A1, A2, NF;
+    int G_N;
+
+    // QoT
+    double OSNR_qot;
+    double OSNR_drop;
+    double amp_len;
+
 
     /**
      *  Hardcoded datarate
@@ -56,6 +75,15 @@ class FiberChannel : public cDelayChannel
     std::map<int, simtime_t> thr_start;
     std::map<int, cOutVector *> throughput;
     std::map<int, int64_t> thr_usage;
+
+    /**
+     * Helper functions
+     */
+    virtual double dBm2W(double dBm);
+    virtual double dBm2mW(double dBm);
+    virtual double dBW2W(double dBW);
+    virtual double W2dBW(double W);
+    virtual double W2dBm(double W);
 };
 
 #endif

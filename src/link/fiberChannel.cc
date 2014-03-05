@@ -31,14 +31,44 @@ void FiberChannel::initialize()
     scheduling=0;
     trans=0;
 
+    att = par("att").doubleValue();
+    att_total = att * length;
+
+    // Amplifier parameters
+    B_0 = par("B_0").doubleValue();
+    G_0 = par("G_0").doubleValue();
+    P_sat = par("P_sat").doubleValue();
+    A1 = par("A1").doubleValue();
+    A2 = par("A2").doubleValue();
+    c_0 = par("c_0").doubleValue();
+    NF = par("NF").doubleValue();
+    f_0 = 3e8 / c_0; // TODO: adjust for propagation in glass
+
+    EV << "f0=" << f_0 << "Hz" << endl;
+
+    // QoT
+    OSNR_qot = par("OSNR_qot").doubleValue();
+    OSNR_drop = par("OSNR_drop").doubleValue();
+
+    // Obtain the number of optical amplifiers
+    amp_len = G_0 / att; // Length supported by one Amplifier
+    G_N = floor(length / amp_len);
+    EV << "A number of reg needed for " << length << "km :" << G_N << endl;
+
+    // Model correctness verifications
+    osnr_drop = 0;
+
     // Bandwidth measurements
     thr_window = par("thr_window").doubleValue();
 
+    // Link label
     cDisplayString& dispStr = getDisplayString();
     std::stringstream out;
-    out << "Parameters:"<<endl;
-    out<<" * length:\t" << length<<"km"<< endl;
-    out<<" * delay:\t"<< par("delay").doubleValue() <<"s" << endl;
+    out << "Parameters:" << endl;
+    out << " * length:\t" << length << "km" << endl;
+    out << " * attenuation:\t" << att_total << "dB" << endl;
+    out << " * delay:\t" << par("delay").doubleValue() << "s" << endl;
+    out << " * amplifiers:\t" << G_N << "@" << G_0 << "dB" << endl;
     getDisplayString().setTagArg("tt", 0, out.str().c_str());
 }
 
@@ -53,6 +83,8 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
 
     int WL= ol->getWavelengthNo();
     simtime_t len= (simtime_t) ((double)ol->getBitLength()/C);
+    double f= f_0+WL*B_0;
+    EV << "f="<<f<< "Hz"<<endl;
 
     // We take car of bursts not control packets
     if(WL > 0 ){
@@ -140,12 +172,98 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
         thr_usage[ident]+= ol->getBitLength();
     }
 
+
+    EV << "** Fiber start P=" << ol->getP() << " N=" << ol->getN() << " OSNR=" << ol->getP() - ol->getN() << endl;
+    /**
+     *  Apply all the impairments onto optical signal
+     */
+    long double h = 6.626068e-34; // Planck constant
+
+    // Attenuation of optical signal
+    // A ------ AMP1 ------- AMP2 ------ B
+    // Length of one span in case of uniformly distributed AMPs along the path
+    double len_tbused = length;
+
+    std::vector<long double> OSNR;
+    std::vector<long double>::iterator it;
+
+    double input_osnr = pow(10, ol->getP() / 10) / pow(10, ol->getN() / 10);
+    OSNR.push_back(input_osnr);
+
+    // Power and Noise adjustments
+    for (int i = 0; i < G_N; i++) {
+
+        // Fiber attenuation effect
+        ol->setP(ol->getP() - amp_len * att);
+        ol->setN(ol->getN() - amp_len * att);
+        len_tbused -= amp_len;
+
+        // Power of optical signal at egress of AMP
+        EV << " AMP(" << i + 1 << ") IN: P=" << ol->getP() << "dB N="
+                  << ol->getN() << "dB OSNR=" << ol->getP() - ol->getN()
+                  << "dB";
+
+        long double P_in_mw = pow(10, ol->getP() / 10);
+        long double P_sat_mw = pow(10, P_sat / 10);
+        long double G_amp = pow(10, G_0 / 10) / (1 + P_in_mw / P_sat_mw);
+        long double F_amp = pow(10, NF / 10)
+                * (1 + A1 - A1 / (1 + P_in_mw / A2));
+
+        long double osnr_stage = P_in_mw / (h * f * F_amp * B_0);
+        long double total_osnr = 1 / osnr_stage;
+        for (it = OSNR.begin(); it < OSNR.end(); it++) {
+            total_osnr += 1 / (*it);
+        }
+        total_osnr = 1 / total_osnr;
+        OSNR.push_back(total_osnr);
+
+        // Amplifier addition to P and N of optical signal
+        ol->setP(ol->getP() + 10 * log10(G_amp)); // P_out
+        ol->setN(ol->getP() - 10 * log10(total_osnr));
+
+        //  Output texts
+        EV << " OUT: P=" << ol->getP() << "dB N=" << ol->getN() << "dB OSNR="
+                  << ol->getP() - ol->getN() << "dB";
+        EV << " @dist=" << length - len_tbused;
+        EV << " [G_amp=" << G_amp << " (" << 10 * log10(G_amp) << "dB)";
+        EV << " F_amp=" << F_amp << " (" << 10 * log10(F_amp) << "dB)]" << endl;
+    }
+
+    if (len_tbused > 0) {
+        // Trail path
+        ol->setP(ol->getP() - len_tbused * att);
+        ol->setN(ol->getN() - len_tbused * att);
+    }
+
+    EV << "** Fiber end P=" << ol->getP() << " N=" << ol->getN() << " OSNR="
+            << ol->getP() - ol->getN() << endl;
+    if (ol->getP() - ol->getN() < OSNR_drop and ol->getWavelengthNo() > 0) {
+        EV << "Optical signal got lost in noise with OSNR="
+                << ol->getP() - ol->getN() << "dB" << endl;
+        result.discard = true;
+        osnr_drop++;
+    } else {
+        // Apply delay onto optical signal
+        cDelayChannel::processMessage(msg, t, result);
+    }
+
+
+    // Inherit traditional DelayChannel behavior
     cDelayChannel::processMessage(msg,t,result);
 }
+
+// Conversion functions
+double FiberChannel::dBm2W(double dBm){ return pow(10, dBm/10)/1000;}
+double FiberChannel::dBm2mW(double dBm){ return pow(10, dBm/10); }
+double FiberChannel::dBW2W(double dBW){ return pow(10, dBW/10); }
+double FiberChannel::W2dBW(double W){   return 10*log10(W); }
+double FiberChannel::W2dBm(double W){   return 10*log10(1000*W); }
+
 
 void FiberChannel::finish(){
     if(scheduling) recordScalar(" ! Overlaping bursts", scheduling);
     if(overlap) recordScalar(" ! Burst spacing violated", overlap);
     recordScalar("Bursts transmitted", trans);
+    recordScalar("QoT bursts dropped", osnr_drop);
 }
 

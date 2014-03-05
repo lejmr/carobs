@@ -18,5 +18,8 @@
 //
 packet OpticalLayer {
     int wavelengthNo;
+    
+    double P;	//dBm	- Optical power level
+    double N;	//dBm	- Acumulated optical noise level
 }
 
