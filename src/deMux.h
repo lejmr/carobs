@@ -29,6 +29,8 @@ class DeMux : public cSimpleModule
   protected:
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
+    virtual void finish();
+
   private:
     /**
      *  DeMux class implements both MUX and DEMUX since they are very similar.
@@ -38,12 +40,33 @@ class DeMux : public cSimpleModule
      */
     bool mux;
 
+    /* IA section */
+    // QoT
+    double OSNR_drop_level;
+    int64_t osnr_drop; // Statistics
+
+    // Multiplex/Demultiplexing attenuation
+    double att;
+
+    // Amplifier parameters
+    bool amp_enabled;
+    double B_0, G_0, P_sat, A1, A2, NF;
+    int G_N;
+
+    // Simulation parameters
+    double c_0, f_0; // Shortest wavelength
+
     /**
      *  Function muxing implements MUX behaviour
      *  @param msg: stands for incoming message
      */
     virtual void demuxing(OpticalLayer *msg);
 
-};
+    /**
+     *  If amplification is turned on both levels of power and noise are changed
+     *  i.e. the optical signal gets amplified
+     */
+    virtual void amplify(OpticalLayer *msg);
 
+};
 #endif
