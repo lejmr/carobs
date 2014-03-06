@@ -40,6 +40,17 @@ void SOA::initialize() {
     bigOT = 0;
     blpevo.setName("Evolution of BLP");
 
+    /* IA section */
+    // Amplifier parameters
+    B_0 = par("B_0").doubleValue();
+    G_0 = par("G_0").doubleValue();
+    P_sat = par("P_sat").doubleValue();
+    A1 = par("A1").doubleValue();
+    A2 = par("A2").doubleValue();
+    c_0 = par("c_0").doubleValue();
+    NF = par("NF").doubleValue();
+    f_0 = 3e8 / c_0; // TODO: adjust for propagation in glass
+
     // RRPD
     OE.setName("Number of O/E blocks used [-]");
     EO.setName("Number of E/O blocks used [-]");
@@ -79,6 +90,11 @@ void SOA::handleMessage(cMessage *msg) {
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
         int inPort = msg->getArrivalGate()->getIndex();
         int inWl = ol->getWavelengthNo();
+
+        // Every car handled by SOA matrix undergoes amplification
+        EV << "OSNR SOA Input: "<< ol->getP()-ol->getN();
+        amplify(ol);
+        EV << "dB Output: "<< ol->getP()-ol->getN() <<"dB"<< endl;
 
         // Find output configuration for incoming burst
         SOAEntry *sw = findOutput(inPort, inWl);
@@ -288,6 +304,29 @@ SOAEntry * SOA::findOutput(int inPort, int inWl) {
     return new SOAEntry(-1, -1, -1, -1);
 }
 
+void SOA::amplify(OpticalLayer *msg){
+    // Input OSNR
+    double input_osnr = pow(10,msg->getP()/10) / pow(10,msg->getN()/10);
+
+    // Gain saturation and noise figure evaluation
+    long double h = 6.626068e-34;  // Planck constant
+    double f= f_0+msg->getWavelengthNo()*B_0;
+    long double P_in_mw = pow(10, msg->getP()/10);
+    long double P_sat_mw = pow(10, P_sat / 10);
+    long double G_amp = pow(10, G_0 / 10) / (1 + P_in_mw / P_sat_mw);
+    long double F_amp = pow(10, NF / 10) * (1 + A1 - A1 / (1 + P_in_mw / A2));
+
+    // ASE noise added by this amplifier
+    long double osnr_mx = P_in_mw / (h*f*F_amp*B_0);
+
+    // Cumulative OSNR
+    long double total_osnr= 1/input_osnr + 1/osnr_mx;
+    total_osnr = 1/total_osnr;
+
+    // P / N levels update of msg
+    msg->setP( msg->getP() + 10*log10(G_amp) );
+    msg->setN( msg->getP() - 10*log10(total_osnr) );
+}
 
 void SOA::finish() {
     /* Performance statistics */

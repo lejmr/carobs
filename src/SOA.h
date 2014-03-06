@@ -72,6 +72,16 @@ class SOA : public cSimpleModule
     int wcs;    // number of WC
     int bigOT;  // If OT goes to the past
 
+    /* IA section */
+    // Amplifier parameters
+    bool amp_enabled;
+    double B_0, G_0, P_sat, A1, A2, NF;
+    int G_N;
+
+    // Simulation parameters
+    double c_0, f_0; // Shortest wavelength
+
+
     /**
      * RRPD statistics
      */
@@ -87,6 +97,11 @@ class SOA : public cSimpleModule
      */
     virtual void assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len);
 
+    /**
+     *  The SOA based optical switch amplifies the signal itself, so each burst P/N levels
+     *  must be updated when is switched.
+     */
+    virtual void amplify(OpticalLayer *msg);
 };
 
 #endif
