@@ -73,6 +73,9 @@ class CoreNodeMAC : public cSimpleModule
     simtime_t total_buffertime, avg_buffertime;
     int64_t buffered;
 
+    // Physical properties of optical signal
+    double P_in, OSNR_in;
+
     // CoreNode address -- needs to be put to the Car for flow purporse of flow monitoring
     int address;
 

@@ -44,6 +44,10 @@ void CoreNodeMAC::initialize() {
     carMsgs.setName("Number of packets in a car [-]");
     carLength.setName("Car's length [s]");
 
+    // Physical properties of optical signal
+    P_in = par("P_in").doubleValue();
+    OSNR_in = par("OSNR_in").doubleValue();
+
     // Address asignement
     address = par("address").doubleValue();
 
@@ -146,6 +150,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         // Convert Car->OpticalLayer == E/O conversion
         OpticalLayer *ol= new OpticalLayer( car->getName() );
         ol->setWavelengthNo( se->getOutLambda() );
+        ol->setP(P_in);
+        ol->setN(P_in-OSNR_in);
         ol->encapsulate( car );
         ol->addPar("ot").setDoubleValue( msg->par("ot").doubleValue() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
 
@@ -216,6 +222,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     sprintf(buffer_name, "Header %d", dst);
     OpticalLayer *OH = new OpticalLayer(buffer_name);
     OH->setWavelengthNo(0); //Signalisation is always on the first channel
+    OH->setP(P_in);
+    OH->setN(P_in-OSNR_in);
     OH->encapsulate(H);
     OH->setByteLength(50);
     sendDelayed(OH, t0, "control");
@@ -236,6 +244,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         tcar->par("dst").setDoubleValue( su->getDst() );
         tcar->addPar("src");
         tcar->par("src").setDoubleValue( address );
+        OC->setP(P_in);
+        OC->setN(P_in-OSNR_in);
         OC->encapsulate(tcar);
         OC->addPar("ot").setDoubleValue( su->getStart().dbl() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
 

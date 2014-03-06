@@ -21,7 +21,11 @@ package carobs.modules;
 simple CoreNodeMAC
 {
     parameters:
+        // Physical properties of optical signal
+        double P_in = default(3);		// dBm 	- Power of optical source
+        double OSNR_in = default(23);	// dB	- Input OSNR
     	int address = default(uniform(1000, 2000));	// TODO: watchout mi overlap
+    	
     @display("i=block/tx");
     gates:
         inout soa[];
