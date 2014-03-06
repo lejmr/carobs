@@ -54,6 +54,13 @@ void SOAManager::initialize() {
     // Speed of O/E conversion
     convPerformance=par("convPerformance").doubleValue();
 
+    // QoT OSNR parameter
+    osnr_qot = par("OSNR_qot").doubleValue();
+
+    // Physical properties of optical signal
+    P_in = par("P_in").doubleValue();
+    OSNR_in = par("OSNR_in").doubleValue();
+
     // Naming helper container
     inSplitTable.setName("Items managed by split tables");
     scheduling.setName("Scheduling table");
@@ -274,7 +281,15 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     int outPort = R->getOutputPort(dst);
 
     // Assign this SOAEntry to SOA
-    SOAEntry *sef = getOptimalOutput(outPort, inPort, inWl, train_start, train_stop, longest_burst_length);
+    bool force_buffering= ol->getP()-ol->getN() < osnr_qot; // Verify OSNR level
+    EV << "OSNR verification: ONSR="<< ol->getP()-ol->getN() << " force_buffering="<<force_buffering <<endl;
+    if( force_buffering ){
+        ol->setP(P_in);
+        ol->setN(P_in-OSNR_in);
+    }
+
+    // Obtain switching entry
+    SOAEntry *sef = getOptimalOutput(outPort, inPort, inWl, train_start, train_stop, longest_burst_length, force_buffering);
     EV << " Switching: " << sef->info() << endl;
 
     // sef==NULL happens only if the buffering is turned off
@@ -352,9 +367,26 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
     // Resolving output port
     int outPort = R->getOutputPort(dst);
 
+    // Find longest car in order to find shortest waiting time
+    double longest_burst_length=0;
+    cQueue cars = H->getCars();
+    for (int i = 0; i < cars.length(); i++) {
+        CAROBSCarHeader *tmpc = (CAROBSCarHeader *) cars.get(i);
+        if (tmpc->getSize() * 8 > longest_burst_length) {
+            longest_burst_length = tmpc->getSize() * 8;
+        }
+    }
+
+    // OSNR verification
+    bool force_buffering= ol->getP()-ol->getN() < osnr_qot;
+    EV << "OSNR verification: ONSR="<< ol->getP()-ol->getN() << " force_buffering="<<force_buffering <<endl;
+    if (force_buffering) {
+        ol->setP(P_in);
+        ol->setN(P_in - OSNR_in);
+    }
+
     // Assign this SOAEntry to SOA
-    SOAEntry *se = getOptimalOutput(outPort, inPort, inWl, simTime() + H->getOT(), simTime() + H->getOT() + H->getLength());
-    EV << " Switching: " << se->info() << endl;
+    SOAEntry *se = getOptimalOutput(outPort, inPort, inWl, simTime() + H->getOT(), simTime() + H->getOT() + H->getLength(),longest_burst_length,force_buffering);
 
     // se==NULL happens only if the buffering is turned off
     if (se == NULL) {
@@ -363,6 +395,9 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
         bbp_dropped++;
         return;
     }
+
+    // se==NULL happens only if the buffering is turned off or MF limit is achieved
+    EV << " Switching: " << se->info() << endl;
 
     simtime_t d_w_extra = 0;
     if (se->getBuffer()) {
@@ -432,11 +467,11 @@ void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, 
         SECRATIO.record((double) buffering / contenting);
 }
 
-SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop, int length) {
+SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop, int length, bool force_buffering) {
     EV << "Get scheduling for " << inPort << "#" << inWL << " to port="
               << outPort << " for:" << start << "-" << stop;
 
-    if (scheduling.length() == 0) {
+    if ( !force_buffering and scheduling.length() == 0) {
         // Fast forward - if there is no scheduling .. do bypas
         SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
         e->setStart(start);
@@ -449,7 +484,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     }
 
     // Test output combination
-    if (testOutputCombination(outPort, inWL, start, stop)) {
+    if (!force_buffering and testOutputCombination(outPort, inWL, start, stop)) {
         // There is no blocking of output port at a  given time
         SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
         e->setStart(start);
@@ -460,7 +495,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
         return e;
     }
 
-    if (WC) {
+    if (!force_buffering and WC) {
         /* Perform wavelength conversion */
         // FIFO approach
         for (int i = 1; i <= maxWL; i++) {

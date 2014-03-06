@@ -33,6 +33,13 @@ simple SOAManager
         double convPerformance = default(0.1e-9);	// ns/bit
         bool prioritizeBuffered = default(false);				// Gives extra priority (extra OT) when the burst train was buffered
         
+        // Quality of tranmission
+    	double OSNR_qot = default(23);	// dB 	- minimal OSNR, if less the optical signal needs to be regenerated
+    	
+    	// Physical properties of optical signal
+        double P_in = default(3);		// dBm 	- Power of optical source
+        double OSNR_in = default(23);	// dB	- Input OSNR
+        
     @display("i=block/cogwheel");
     gates:
         inout control[];
