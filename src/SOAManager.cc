@@ -443,7 +443,6 @@ void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, 
      *
      */
 
-    EV << "********** evaluateSecondaryContentionRatio ******************" << endl;
     // Contention evaluation  primary vs secondary contention
     int contenting = 0;
     int buffering = 0;
@@ -531,8 +530,8 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
      */
 
     // Minum time the burst must stay in buffer .. it is approximation of limit conversio speed
-    double min_buffer= convPerformance*(double)length;
-    EV << " Min buffer> "<< min_buffer << endl;
+    float min_buffer= convPerformance*(float)length;
+    EV << " Min buffering (> "<< min_buffer <<") ";
 
     // SOAEntry mapping for sorting
     std::map<int, simtime_t> waiting;
@@ -585,7 +584,7 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     }
 
     int outWL= inWL;
-    simtime_t BT = 1e6;
+    simtime_t BT = min_buffer;
     for (it_waiting = waiting.begin(); it_waiting != waiting.end(); ++it_waiting) {
         EV << " WL#" << it_waiting->first << " .. " << it_waiting->second << endl;
         if( it_waiting->second < BT ){
