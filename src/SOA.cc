@@ -98,7 +98,7 @@ void SOA::handleMessage(cMessage *msg) {
             ol->addPar("marker");
             ol->par("marker").setPointerValue(sw);
 
-            //
+            // Send burst to the MAC
             send(ol, "aggregation$o",inPort);
 
             // Check how many buffering instructions are assigned
