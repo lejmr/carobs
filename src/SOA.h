@@ -76,6 +76,8 @@ class SOA : public cSimpleModule
      * RRPD statistics
      */
     cOutVector OE, EO;
+    cOutVector LOE;
+    int oe_limit;
 
   public:
 

@@ -27,6 +27,10 @@ void SOA::initialize() {
     // Initialisation of WC variable
     WC = par("WC").boolValue();
 
+    // OE limit
+    oe_limit= par("oe_limit").doubleValue();
+    WATCH(oe_limit);
+
     //switchingTable = new cQueue("switchingTable");
     switchingTable.setName("switchingTable");
 
@@ -43,6 +47,7 @@ void SOA::initialize() {
     // RRPD
     OE.setName("Number of O/E blocks used [-]");
     EO.setName("Number of E/O blocks used [-]");
+    LOE.setName("Limited of O/E blocks used [-]");
 
 }
 
@@ -240,8 +245,49 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
     }
     EV << endl;
 
-    // Reserve WL if it is not to buffer direction
-    switchingTable.insert(e);
+    /***
+     * Count the number of required
+     *
+     */
+    int oe = 0, mf = 0;
+    for (cQueue::Iterator iter(switchingTable, 0); !iter.end(); iter++) {
+        SOAEntry *se = (SOAEntry *) iter();
+
+        // Check buffering instructions only
+        if (not (se->getBuffer() and se->getBufferDirection()))
+            continue;
+
+        // Check whether instructions overlap in time
+        if (se->getStart() < e->getStart() and se->getStop() + d_s < e->getStart()) {
+            // 1.
+            //  ........|----|..... sw
+            //  .|----|............ se
+            continue;
+        }
+
+        if (se->getStop() > e->getStop() and se->getStart() - d_s >= e->getStop()) {
+            // 2.
+            //  .|----|............ sw
+            //  ........|----|..... se
+            continue;
+        }
+
+        // Overlapping SE
+        oe++;
+    }
+
+    LOE.record(oe);
+
+    // Block adding more buffering SOAentries
+    if( oe <= oe_limit){
+
+        // Reserve WL if it is not to buffer direction
+        switchingTable.insert(e);
+    }
+    else{
+        //opp_terminate("blokuji");
+    }
+
 }
 
 void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
