@@ -75,9 +75,12 @@ class SOA : public cSimpleModule
     /**
      * RRPD statistics
      */
-    cOutVector OE, EO;
-    cOutVector LOE;
+    int64 bbp_switched, bbp_buffered, bbp_dropped, bbp_disagg, bbp_total, bbp_interval_max;
+    cOutVector OE, EO, LOE;
+    cOutVector BBP, BLP, BOKP, BDISP, BTOTAL;
     int oe_limit;
+
+    virtual void countProbabilities();
 
   public:
 

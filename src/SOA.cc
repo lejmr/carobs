@@ -48,7 +48,16 @@ void SOA::initialize() {
     OE.setName("Number of O/E blocks used [-]");
     EO.setName("Number of E/O blocks used [-]");
     LOE.setName("Limited of O/E blocks used [-]");
-
+    BBP.setName("Burst buffering probability");
+    BLP.setName("Burst loss probability");
+    BOKP.setName("Burst cut-throught probability");
+    BDISP.setName("Burst disaggregation probability");
+    bbp_interval_max=100;
+    bbp_disagg=0;
+    bbp_switched= 0;
+    bbp_buffered= 0;
+    bbp_dropped=0;
+    bbp_total=0;
 }
 
 void SOA::handleMessage(cMessage *msg) {
@@ -88,10 +97,16 @@ void SOA::handleMessage(cMessage *msg) {
         // Find output configuration for incoming burst
         SOAEntry *sw = findOutput(inPort, inWl);
 
+        // Count statistics
+        if (bbp_total >= bbp_interval_max) {
+                countProbabilities();
+        }
+
         /*      Disaggregation     */
         if( sw->isDisaggregation() ){
             EV << "Disaggregated based on: " << sw->info() << endl;
             send(ol,"disaggregation");
+            bbp_disagg++; bbp_total++;
             return ;
         }
 
@@ -105,6 +120,7 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Send burst to the MAC
             send(ol, "aggregation$o",inPort);
+            bbp_buffered++;bbp_total++;
 
             // Check how many buffering instructions are assigned
             int oe=0, mf=0;
@@ -171,11 +187,13 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Sending to output port
             send(ol, "gate$o", sw->getOutPort());
+            bbp_switched++;bbp_total++;
             OE.record(0);
         }else{
             EV << "Burst at "<<inPort<<"#"<<inWl<<" is to be dropped !!!" << endl;
             drpd++;
             blpevo.record( (double) drpd/incm );
+            bbp_dropped++;bbp_total++;
             delete msg; return;
         }
 
@@ -279,7 +297,7 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
     LOE.record(oe);
 
     // Block adding more buffering SOAentries
-    if( oe <= oe_limit){
+    if( oe < oe_limit){
 
         // Reserve WL if it is not to buffer direction
         switchingTable.insert(e);
@@ -365,4 +383,33 @@ void SOA::finish() {
     }
     if(bigOT>0)recordScalar(" ! Train reached header", bigOT );
     if(wrong_scheduling>0) recordScalar(" ! Not enough time for switching", wrong_scheduling);
+    countProbabilities();
+}
+
+
+void SOA::countProbabilities(){
+    /* Function that is used for evaluation of probabilities during the simulation */
+
+    if(bbp_total > 0){
+        // BLP
+        BLP.record( (double)bbp_dropped/bbp_total );
+
+        // BBP
+        BBP.record( (double)bbp_buffered/bbp_total );
+
+        // BOKP
+        BOKP.record( (double)bbp_switched/bbp_total );
+
+        // Disaggregace
+        BDISP.record( (double)bbp_disagg/bbp_total );
+
+        // Backkground of the number of stuff :)
+        BTOTAL.record(bbp_total);
+    }
+
+    // Erease for another counting
+    bbp_switched= 0;
+    bbp_buffered= 0;
+    bbp_dropped=0;
+    bbp_total=0;
 }
