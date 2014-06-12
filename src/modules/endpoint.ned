@@ -148,7 +148,7 @@ simple ManualGenerator
         double bandwidth @unit(bps) = default(1Gbps);
         bool send = default(false);
         int dst = default(-1);
-        int blast= default(10);
+        int blast = default(10);
         int length @unit(b) = default(100b);
 
         @display("i=block/tx");
@@ -178,7 +178,53 @@ module ManualCity
         generator: ManualGenerator {
             parameters:
                 address = address;
-                
+
+                @display("p=127,53");
+        }
+
+    connections:
+        generator.out --> gate$o;
+        sink.in <-- gate$i;
+}
+
+
+
+simple CplexGenerator
+{
+    parameters:
+        int n = default(10);
+        int address;
+        string trafficFile;
+        bool send = default(true);
+        int length @unit(b) = default(100b);	// bit
+        int blast = default(100);	// Says how many packets are sent at one moment
+
+        @display("i=block/tx,#0080FF");
+
+    gates:
+        output out;
+}
+
+
+module CplexCity
+{
+    parameters:
+        int address;
+
+        @display("i=misc/city,#0080C0;bgb=179,98;t=$address;tc=gray");
+    gates:
+        inout gate @labels(Payload);
+
+    submodules:
+        sink: Sink {
+            parameters:
+                myMaxID = address;
+                myMinID = address;
+                @display("p=51,53");
+        }
+        generator: CplexGenerator {
+            parameters:
+                address = address;
                 @display("p=127,53");
         }
 

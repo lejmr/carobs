@@ -32,6 +32,7 @@ OBJS = \
     $O/aggregationQueues.o \
     $O/cityGenerator.o \
     $O/CoreNodeMAC.o \
+    $O/cplexGenerator.o \
     $O/deMux.o \
     $O/generator.o \
     $O/loadSetup.o \
@@ -113,11 +114,12 @@ endif
 
 # Main target
 all: $O/$(TARGET)
-	$(LN) $O/$(TARGET) .
+	$(Q)$(LN) $O/$(TARGET) .
 
 $O/$(TARGET): $(OBJS)  $(wildcard $(EXTRA_OBJS)) Makefile
 	@$(MKPATH) $O
-	$(CXX) $(LDFLAGS) -o $O/$(TARGET)  $(OBJS) $(EXTRA_OBJS) $(AS_NEEDED_OFF) $(WHOLE_ARCHIVE_ON) $(LIBS) $(WHOLE_ARCHIVE_OFF) $(OMNETPP_LIBS)
+	@echo Creating executable: $@
+	$(Q)$(CXX) $(LDFLAGS) -o $O/$(TARGET)  $(OBJS) $(EXTRA_OBJS) $(AS_NEEDED_OFF) $(WHOLE_ARCHIVE_ON) $(LIBS) $(WHOLE_ARCHIVE_OFF) $(OMNETPP_LIBS)
 
 .PHONY: all clean cleanall depend msgheaders
 
@@ -125,26 +127,30 @@ $O/$(TARGET): $(OBJS)  $(wildcard $(EXTRA_OBJS)) Makefile
 
 $O/%.o: %.cc $(COPTS_FILE)
 	@$(MKPATH) $(dir $@)
-	$(CXX) -c $(COPTS) -o $@ $<
+	$(qecho) "$<"
+	$(Q)$(CXX) -c $(CXXFLAGS) $(COPTS) -o $@ $<
 
 %_m.cc %_m.h: %.msg
-	$(MSGC) -s _m.cc $(MSGCOPTS) $?
+	$(qecho) MSGC: $<
+	$(Q)$(MSGC) -s _m.cc $(MSGCOPTS) $?
 
 msgheaders: $(MSGFILES:.msg=_m.h)
 
 clean:
-	-rm -rf $O
-	-rm -f carobs carobs.exe libcarobs.so libcarobs.a libcarobs.dll libcarobs.dylib
-	-rm -f ./*_m.cc ./*_m.h
-	-rm -f link/*_m.cc link/*_m.h
-	-rm -f messages/*_m.cc messages/*_m.h
-	-rm -f modules/*_m.cc modules/*_m.h
+	$(qecho) Cleaning...
+	$(Q)-rm -rf $O
+	$(Q)-rm -f carobs carobs.exe libcarobs.so libcarobs.a libcarobs.dll libcarobs.dylib
+	$(Q)-rm -f ./*_m.cc ./*_m.h
+	$(Q)-rm -f link/*_m.cc link/*_m.h
+	$(Q)-rm -f messages/*_m.cc messages/*_m.h
+	$(Q)-rm -f modules/*_m.cc modules/*_m.h
 
 cleanall: clean
-	-rm -rf $(PROJECT_OUTPUT_DIR)
+	$(Q)-rm -rf $(PROJECT_OUTPUT_DIR)
 
 depend:
-	$(MAKEDEPEND) $(INCLUDE_PATH) -f Makefile -P\$$O/ -- $(MSG_CC_FILES)  ./*.cc link/*.cc messages/*.cc modules/*.cc
+	$(qecho) Creating dependencies...
+	$(Q)$(MAKEDEPEND) $(INCLUDE_PATH) -f Makefile -P\$$O/ -- $(MSG_CC_FILES)  ./*.cc link/*.cc messages/*.cc modules/*.cc
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 $O/CoreNodeMAC.o: CoreNodeMAC.cc \
@@ -209,6 +215,9 @@ $O/aggregationQueues.o: aggregationQueues.cc \
 	routing.h
 $O/cityGenerator.o: cityGenerator.cc \
 	cityGenerator.h \
+	messages/Payload_m.h
+$O/cplexGenerator.o: cplexGenerator.cc \
+	cplexGenerator.h \
 	messages/Payload_m.h
 $O/deMux.o: deMux.cc \
 	deMux.h \
