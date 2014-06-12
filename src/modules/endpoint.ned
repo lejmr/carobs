@@ -198,6 +198,7 @@ simple CplexGenerator
         bool send = default(true);
         int length @unit(b) = default(100b);	// bit
         int blast = default(100);	// Says how many packets are sent at one moment
+        double alpha = default(1);	// Traffic matrix reduction coefficient
 
         @display("i=block/tx,#0080FF");
 

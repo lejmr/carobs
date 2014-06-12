@@ -29,7 +29,7 @@ class CplexGenerator : public cSimpleModule
   private:
     int src;
     int64_t n;
-    std::map<double, double> demands;
+    std::map<int, double> demands;
     int64_t psend;
 
     std::map<int,int> counts;

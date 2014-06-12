@@ -39,7 +39,6 @@ void CplexGenerator::initialize()
     std::string line;
     std::vector<double> tmp;
     int max_dst=0;
-    //std::vector<int, double>::iterator it;
     while ( getline (infile,line) ){
 
         // Because of unix line end notation..
@@ -87,9 +86,9 @@ void CplexGenerator::initialize()
 void CplexGenerator::handleMessage(cMessage *msg)
 {
 
-    double alpha= par("alpha").doubleValue();
     int length = par("length").longValue();
     int step = par("blast").longValue();
+    int alpha = par("alpha").doubleValue();
 
     if( msg->isSelfMessage() and msg->hasPar("myMinID") ){
         send(msg,"out");
@@ -101,22 +100,25 @@ void CplexGenerator::handleMessage(cMessage *msg)
         std::vector<double>::iterator it;
         int dst=0;
 
-        for (it = demands.begin(); it < demads.end(); it++) {
-            dst++;
+        for (std::map<int, double>::iterator it=demands.begin(); it!=demands.end(); ++it){
+            //EV << it->first << " => " << it->second << endl;
+            dst= it->first;
+            double demand= alpha * it->second;
+
+            //for (it = demands.begin(); it < demads.end(); it++) {
             if( dst == src ) continue;
-            double demand= (*it)*alpha;
-            if( demand == 0 ) continue;
+            if( demand <= 0 ) continue;
 
             // First arrival time
             arrivals[dst]=simTime();
 
-            EV << "Preparing "<<n<<" payload packets to " << dst << " with demand "<<demand <<"Gbps"<< endl;
+            EV << "Preparing "<<n<<" payload packets to " << dst << " with demand "<<demand <<"Mbps";
             // Mean time between incomes of the demands .. based on A= lambda*tos
             // tos = lenght / C  - Where lengthB is mean value of length and C is bitrate in bps
             // demand/C - in conversion of traffic matrix into Erlang notation
-            double lambda= demand*1e9 / length ;
-            EV << " + alpha="<<alpha<<" demand="<<(*it)<<" alpha*demand="<<demand;
-            EV << " lambda="<<lambda <<endl;
+            // 1e6 .. SNDlib comes with data in Mbps .. so to make it bps
+            double lambda= demand*1e6 / length ;
+            EV << " => lambda="<<lambda <<endl;
 
             // Initiate sending
             cMessage *t = new cMessage();
