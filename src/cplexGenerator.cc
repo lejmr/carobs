@@ -48,17 +48,17 @@ void CplexGenerator::initialize()
         // Parse line
         tmp= cStringTokenizer( line.c_str() , ";" ).asDoubleVector();
 
-        if( (int)tmp[0] > max_dst ) max_dst= (int)tmp[0];
         if( (int)tmp[1] > max_dst ) max_dst= (int)tmp[1];
+        if( (int)tmp[2] > max_dst ) max_dst= (int)tmp[2];
 
         // Data for this particular source
-        if( (int)tmp[0] == src and (int)tmp[2] == src  ){
+        if( (int)tmp[1] == src and (int)tmp[3] == src  ){
 
             // Initialize request to
-            if( demands.find( (int)tmp[1] ) == demands.end() ) demands[ (int)tmp[1] ]=0;
+            if( demands.find( (int)tmp[2] ) == demands.end() ) demands[ (int)tmp[2] ]=0;
 
             // Add requests
-            demands[ (int)tmp[1] ]+= tmp[5];
+            demands[ (int)tmp[2] ]+= tmp[6];
 
         }
     }
