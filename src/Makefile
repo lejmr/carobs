@@ -33,6 +33,7 @@ OBJS = \
     $O/cityGenerator.o \
     $O/CoreNodeMAC.o \
     $O/cplexGenerator.o \
+    $O/CplexRouteEntry.o \
     $O/deMux.o \
     $O/generator.o \
     $O/loadSetup.o \
@@ -155,6 +156,7 @@ depend:
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 $O/CoreNodeMAC.o: CoreNodeMAC.cc \
 	CoreNodeMAC.h \
+	CplexRouteEntry.h \
 	SOA.h \
 	SOAEntry.h \
 	SOAManager.h \
@@ -167,7 +169,10 @@ $O/CoreNodeMAC.o: CoreNodeMAC.cc \
 	messages/car_m.h \
 	messages/schedulerUnit_m.h \
 	routing.h
+$O/CplexRouteEntry.o: CplexRouteEntry.cc \
+	CplexRouteEntry.h
 $O/MAC.o: MAC.cc \
+	CplexRouteEntry.h \
 	MAC.h \
 	MACEntry.h \
 	messages/CAROBSHeader_m.h \
@@ -180,6 +185,7 @@ $O/MACEntry.o: MACEntry.cc \
 	MACEntry.h
 $O/SOA.o: SOA.cc \
 	CoreNodeMAC.h \
+	CplexRouteEntry.h \
 	SOA.h \
 	SOAEntry.h \
 	SOAManager.h \
@@ -196,6 +202,7 @@ $O/SOAEntry.o: SOAEntry.cc \
 	SOAEntry.h
 $O/SOAManager.o: SOAManager.cc \
 	CoreNodeMAC.h \
+	CplexRouteEntry.h \
 	SOA.h \
 	SOAEntry.h \
 	SOAManager.h \
@@ -211,8 +218,7 @@ $O/SOAManager.o: SOAManager.cc \
 $O/aggregationQueues.o: aggregationQueues.cc \
 	aggregationQueues.h \
 	messages/Payload_m.h \
-	messages/car_m.h \
-	routing.h
+	messages/car_m.h
 $O/cityGenerator.o: cityGenerator.cc \
 	cityGenerator.h \
 	messages/Payload_m.h
@@ -240,10 +246,12 @@ $O/merge.o: merge.cc \
 	messages/Payload_m.h \
 	messages/car_m.h
 $O/payloadInterface.o: payloadInterface.cc \
+	CplexRouteEntry.h \
 	messages/Payload_m.h \
 	payloadInterface.h \
 	routing.h
 $O/routing.o: routing.cc \
+	CplexRouteEntry.h \
 	routing.h
 $O/routingTable.o: routingTable.cc \
 	routingTable.h
@@ -251,6 +259,7 @@ $O/sink.o: sink.cc \
 	messages/Payload_m.h \
 	sink.h
 $O/trainAssembler.o: trainAssembler.cc \
+	CplexRouteEntry.h \
 	messages/CAROBSCarHeader_m.h \
 	messages/CAROBSHeader_m.h \
 	messages/MACContainer_m.h \

@@ -14,8 +14,12 @@
 // 
 
 #include "routing.h"
+#include <iostream>
+#include <fstream>
 
 Define_Module(Routing);
+
+using namespace std;
 
 void Routing::initialize() {
 
@@ -27,33 +31,109 @@ void Routing::initialize() {
     d_p = par("d_p").doubleValue();
 
     // Create watchers
-    WATCH_MAP(OT);
     WATCH_MAP(DestMap);
-    WATCH_MAP(outPort);
     WATCH_SET(terminatingIDs);
+    RoutingTable.setName("RoutingTable");
+
+    WATCH_MAP(inPort);
+    WATCH_MAP(outPort);
 }
 
 void Routing::handleMessage(cMessage *msg) {
 
     if (msg->isSelfMessage() and msg->hasPar("PortAndOtDiscovery")) {
-        // Calculate output ports and OTS
-        topo.extractByNedTypeName(cStringTokenizer("carobs.modules.CoreNode carobs.modules.EdgeNode").asVector());
-        for (int i = 0; i < topo.getNumNodes(); i++) {
-            cTopology::Node *dstnode = topo.getNode(i);
 
-            if (dstnode->getModule() == getParentModule()) {
-                continue;
+        // Get address of node in the network
+        int src = this->getParentModule()->par("address").longValue() - 100;
+
+
+        // Get info about the neighbours .. map node id with port id
+        EV << "Testing "<< getParentModule()->gateSize("gate") << " connected gates (output)."<<endl;
+        for (int i=0; i<getParentModule()->gateSize("gate$o"); i++) {
+            EV << "gate$o["<<i <<"] = "<< getParentModule()->gate("gate$o",i)->getNextGate()->getOwnerModule()->par("address").longValue() << endl;
+            outPort[ getParentModule()->gate("gate$o",i)->getNextGate()->getOwnerModule()->par("address").longValue()-100 ] = i;
+        }
+
+        EV << "Testing "<< getParentModule()->gateSize("gate") << " connected gates (input)."<<endl;
+        for (int i=0; i<getParentModule()->gateSize("gate$i"); i++) {
+            EV << "gate$i["<<i <<"] = "<< getParentModule()->gate("gate$i",i)->getPreviousGate()->getOwnerModule()->par("address").longValue() << endl;
+            inPort[ getParentModule()->gate("gate$i",i)->getPreviousGate()->getOwnerModule()->par("address").longValue() - 100] = i;
+        }
+
+
+        // Parse the routing file
+        const char *filename = par("trafficFile");
+        std::ifstream infile;
+        infile.open(filename);
+        EV << "Loading data from " << filename << endl;
+        if (!infile.is_open())
+            opp_error("Error opening routing table file `%s'", filename);
+
+        // Parse input file and obtain the traffic matrix
+        std::string line;
+        std::vector<double> tmp;
+        std::map<int, int> tmpOT;
+        std::map<int, CplexRouteEntry *> tmpa;
+        while (getline(infile, line)) {
+
+
+            // Because of unix line end notation..
+            if (!line.empty() && line[line.size() - 1] == '\r')
+                line.erase(line.size() - 1);
+
+            // Parse line
+            tmp = cStringTokenizer(line.c_str(), ";").asDoubleVector();
+            // id, s,d,li,lo,wl,phi
+            //  0  1 2 3   4  5  6
+
+            // Filter only related lines
+            if( (int)tmp[1] == src or (int)tmp[3] == src or (int)tmp[4] == src ){
+
+                // 1. Find the CplexRouteEntry
+                if (tmpa.find((int) tmp[0]) == tmpa.end()){
+                    EV << " Initiating entry: " << line << endl;
+                    tmpa[ tmp[0] ] = new CplexRouteEntry(tmp[0], tmp[1], tmp[2], tmp[1]==src );
+                }
+
+                // Increase hop indicator
+                tmpa[ tmp[0] ]->addHop();
+
+                // Starting link
+                if ( tmp[1] == src and tmp[3] == src) {
+                    EV << " Starting link: "<< line << endl;
+                    tmpa[ tmp[0] ]->setOutput( outPort[ tmp[4] ], tmp[5]);
+                }
+
+                // Switching - input
+                if( tmp[1] != src and tmp[4] == src ){
+                    tmpa[ tmp[0] ]->setInput( inPort[ tmp[3] ], tmp[5]);
+                    //EV << "link from " << tmp[3] << " is " << inPort[ tmp[3] ] << endl;
+                }
+
+                // Switching - output
+                if (tmp[2] != src and tmp[3] == src) {
+                    EV << " Switching - output link: " << line <<endl;
+                    tmpa[ tmp[0] ]->setOutput( outPort[ tmp[4] ], tmp[5]);
+                    //EV << "link to " << tmp[4] << " is " << outPort[ tmp[4] ] << endl;
+                }
+
+                // This this the terminating node
+                if( tmp[2]==src and tmp[4] == src){
+                    EV << " Terminating node: "<< line << endl;
+                    tmpa[ tmp[0] ]->setInput( inPort[ tmp[3] ], tmp[5]);
+                }
+
             }
 
-            topo.calculateUnweightedSingleShortestPathsTo(dstnode);
-            cTopology::Node *node = topo.getNodeFor(getParentModule());
-
-            int ad = dstnode->getModule()->par("address").longValue();
-            OT[ad] = node->getDistanceToTarget() * d_p;
-
-            cTopology::LinkOut *path = node->getPath(0);
-            outPort[ad] = path->getLocalGate()->getIndex();
         }
+
+        // Transfer parsed lines to RoutingTable
+        for (std::map<int, CplexRouteEntry *>::iterator it=tmpa.begin(); it!=tmpa.end(); ++it){
+            EV << (*it->second).info() << endl;
+            RoutingTable.insert( it->second );
+            it->second->countOT(d_p);
+        }
+
         delete msg;
         return;
     }
@@ -62,10 +142,13 @@ void Routing::handleMessage(cMessage *msg) {
 simtime_t Routing::getOffsetTime(int destination) {
     // Check whether destination is in the network, otherwise return -1.0
     // which means drop the burst, cause such destination doesn't exist
-    if (OT.find(destination) == OT.end())
+
+    /*if (OT.find(destination) == OT.end())
         return (simtime_t) -1;
 
     return OT[destination];
+    */
+    return 10;
 }
 
 simtime_t Routing::getNetworkOffsetTime(int dst) {
@@ -78,9 +161,6 @@ simtime_t Routing::getNetworkOffsetTime(int dst) {
 int Routing::getOutputPort(int destination) {
     // Check whether destination is in the DestMap, otherwise return -1.0
     // which means drop the burst, cause such destination doesn't exist
-    if (outPort.find(destination) == outPort.end())
-        return  -1;
-
     return outPort[destination];
 }
 

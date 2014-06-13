@@ -17,6 +17,7 @@
 #define __CAROBS_ROUTING_H_
 
 #include <omnetpp.h>
+#include <CplexRouteEntry.h>
 
 /**
  *  Module which takes care of routing in network
@@ -72,8 +73,8 @@ class Routing : public cSimpleModule
     virtual bool canForwardHeader(int destination);
 
   private:
-    std::map<int, simtime_t> OT;   // First step development, later it obsoletes by cTopolog
-    std::map<int, int> outPort;
+    cQueue RoutingTable;
+    std::map<int, int> inPort, outPort;
 
     /**
      *  DestMap maps dst network address and its last node address .. DestMap[dst] = #Endnode
