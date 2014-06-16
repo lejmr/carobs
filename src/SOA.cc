@@ -154,11 +154,13 @@ void SOA::handleMessage(cMessage *msg) {
             ol->setWavelengthNo(sw->getOutLambda());
 
             // Update ot of optical layer
-            double ot= ol->par("ot").doubleValue();
-            ol->par("ot").setDoubleValue( ot - getParentModule()->par("d_p").doubleValue() );
+            simtime_t ot= ol->par("ot").doubleValue();
+            ol->par("ot").setDoubleValue( ( ot - (simtime_t)getParentModule()->par("d_p").doubleValue() ).dbl() );
 
-            if ( ot < 0 )
+            if ( ot < 0 ){
+                EV << "ERROR: OT=" << ot << endl;
                 opp_terminate("ASi tu mame smycku");
+            }
 
             // Monitor bypass into CAR section
             Car *car= (Car *)ol->getEncapsulatedPacket();
