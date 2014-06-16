@@ -132,6 +132,7 @@ void Routing::handleMessage(cMessage *msg) {
             EV << (*it->second).info() << endl;
             RoutingTable.insert( it->second );
             it->second->countOT(d_p);
+            EV << "Pocitam OT d_p="<<d_p<<" OT="<< it->second->getOT() << endl;
         }
 
         delete msg;
@@ -143,12 +144,14 @@ simtime_t Routing::getOffsetTime(int destination) {
     // Check whether destination is in the network, otherwise return -1.0
     // which means drop the burst, cause such destination doesn't exist
 
-    /*if (OT.find(destination) == OT.end())
-        return (simtime_t) -1;
+    for (cQueue::Iterator iter(RoutingTable, 0); !iter.end(); iter++){
+        CplexRouteEntry *r = (CplexRouteEntry *) iter();
+        if( 100 + r->getdest() == destination ){
+            return r->getOT();
+        }
+    }
 
-    return OT[destination];
-    */
-    return 10;
+    return (simtime_t) -1;
 }
 
 simtime_t Routing::getNetworkOffsetTime(int dst) {
