@@ -18,6 +18,11 @@
 
 #include <omnetpp.h>
 #include <CplexRouteEntry.h>
+#include <iostream>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 /**
  *  Module which takes care of routing in network
@@ -72,6 +77,12 @@ class Routing : public cSimpleModule
      */
     virtual bool canForwardHeader(int destination);
 
+    /**
+     *
+     */
+    virtual std::map<std::string, std::string> availableRoutingPaths() { Enter_Method("availableRoutingPaths"); return paths; };
+
+
   private:
     cQueue RoutingTable;
     std::map<int, int> inPort, outPort;
@@ -98,6 +109,11 @@ class Routing : public cSimpleModule
      *  Set of IDs which are terminated by this Node
      */
     std::set<int> terminatingIDs;
+
+    /**
+     * Container to store information about paths in network
+     */
+    std::map<std::string, std::string> paths;
 
 };
 

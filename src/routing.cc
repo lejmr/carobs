@@ -14,8 +14,6 @@
 // 
 
 #include "routing.h"
-#include <iostream>
-#include <fstream>
 
 Define_Module(Routing);
 
@@ -37,6 +35,7 @@ void Routing::initialize() {
 
     WATCH_MAP(inPort);
     WATCH_MAP(outPort);
+    WATCH_MAP(paths);
 }
 
 void Routing::handleMessage(cMessage *msg) {
@@ -125,14 +124,36 @@ void Routing::handleMessage(cMessage *msg) {
 
             }
 
+
+            // Pick up data for Aggregation Pool construction
+            if( tmp[1] == src ){
+
+                // Construct identifier
+                std::ostringstream _id;
+                _id << tmp[5] <<"-"<<tmp[2];
+                std::string id= _id.str();
+
+                EV << "Pickup: " << line << endl;
+                if( paths.find( id ) == paths.end() ){
+                    std::ostringstream stm ;
+                    stm << src ;
+                    paths[ id ] = stm.str()+ " ";
+                }
+
+                // Add hop
+                std::ostringstream stm;
+                stm << tmp[4];
+                paths[ id ] += stm.str()+ " ";
+            }
+
         }
+
 
         // Transfer parsed lines to RoutingTable
         for (std::map<int, CplexRouteEntry *>::iterator it=tmpa.begin(); it!=tmpa.end(); ++it){
             EV << (*it->second).info() << endl;
             RoutingTable.insert( it->second );
             it->second->countOT(d_p);
-            EV << "Pocitam OT d_p="<<d_p<<" OT="<< it->second->getOT() << endl;
         }
 
         delete msg;
