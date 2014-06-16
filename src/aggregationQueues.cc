@@ -26,6 +26,10 @@ void AggregationQueues::initialize()
     i->addPar("InitiateAggregationPools");
     scheduleAt(simTime(), i);
 
+    // Connect with routing module
+    cModule *calleeModule = getParentModule()->getSubmodule("routing");
+    R = check_and_cast<Routing *>(calleeModule);
+
     bufferLengthT = par("bufferLengthT").doubleValue();
     poolTreshold = par("poolTreshold").doubleValue();
 
@@ -43,7 +47,6 @@ void AggregationQueues::handleMessage(cMessage *msg)
 
     if( msg->hasPar("initTBSDst") and msg->isSelfMessage() ){
         EV << "Initialising the time based sending procedure for AQ "<< msg->par("initTBSDst").longValue() << endl;
-        cModule *calleeModule = getParentModule()->getSubmodule("APm");
         initialiseTimeBasedSending(msg->par("initTBSDst").longValue());
         delete msg;
         return;
@@ -60,7 +63,7 @@ void AggregationQueues::handleMessage(cMessage *msg)
 void AggregationQueues::handlePayload(cMessage *msg){
     Payload *pmsg = dynamic_cast<Payload *>(msg);
 
-    int AQdst =  100 +  pmsg->getDst(); // TODO: Need to be fixed;
+    int AQdst =  pmsg->getDst(); // TODO: Need to be fixed;
     if( AQdst == -1 ){
         EV << "Wrong paring for dst address " << pmsg->getDst() << " !!!"<<endl;
         return;
@@ -115,7 +118,7 @@ void AggregationQueues::countAggregationQueueSize(int AQId){
     AQSizeCache[AQId]=size;
 }
 
-void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag ){
+void AggregationQueues::releaseAggregationQueues( std::set<int> queues, std::string tag ){
     Enter_Method("releaseAggregationQueues()");
     std::set<int>::iterator it;
     int TSId= uniform(1e3, 1e4);
@@ -177,6 +180,52 @@ void AggregationQueues::setAggregationQueueReleaseTime( int AQid, simtime_t rele
 
 
 void AggregationQueues::initiateAggregationPools() {
+
+    EV << "** Getting information about paths in network from Routing module" << endl;
+    std::map<std::string, std::string> opaths= R->availableRoutingPaths();
+    std::map<std::string, std::vector<int> > paths;
+
+    for (std::map<std::string, std::string>::iterator iter = opaths.begin(); iter != opaths.end(); iter++) {
+        paths[ iter->first ] = cStringTokenizer( iter->second.c_str() , " ").asIntVector();
+    }
+
+    // Match paths that constitute the Aggreagion pool .. streamlined
+    for (std::map<std::string, std::vector<int> >::iterator oiter = paths.begin(); oiter != paths.end(); oiter++) {
+        std::vector<int> ost= cStringTokenizer( oiter->first.c_str(), "-").asIntVector();
+        //EV << oiter->first << ": ";
+
+        for (std::map<std::string, std::vector<int> >::iterator iter = paths.begin(); iter != paths.end(); iter++) {
+            std::vector<int> ist= cStringTokenizer( iter->first.c_str(), "-").asIntVector();
+
+            // Match paths only on the same wavelength
+            if( ost[0] != ist[0] ) continue;
+
+            // Do not compare the same paths
+            if( oiter->first == iter->first ) continue;
+
+            // iter can not be longer ten oiter
+            if( paths[oiter->first].size() <= paths[iter->first].size() ) continue;
+
+            bool match=true;
+            for(int i=0;i<paths[iter->first].size();i++){
+                if( paths[oiter->first][i] != paths[iter->first][i] ) { match=false; }
+            }
+
+            if( match) {
+                //EV << iter->first << " ";
+                if( AP_ON ) AP[ oiter->first ].insert( ist[1] );
+            }
+
+        }
+        //EV << endl;
+
+        AP[ oiter->first ].insert( ost[1] );
+
+    }
+
+
+
+/*
     cTopology EPtopo, topo;
     std::map< int, std::set<int> >::iterator it;
     EPtopo.extractByNedTypeName(cStringTokenizer("carobs.modules.PayloadInterface").asVector());
@@ -200,20 +249,21 @@ void AggregationQueues::initiateAggregationPools() {
             AP[ENaddress].insert( node->getModule()->par("address").longValue() );
         }
     }
-
+*/
     // Print Path-pools
-    std::set<int>::iterator it2;
-    for( it = AP.begin(); it != AP.end(); it++ ){
+
+    for( std::map<std::string, std::set<int> >::iterator it = AP.begin(); it != AP.end(); it++ ){
         EV << "AP["<< (*it).first <<"]:";
         std::set<int> tmp= (*it).second;
-        for ( it2=tmp.begin() ; it2 != tmp.end(); it2++ ){
+        for ( std::set<int>::iterator it2=tmp.begin() ; it2 != tmp.end(); it2++ ){
             EV << " " << *it2;
         }
         EV << endl;
     }
+
 }
 
-int64_t AggregationQueues::aggregationPoolSize(int poolId) {
+int64_t AggregationQueues::aggregationPoolSize(std::string poolId) {
     std::set<int>::iterator it;
     int64_t size = 0;
 
@@ -229,24 +279,24 @@ void AggregationQueues::initialiseTimeBasedSending(int AQId) {
     Enter_Method("initialiseTimeBasedSending()");
     EV << "AQ " << AQId << " has reached its time to be released thus";
 
-    int biggestPool = -1, biggestSize = 0, tmpSize = 0;
-    for (int i = 0; i < AP.size(); i++) {
+    std::string biggestPool = "", biggestSize = 0, tmpSize = 0;
+    for (std::map<std::string, std::set<int> >::iterator i = AP.begin(); i != AP.end(); i++) {
         // If AQId is not part of a path-pool, then is the pool skipped
-        if (AP[i].find(AQId) == AP[i].end())
+        if (AP[i->first].find(AQId) == AP[i->first].end())
             continue;
 
         // AQId is part of the pool i, so lets count current size of the buffer
         // Test whether any pool containing AQId is biggest and then schedule.
-        tmpSize = aggregationPoolSize(i);
+        tmpSize = aggregationPoolSize(i->first);
         if (tmpSize > biggestSize) {
             biggestSize = tmpSize;
-            biggestPool = i;
+            biggestPool = i->first;
         }
     }
 
     EV << "AP " << biggestPool << " is initiated" << endl;
     // Initialise sending
-    if (biggestPool >= 0 and biggestPool <= AP.size())
+    if (biggestPool != "" and AP.find(biggestPool) != AP.end() )
         releaseAggregationQueues(AP[biggestPool], biggestPool);
 }
 
@@ -255,17 +305,17 @@ void AggregationQueues::aggregationQueueNotificationInterface(int AQId) {
     int poolSize = 0;
 
     // Test all the pools managed by this module for its size
-    for (int i = 0; i < AP.size(); i++) {
+    for (std::map<std::string, std::set<int> >::iterator i = AP.begin(); i != AP.end(); i++) {
         // If AQId is not part of a path-pool, then is the pool skipped
-        if (AP[i].find(AQId) == AP[i].end())
+        if (AP[i->first].find(AQId) == AP[i->first].end())
             continue;
 
         // AQId is part of the pool i, so lets count current size of the buffer
         // Test whether any pool containing AQId is full enough to be scheduled
-        poolSize = aggregationPoolSize(i);
+        poolSize = aggregationPoolSize(i->first);
         if (poolSize >= poolTreshold) {
-            EV << "AP " << i << " has reached its limit. Will be initiated." << endl;
-            releaseAggregationQueues(AP[i], i);
+            EV << "AP " << i->first << " has reached its limit. Will be initiated." << endl;
+            releaseAggregationQueues(AP[i->first], i->first);
         }
     }
 }

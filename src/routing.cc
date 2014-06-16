@@ -124,7 +124,7 @@ void Routing::handleMessage(cMessage *msg) {
 
             }
 
-
+// TODO: Ohlidat spravne poradi nodu na ceste
             // Pick up data for Aggregation Pool construction
             if( tmp[1] == src ){
 

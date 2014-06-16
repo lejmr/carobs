@@ -17,6 +17,7 @@
 #define __CAROBS_AGGREGATIONPOOL_H_
 
 #include <omnetpp.h>
+#include <routing.h>
 #include <messages/car_m.h>
 #include "messages/Payload_m.h"
 
@@ -84,8 +85,9 @@ class AggregationQueues : public cSimpleModule
      *  AQs into pools APs such that:
      *  Pool X is defined as AP[x] = [AQ#, AQ#, ... ] where AQ#, denotes
      *  Aggregation queue for a given destination #
+     *  And x defines unique AP identifier
      */
-    std::map<int, std::set<int> > AP;
+    std::map<std::string, std::set<int> > AP;
 
     /**
      *  Function aggregationPoolSize counts size of AggregationPool.
@@ -95,7 +97,7 @@ class AggregationQueues : public cSimpleModule
      *  @param poolId - ID of pool, pools are counted from 0
      *  @return int64_t - return total sum of all buffer sizes
      */
-    virtual int64_t aggregationPoolSize(int poolId);
+    virtual int64_t aggregationPoolSize(std::string poolId);
 
     /**
      *  Size of the pool when is to be released
@@ -129,6 +131,16 @@ class AggregationQueues : public cSimpleModule
      */
     virtual void aggregationQueueNotificationInterface(int AQId);
 
+    /**
+     *  Pointer to Routing module for Offset time adjustment
+     */
+    Routing *R;
+
+    /**
+     * Enabling mechanism of aggregation pools
+     */
+    bool AP_ON = true;
+
   public:
 
     /**
@@ -147,7 +159,7 @@ class AggregationQueues : public cSimpleModule
      *  @param tag - is used for tagging of cars to let know TA which AP
      *               are these cars assigned, the tag is removed at TA
      */
-    virtual void releaseAggregationQueues( std::set<int> queues, int tag );
+    virtual void releaseAggregationQueues( std::set<int> queues, std::string tag );
 
     /**
      *  Function setAggregationQueueReleaseTime fill bufferlengthArray structure
