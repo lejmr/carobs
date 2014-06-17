@@ -123,8 +123,12 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, std::str
     std::set<int>::iterator it;
     int TSId= uniform(1e3, 1e4);
 
+    EV << "Releasing AQ: ";
+
     // Walk through all designated queues, convert them into a car and send them to TA
     for ( it=queues.begin() ; it != queues.end(); it++ ){
+
+        EV << *it << " ";
         // If designated queue is empty we can skip it
         if( AQ.find(*it) == AQ.end()) continue;
         if( AQ[*it].empty() ) continue;
@@ -167,6 +171,7 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, std::str
         // Sends car of the queue to TA
         send(car,"out$o");
     }
+    EV << endl;
 
     cMessage *snd = new cMessage();
     snd->addPar("allCarsHaveBeenSend");
@@ -277,13 +282,13 @@ int64_t AggregationQueues::aggregationPoolSize(std::string poolId) {
 
 void AggregationQueues::initialiseTimeBasedSending(int AQId) {
     Enter_Method("initialiseTimeBasedSending()");
-    EV << "AQ " << AQId << " has reached its time to be released thus";
+    EV << "AQ " << AQId << " has reached its time to be released thus ";
 
-    std::string biggestPool = "", biggestSize = 0, tmpSize = 0;
+    std::string biggestPool = "";
+    int biggestSize = 0, tmpSize = 0;
     for (std::map<std::string, std::set<int> >::iterator i = AP.begin(); i != AP.end(); i++) {
-        // If AQId is not part of a path-pool, then is the pool skipped
-        if (AP[i->first].find(AQId) == AP[i->first].end())
-            continue;
+        // Pick only the AP where AQ constructs highest load for the outgoing wavelength
+        if( i->second.find(AQId) == i->second.end() ) continue;
 
         // AQId is part of the pool i, so lets count current size of the buffer
         // Test whether any pool containing AQId is biggest and then schedule.
@@ -293,11 +298,12 @@ void AggregationQueues::initialiseTimeBasedSending(int AQId) {
             biggestPool = i->first;
         }
     }
+    EV << "AP " << biggestPool.c_str() << " is initiated" << endl;
 
-    EV << "AP " << biggestPool << " is initiated" << endl;
     // Initialise sending
     if (biggestPool != "" and AP.find(biggestPool) != AP.end() )
         releaseAggregationQueues(AP[biggestPool], biggestPool);
+
 }
 
 void AggregationQueues::aggregationQueueNotificationInterface(int AQId) {

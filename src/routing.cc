@@ -27,6 +27,7 @@ void Routing::initialize() {
 
     // Read given parameter d_p - processing time of SOAmanager
     d_p = par("d_p").doubleValue();
+    d_s = par("d_s").doubleValue();
 
     // Create watchers
     WATCH_MAP(DestMap);
@@ -153,7 +154,7 @@ void Routing::handleMessage(cMessage *msg) {
         for (std::map<int, CplexRouteEntry *>::iterator it=tmpa.begin(); it!=tmpa.end(); ++it){
             EV << (*it->second).info() << endl;
             RoutingTable.insert( it->second );
-            it->second->countOT(d_p);
+            it->second->countOT(d_p,d_s);
         }
 
         delete msg;
@@ -167,7 +168,7 @@ simtime_t Routing::getOffsetTime(int destination) {
 
     for (cQueue::Iterator iter(RoutingTable, 0); !iter.end(); iter++){
         CplexRouteEntry *r = (CplexRouteEntry *) iter();
-        if( 100 + r->getdest() == destination ){
+        if( r->getdest() == destination ){
             return r->getOT();
         }
     }

@@ -22,6 +22,7 @@ simple Routing
 {
     parameters:
         double d_p @unit(s) = default(10ms);	// Processing time of SOA Manager
+        double d_s = default(10us) @unit(s);	// Switching time of SOA Matrix
         string trafficFile;
         
     @display("i=block/network2");

@@ -47,7 +47,7 @@ class CplexRouteEntry : public cPolymorphic
     void setOutput(int port, int wl);
 
     simtime_t getOT() const {return OT_var;};
-    void countOT(simtime_t d_p);
+    void countOT(simtime_t d_p, simtime_t d_s);
 
     void addHop(){this->hops_var++;};
 };

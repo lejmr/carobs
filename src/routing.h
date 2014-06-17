@@ -103,7 +103,7 @@ class Routing : public cSimpleModule
     /**
      *  Processing time of SOA manager - it assumes d_p same for all CoreNodes
      */
-    simtime_t d_p;
+    simtime_t d_p, d_s;
 
     /**
      *  Set of IDs which are terminated by this Node

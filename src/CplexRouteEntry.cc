@@ -11,7 +11,7 @@ CplexRouteEntry::CplexRouteEntry(int pid, int s, int d, bool hops){
 	this->inLambda_var= -1;
 	this->outPort_var= -1;
 	this->outLambda_var= -1;
-	this->hops_var=-2;
+	this->hops_var=-1;
 	this->vis_hops= hops;
 }
 
@@ -27,9 +27,13 @@ void CplexRouteEntry::setOutput(int port, int wl) {
 }
 
 
-void CplexRouteEntry::countOT(simtime_t d_p) {
+void CplexRouteEntry::countOT(simtime_t d_p, simtime_t d_s) {
     OT_var = 0;
-    if( vis_hops ) OT_var= d_p * hops_var;
+
+    // There was only one routing rule .. one line, which means that destination is just next hop
+    // Then we need to provide atleast one d_p!
+    if( hops_var <= 0 ) OT_var= d_s + d_p;
+    else OT_var= d_p * hops_var + d_s;
 }
 
 
@@ -44,9 +48,9 @@ std::string CplexRouteEntry::info() const
     if( inPort_var < 0 ) out << "Emitting to ";
     if( inPort_var >= 0 ) out << inPort_var<<"#"<<inLambda_var;
 
-    if( inPort_var >= 0 and outPort_var >= 0 ) out <<  " >> ";
+    out <<  " >> ";
 
-    if( outPort_var < 0 ) out << "Terminating with ";
+    if( outPort_var < 0 ) out << "Terminating ";
     if( outPort_var >= 0 ) out << outPort_var<<"#"<<outLambda_var;
 
     if( vis_hops ) out <<" hops="<<hops_var  <<";OT="<<OT_var;
