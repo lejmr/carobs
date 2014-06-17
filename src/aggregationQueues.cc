@@ -118,7 +118,7 @@ void AggregationQueues::countAggregationQueueSize(int AQId){
     AQSizeCache[AQId]=size;
 }
 
-void AggregationQueues::releaseAggregationQueues( std::set<int> queues, std::string tag ){
+void AggregationQueues::releaseAggregationQueues( std::set<int> queues, int tag ){
     Enter_Method("releaseAggregationQueues()");
     std::set<int>::iterator it;
     int TSId= uniform(1e3, 1e4);
@@ -150,6 +150,7 @@ void AggregationQueues::releaseAggregationQueues( std::set<int> queues, std::str
             car->par("TSId").setLongValue(TSId);
             car->setBuffered( 0 );
             car->setBypass( 0 );
+            car->setLabel(tag);
         }
 
         cMessage *msg= scheduled[*it];
@@ -218,18 +219,18 @@ void AggregationQueues::initiateAggregationPools() {
 
             if( match) {
                 //EV << iter->first << " ";
-                if( AP_ON ) AP[ oiter->first ].insert( ist[1] );
+                if( AP_ON ) AP[ ost[2] ].insert( ist[1] );
             }
 
         }
         //EV << endl;
 
-        AP[ oiter->first ].insert( ost[1] );
+        AP[ ost[2] ].insert( ost[1] );
 
     }
 
     // Print Path-pools
-    for( std::map<std::string, std::set<int> >::iterator it = AP.begin(); it != AP.end(); it++ ){
+    for( std::map<int, std::set<int> >::iterator it = AP.begin(); it != AP.end(); it++ ){
         EV << "AP["<< (*it).first <<"]:";
         std::set<int> tmp= (*it).second;
         for ( std::set<int>::iterator it2=tmp.begin() ; it2 != tmp.end(); it2++ ){
@@ -240,7 +241,7 @@ void AggregationQueues::initiateAggregationPools() {
 
 }
 
-int64_t AggregationQueues::aggregationPoolSize(std::string poolId) {
+int64_t AggregationQueues::aggregationPoolSize(int poolId) {
     std::set<int>::iterator it;
     int64_t size = 0;
 
@@ -256,9 +257,9 @@ void AggregationQueues::initialiseTimeBasedSending(int AQId) {
     Enter_Method("initialiseTimeBasedSending()");
     EV << "AQ " << AQId << " has reached its time to be released thus ";
 
-    std::string biggestPool = "";
+    int biggestPool = -1;
     int biggestSize = 0, tmpSize = 0;
-    for (std::map<std::string, std::set<int> >::iterator i = AP.begin(); i != AP.end(); i++) {
+    for (std::map<int, std::set<int> >::iterator i = AP.begin(); i != AP.end(); i++) {
         // Pick only the AP where AQ constructs highest load for the outgoing wavelength
         if( i->second.find(AQId) == i->second.end() ) continue;
 
@@ -270,10 +271,10 @@ void AggregationQueues::initialiseTimeBasedSending(int AQId) {
             biggestPool = i->first;
         }
     }
-    EV << "AP " << biggestPool.c_str() << " is initiated" << endl;
+    EV << "AP " << biggestPool << " is initiated" << endl;
 
     // Initialise sending
-    if (biggestPool != "" and AP.find(biggestPool) != AP.end() )
+    if (biggestPool != -1 and AP.find(biggestPool) != AP.end() )
         releaseAggregationQueues(AP[biggestPool], biggestPool);
 
 }
@@ -283,7 +284,7 @@ void AggregationQueues::aggregationQueueNotificationInterface(int AQId) {
     int poolSize = 0;
 
     // Test all the pools managed by this module for its size
-    for (std::map<std::string, std::set<int> >::iterator i = AP.begin(); i != AP.end(); i++) {
+    for (std::map<int, std::set<int> >::iterator i = AP.begin(); i != AP.end(); i++) {
         // If AQId is not part of a path-pool, then is the pool skipped
         if (AP[i->first].find(AQId) == AP[i->first].end())
             continue;

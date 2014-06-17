@@ -21,6 +21,7 @@ class noncobject cQueue;
 
 packet Car {
     cQueue payload;
+    int label;		// Label that defines the path which is taken
     int buffered;	// Keeps information about the number of buffering the car undergoes on the way
     int bypass;	// Keeps information about the number of bypass the car undergoes on the way
 }

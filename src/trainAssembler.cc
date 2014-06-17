@@ -38,6 +38,7 @@ void TrainAssembler::initialize() {
 
     // Structure watchers in TK
     WATCH_MAP(schedulerCAR);
+    WATCH_MAP(tsid_label);
 }
 
 void TrainAssembler::handleMessage(cMessage *msg) {
@@ -46,6 +47,8 @@ void TrainAssembler::handleMessage(cMessage *msg) {
         Car *tcar = dynamic_cast<Car *>(msg);
         int TSId = msg->par("TSId").longValue();
         int AQ = msg->par("AQ").longValue();
+        int label= tcar->getLabel();
+        tsid_label[TSId] = label;
 
         EV << "A new car has arrived" << " with random ID=" << TSId << " and AQ=" << AQ;
 
@@ -127,6 +130,7 @@ void TrainAssembler::prepareTrain(int TSId) {
     H->setOT(OT);
     H->setN(N);
     H->setLength(len);
+    H->setLabel( tsid_label[TSId] );
 
     // Car section
     for (int i = 0; i < dst.size(); i++) {
@@ -163,6 +167,9 @@ void TrainAssembler::prepareTrain(int TSId) {
 
     // Sending MAC Packet to MAC controller which will take care of sending
     send(MAC, "out");
+
+    // Clean temporary data
+    tsid_label.erase(TSId);
 }
 
 // Think about std::sort instead of this hand-made function

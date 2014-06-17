@@ -131,7 +131,7 @@ void Routing::handleMessage(cMessage *msg) {
 
                 // Construct identifier
                 std::ostringstream _id;
-                _id << tmp[5] <<"-"<<tmp[2];
+                _id << tmp[5] <<"-"<<tmp[2]<<"-"<<tmp[0];
                 std::string id= _id.str();
 
                 EV << "Pickup: " << line << endl;

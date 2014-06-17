@@ -35,6 +35,7 @@ class TrainAssembler : public cSimpleModule
 
   private:
     std::map<int, cQueue> schedulerCAR;
+    std::map<int, int> tsid_label;
 
     /**
      *  Pointer to Routing module for Offset time adjustment

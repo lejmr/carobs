@@ -17,6 +17,7 @@ class noncobject cQueue;
 
 packet CAROBSHeader {
 	// Train Section
+	int label;		// Label that defines the path which is taken
 	int dst;
 	simtime_t OT;
 	int WL;

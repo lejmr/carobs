@@ -87,7 +87,7 @@ class AggregationQueues : public cSimpleModule
      *  Aggregation queue for a given destination #
      *  And x defines unique AP identifier
      */
-    std::map<std::string, std::set<int> > AP;
+    std::map<int, std::set<int> > AP;
 
     /**
      *  Function aggregationPoolSize counts size of AggregationPool.
@@ -97,7 +97,7 @@ class AggregationQueues : public cSimpleModule
      *  @param poolId - ID of pool, pools are counted from 0
      *  @return int64_t - return total sum of all buffer sizes
      */
-    virtual int64_t aggregationPoolSize(std::string poolId);
+    virtual int64_t aggregationPoolSize(int poolId);
 
     /**
      *  Size of the pool when is to be released
@@ -159,7 +159,7 @@ class AggregationQueues : public cSimpleModule
      *  @param tag - is used for tagging of cars to let know TA which AP
      *               are these cars assigned, the tag is removed at TA
      */
-    virtual void releaseAggregationQueues( std::set<int> queues, std::string tag );
+    virtual void releaseAggregationQueues( std::set<int> queues, int tag );
 
     /**
      *  Function setAggregationQueueReleaseTime fill bufferlengthArray structure

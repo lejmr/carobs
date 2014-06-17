@@ -179,7 +179,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     cQueue cars = H->getCars();
 
     // Car train reached its termination Node -> Disaggregation
-    if (H->getDst() == address) {
+    if (H->getDst() + 100 == address) {
         cQueue::Iterator iter(cars,0);
         CAROBSCarHeader *first_car = (CAROBSCarHeader *) iter();
         SOAEntry *se = new SOAEntry(inPort, inWl, false);
@@ -215,7 +215,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
             longest_burst_length= tmpc->getSize()*8;
         }
 
-        if (tmpc->getDst() == address) {
+        if (tmpc->getDst() + 100 == address) {
             EV << " - disaggregate";
             NoToDis = i;
             dissaggregation=true;
@@ -273,6 +273,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // 2nd half of the burst train
     int outPort = R->getOutputPort(dst);
 
+    // TODO: Rozhodnuti dne, zda pujdu s labelem nebo budu matchovat?
     // Assign this SOAEntry to SOA
     SOAEntry *sef = getOptimalOutput(outPort, inPort, inWl, train_start, train_stop, longest_burst_length);
     EV << " Switching: " << sef->info() << endl;
