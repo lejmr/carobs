@@ -80,6 +80,11 @@ class Routing : public cSimpleModule
     /**
      *
      */
+    virtual CplexRouteEntry getRoutingEntry(int label);
+
+    /**
+     *
+     */
     virtual std::map<std::string, std::string> availableRoutingPaths() { Enter_Method("availableRoutingPaths"); return paths; };
 
 

@@ -36,6 +36,7 @@ class CplexRouteEntry : public cPolymorphic
     //virtual const char *getName () const;
 
     // field getter/setter methods
+    int getLabel() const {return path_id_var;};
     int getSource() const {return source_var;};
     int getdest() const {return dest_var;};
     int getInPort() const {return inPort_var;};

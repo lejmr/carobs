@@ -270,12 +270,9 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         H->setLength( H->getLength()-shift );   // Length of the train
     }
 
-    // 2nd half of the burst train
-    int outPort = R->getOutputPort(dst);
 
-    // TODO: Rozhodnuti dne, zda pujdu s labelem nebo budu matchovat?
     // Assign this SOAEntry to SOA
-    SOAEntry *sef = getOptimalOutput(outPort, inPort, inWl, train_start, train_stop, longest_burst_length);
+    SOAEntry *sef = getOptimalOutput(H->getLabel(), inPort, inWl, train_start, train_stop, longest_burst_length);
     EV << " Switching: " << sef->info() << endl;
 
     // sef==NULL happens only if the buffering is turned off
@@ -330,6 +327,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // Test whether this is last CoreNode on the path is so CAROBS Header is not passed towards
     if (R->canForwardHeader(H->getDst())) {
         // Resending CAROBS Header to next CoreNode
+        int outPort= R->getRoutingEntry( H->getLabel() ).getOutPort();
         sendDelayed(ol, d_p+DELAY_extra, "control$o", outPort);
     }else
         delete msg;
@@ -351,10 +349,10 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
     int dst = H->getDst();
 
     // Resolving output port
-    int outPort = R->getOutputPort(dst);
+    int outPort = R->getRoutingEntry( H->getLabel() ).getOutPort();
 
     // Assign this SOAEntry to SOA
-    SOAEntry *se = getOptimalOutput(outPort, inPort, inWl, simTime() + H->getOT(), simTime() + H->getOT() + H->getLength());
+    SOAEntry *se = getOptimalOutput(H->getLabel(), inPort, inWl, simTime() + H->getOT(), simTime() + H->getOT() + H->getLength());
     EV << " Switching: " << se->info() << endl;
 
     // se==NULL happens only if the buffering is turned off
@@ -433,49 +431,41 @@ void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, 
         SECRATIO.record((double) buffering / contenting);
 }
 
-SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop, int length) {
-    EV << "Get scheduling for " << inPort << "#" << inWL << " to port="
-              << outPort << " for:" << start << "-" << stop;
+SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_t start, simtime_t stop, int length) {
+    EV << "Get scheduling for " << inPort << "#" << inWL << " label="
+              << label << " for:" << start << "-" << stop;
 
-    if (scheduling.length() == 0) {
-        // Fast forward - if there is no scheduling .. do bypas
-        SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
-        e->setStart(start);
-        e->setStop(stop);
+    CplexRouteEntry r= R->getRoutingEntry(label);
+    int outPort= r.getOutPort();
 
-        // And add it to scheduling table
-        addSwitchingTableEntry(e);
-        EV << " outWL=" << inWL << endl;
-        return e;
-    }
+    EV << endl;
+    EV << "Using: " << r.info();
 
-    // Test output combination
-    if (testOutputCombination(outPort, inWL, start, stop)) {
-        // There is no blocking of output port at a  given time
-        SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
-        e->setStart(start);
-        e->setStop(stop);
-        // And add it to scheduling table
-        addSwitchingTableEntry(e);
-        EV << " outWL=" << inWL << endl;
-        return e;
-    }
+    EV << " Sched len="<<scheduling.length();
 
-    if (WC) {
-        /* Perform wavelength conversion */
-        // FIFO approach
-        for (int i = 1; i <= maxWL; i++) {
-            if (testOutputCombination(outPort, i, start, stop)) {
-                // Wavelength i is free at the given time, we can use it
-                SOAEntry *e = new SOAEntry(inPort, inWL, outPort, i);
-                e->setStart(start);
-                e->setStop(stop);
-                // And add it to scheduling table
-                addSwitchingTableEntry(e);
-                EV << " WC->outWL=" << i << endl;
-                return e;
-            }
+    if( inWL == r.getOutLambda() ){
+
+        if ( scheduling.length() == 0 or
+             testOutputCombination(outPort, r.getOutLambda(), start, stop) ) {
+
+            // Output port#wavelength can be used withoud bufferinf
+            SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
+            e->setStart(start);
+            e->setStop(stop);
+            // And add it to scheduling table
+            addSwitchingTableEntry(e);
+            EV << " outWL=" << inWL << endl;
+            return e;
         }
+
+        // Buffering is necessary !!!
+        // 1. Test other wavelength or buffering
+
+
+    }else{
+
+        // Not permited so far
+
     }
 
 
@@ -486,79 +476,59 @@ SOAEntry* SOAManager::getOptimalOutput(int outPort, int inPort, int inWL, simtim
     }
 
     /**
-     *  This part is reached because of full usage of all lambdas in the outPort.
-     *  So the approach here is to find output combination with delayed time such
-     *  that the delay is minimal. Car-train is meanwhile stored in MAC buffers
-     *  Solution:
-     *      1. Try to find least output time for given WL
-     *      2. If WC is enabled find the least output time at any WL
-     *          1. If enabled the result can be dropped if it was to expensive ..
-     *             through configuration of simulation
-     */
+     *
+     * Burst train could not be switched without buffering .. so lets find the minimal buf. time
+     *
+     **/
 
     // Minum time the burst must stay in buffer .. it is approximation of limit conversio speed
     double min_buffer= convPerformance*(double)length;
     EV << " Min buffer> "<< min_buffer << endl;
 
-    // SOAEntry mapping for sorting
-    std::map<int, simtime_t> waiting;
-    std::map<int, simtime_t>::iterator it_waiting;
-    std::map<int, std::vector<SOAEntry *> > mapa;
-    std::map<int, std::vector<SOAEntry *> >::iterator it2;
-    std::set<int> free_wl;
-    for (int i = 1; i <= maxWL; i++) free_wl.insert(i);
-    std::set<int>::iterator wlit;
-
+    // Select only scheduling relevant for given path
+    std::vector<SOAEntry *> label_sched;
     for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
-            SOAEntry *tmp = (SOAEntry *) iter();
-            mapa[ tmp->getOutLambda() ].push_back( tmp);
+        SOAEntry *tmp = (SOAEntry *) iter();
+        if( tmp->getOutLambda() != r.getOutLambda() ) continue;
+        label_sched.push_back(tmp);
     }
 
-    // Sorting function and finding a space
-    for (it2=mapa.begin(); it2!=mapa.end(); ++it2){
-        //EV << it2->first << " => " << endl;
-        //for (std::vector<SOAEntry *>::iterator itv = (it2->second).begin() ; itv != (it2->second).end(); ++itv)
-        //    EV << " " << (*itv)->info();
-        //EV << endl;
+    // Sort them
+    std::sort( label_sched.begin(), label_sched.end(), myfunction);
 
-        // Soting
-        std::sort ((it2->second).begin(), (it2->second).end(), myfunction);
+    // Lets find a space between them or LIFO
+    bool fits=false;
+    simtime_t BT;
+    for(int i=1;i<label_sched.size();i++){
 
-        // Finding of an useful space
-        std::vector<SOAEntry *>::iterator itv = (it2->second).begin();
-        simtime_t tmp_start=  (*itv)->getStart();
-        simtime_t tmp_stop=  (*itv)->getStop();
-        int tmp_wl= (*itv)->getOutLambda();
-        bool space_found= false;
-        for (itv = (it2->second).begin() ; itv != (it2->second).end(); ++itv){
-            simtime_t t_space= (*itv)->getStart() - tmp_stop - 2*d_s;
-            simtime_t t_ot = tmp_stop - start;
+        // Avoid not valid lines
+        if( label_sched[i-1]->getStop() > start ) continue;
 
-            if( t_ot >= min_buffer and t_space >= (stop-start) ){
-                waiting[tmp_wl]=t_ot;
-                space_found= true;
-            }
+        // Count the space between two schedulings
+        simtime_t delta= label_sched[i]->getStart() - label_sched[i-1]->getStop() - 2*d_s;
 
-            // Next round
-            simtime_t tmp_start= (*itv)->getStart();
-            simtime_t tmp_stop=  (*itv)->getStop();
+        // Is the space big enought?
+        if( delta >= (stop-start) ){
+            // Space was found .. lets use it!!!
+            fits=true;
+            BT= label_sched[i-1]->getStop() - start;
+            break;
         }
 
-        // There was no space so simply append
-        if( ! space_found ){
-            waiting[tmp_wl]= tmp_stop - start;
-        }
     }
 
-    int outWL= inWL;
-    simtime_t BT = 1e6;
-    for (it_waiting = waiting.begin(); it_waiting != waiting.end(); ++it_waiting) {
-        EV << " WL#" << it_waiting->first << " .. " << it_waiting->second << endl;
-        if( it_waiting->second < BT ){
-            BT= it_waiting->second;
-            outWL= it_waiting->first;
+    if(!fits){
+        // Lets go with LIFO
+        //BT= label_sched[ label_sched.size()-1 ]->getStop() - start;
+        EV << "Delka> "<< label_sched.size() << endl;
+        for(int i=0;i<label_sched.size();i++){
+            EV << i << " - " << label_sched[i] << endl;
         }
+        BT=1e6;
     }
+
+    // We will follow the routing
+    int outWL= r.getOutLambda();
 
     // Dont forget about inter burst space
     BT += d_s;

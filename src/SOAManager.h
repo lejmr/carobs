@@ -90,7 +90,7 @@ class SOAManager : public cSimpleModule
      *  if function returns -1 -1 -1 -1 it means there is no affordable output\
      *  so the burst must be either stored in memory or dropped
      */
-    virtual SOAEntry* getOptimalOutput(int outPort, int inPort, int inWL, simtime_t start, simtime_t stop, int length=0);
+    virtual SOAEntry* getOptimalOutput(int label, int inPort, int inWL, simtime_t start, simtime_t stop, int length=0);
 
     /**
      *  Function testOutputCombination test whether combination of outPort and outWL at given time

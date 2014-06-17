@@ -221,3 +221,17 @@ void Routing::sourceAddressUpdate(int min, int max){
     Enter_Method("sourceAddressUpdate");
     for (int j = min; j <= max; j++) terminatingIDs.insert(j);
 }
+
+
+CplexRouteEntry Routing::getRoutingEntry(int label){
+    Enter_Method("getRoutingEntry");
+
+    for (cQueue::Iterator iter(RoutingTable, 0); !iter.end(); iter++) {
+        CplexRouteEntry *r = (CplexRouteEntry *) iter();
+        if (r->getLabel() == label) {
+            return *r;
+        }
+    }
+
+    opp_terminate("!!! No routing for requested label!!! ");
+}
