@@ -39,6 +39,13 @@ void Routing::initialize() {
     WATCH_MAP(paths);
 }
 
+bool cache_sort (std::string i,std::string j) {
+    std::vector<int> left= cStringTokenizer(i.c_str(),"-").asIntVector();
+    std::vector<int> right= cStringTokenizer(j.c_str(),"-").asIntVector();
+
+    return i[1] != j[0];
+}
+
 void Routing::handleMessage(cMessage *msg) {
 
     if (msg->isSelfMessage() and msg->hasPar("PortAndOtDiscovery")) {
@@ -74,6 +81,7 @@ void Routing::handleMessage(cMessage *msg) {
         std::vector<double> tmp;
         std::map<int, int> tmpOT;
         std::map<int, CplexRouteEntry *> tmpa;
+        std::set<int> paths_to_check;
         while (getline(infile, line)) {
 
 
@@ -88,6 +96,9 @@ void Routing::handleMessage(cMessage *msg) {
 
             // Filter only related lines
             if( (int)tmp[1] == src or (int)tmp[3] == src or (int)tmp[4] == src ){
+
+                // Save for path check
+                if( tmp[1] == src ) paths_to_check.insert( tmp[0] );
 
                 // 1. Find the CplexRouteEntry
                 if (tmpa.find((int) tmp[0]) == tmpa.end()){
@@ -125,26 +136,67 @@ void Routing::handleMessage(cMessage *msg) {
 
             }
 
-// TODO: Ohlidat spravne poradi nodu na ceste
-            // Pick up data for Aggregation Pool construction
-            if( tmp[1] == src ){
+        }
 
-                // Construct identifier
-                std::ostringstream _id;
-                _id << tmp[5] <<"-"<<tmp[2]<<"-"<<tmp[0];
-                std::string id= _id.str();
+        // Ordered routing file reading
+        infile.close();
+        for(std::set<int>::iterator it=paths_to_check.begin();it!=paths_to_check.end();it++){
+            /* Every loop focuses on different path_id .. label */
 
-                EV << "Pickup: " << line << endl;
-                if( paths.find( id ) == paths.end() ){
-                    std::ostringstream stm ;
-                    stm << src ;
-                    paths[ id ] = stm.str()+ " ";
+            // Open and read file again
+            std::ifstream infile;
+            infile.open(filename);
+            std::string APname;
+            std::vector< std::string > cache, scache;
+            while (getline(infile, line)) {
+
+                // Because of unix line end notation..
+                if (!line.empty() && line[line.size() - 1] == '\r')
+                    line.erase(line.size() - 1);
+
+                // Parse line
+                tmp = cStringTokenizer(line.c_str(), ";").asDoubleVector();
+
+                // Filter important one
+                if( tmp[0] != *it ) continue;
+
+                // Zpracuji
+                std::ostringstream _id, _id2;
+                _id << tmp[3] <<"-"<<tmp[4];
+                cache.push_back( _id.str() );
+
+                // Construct AP identifier
+                _id2 << tmp[5] << "-" << tmp[2] << "-" << tmp[0];
+                APname = _id2.str();
+            }
+            infile.close();
+
+            // Sort links that are related to the path
+            int tsrc=src;
+            while( cache.size() > scache.size() ){
+                for (std::vector<std::string>::iterator i = cache.begin(); i != cache.end(); ++i) {
+                    if( i == cache.end()) continue;
+                    std::vector<int> l= cStringTokenizer( (*i).c_str(), "-").asIntVector();
+                    if( l[0] == tsrc ){
+                        scache.push_back(*i);
+                        tsrc= l[1];
+                    }
                 }
+            }
 
-                // Add hop
+            // Convert the sorted cache to the line of nodes on path
+            // Opening node
+            if (paths.find(APname) == paths.end()) {
                 std::ostringstream stm;
-                stm << tmp[4];
-                paths[ id ] += stm.str()+ " ";
+                stm << src;
+                paths[APname] = stm.str() + " ";
+            }
+            // All the other nodes
+            for (std::vector<std::string>::iterator i = scache.begin(); i != scache.end(); i++) {
+                std::vector<int> l = cStringTokenizer((*i).c_str(), "-").asIntVector();
+                std::ostringstream stm;
+                stm << l[1];
+                paths[APname] += stm.str() + " ";
             }
 
         }
@@ -161,6 +213,7 @@ void Routing::handleMessage(cMessage *msg) {
         return;
     }
 }
+
 
 simtime_t Routing::getOffsetTime(int destination) {
     // Check whether destination is in the network, otherwise return -1.0

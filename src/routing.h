@@ -23,6 +23,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>    // std::sort
 
 /**
  *  Module which takes care of routing in network
