@@ -190,7 +190,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     // Obtain waiting and wavelength
     int WL = 0;
     int outPort=0;
-    simtime_t t0 = SM->getAggregationWaitingTime(dst, H->getOT(), H->getLength(), WL, outPort);
+    simtime_t t0 = SM->getAggregationWaitingTime(H->getLabel(), H->getOT(), H->getLength(), WL, outPort);
 
     if( outPort < 0 ){
         EV << "Unable to find output path" << endl;

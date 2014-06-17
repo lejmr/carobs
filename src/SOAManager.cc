@@ -675,205 +675,30 @@ void SOAManager::addSwitchingTableEntry(SOAEntry *e){
 }
 
 
-simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, simtime_t len, int &WL, int &outPort) {
+simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, int &WL, int &outPort) {
     Enter_Method("getAggregationWaitingTime()");
 
-    // Find the output gate
-    outPort = R->getOutputPort(destination);
-    EV << "Asking for destination=" << destination << " through port=" << outPort;
-    EV << " with OT="<<OT<<" len="<<len;
+    // Basic info
+    EV << "Asking for path=" << label << " with OT="<<OT<<" len="<<len;
 
-    if (scheduling.length() == 0) {
-        // Fast forward - if there is no scheduling .. do bypas
-        WL= 1;
-        if( !fifo ) WL = (int)uniform(1,maxWL+1);
-        SOAEntry *se = new SOAEntry(outPort, WL, true);
-        se->setStart(simTime() + OT);
-        se->setStop(simTime() + OT + len);
-        soa->assignSwitchingTableEntry(se, OT - d_s, len);
-        addSwitchingTableEntry(se);
+    // Get path information
+    CplexRouteEntry r= R->getRoutingEntry(label);
+    outPort= r.getOutPort();
+    WL= r.getOutLambda();
+    EV << " outPort="<<outPort;
 
-        // Full-fill output text
-        EV << "#" << WL << " without waiting" << endl;
-        return 0.0;
-    }
-
-    // SOAEntry mapping for sorting
-    std::map<int, simtime_t> agg;
-    std::map<int, simtime_t>::iterator it_agg;
-    std::map<int, std::vector<SOAEntry *> > mapa;
-    std::map<int, std::vector<SOAEntry *> >::iterator it2;
-    std::set<int> free_wl;
-    for (int i = 1; i <= maxWL; i++) free_wl.insert(i);
-    std::set<int>::iterator wlit;
-
-    for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
-            SOAEntry *tmp = (SOAEntry *) iter();
-            mapa[ tmp->getOutLambda() ].push_back( tmp);
-    }
-
-    // Sorting function
-    for (it2=mapa.begin(); it2!=mapa.end(); ++it2){
-        /*EV << it2->first << " => " << endl;
-        for (std::vector<SOAEntry *>::iterator itv = (it2->second).begin() ; itv != (it2->second).end(); ++itv)
-            EV << " " << (*itv)->info();
-        EV << endl; */
-
-        // Soting
-        std::sort ((it2->second).begin(), (it2->second).end(), myfunction);
-
-        // Finding of an useful space
-        std::vector<SOAEntry *>::iterator itv = (it2->second).begin();
-        simtime_t tmp_start=  (*itv)->getStart();
-        simtime_t tmp_stop=  (*itv)->getStop();
-        int tmp_wl= (*itv)->getOutLambda();
-        bool space_found= false;
-        for (itv = (it2->second).begin() ; itv != (it2->second).end(); ++itv){
-            simtime_t t_space= (*itv)->getStart() - tmp_stop - 2*d_s;
-            simtime_t t_ot = tmp_stop - simTime();
-
-            if( t_ot>= OT and t_space >= len ){
-                agg[tmp_wl]=t_ot;
-                space_found= true;
-                break;
-            }
-
-            // Next round
-            simtime_t tmp_start= (*itv)->getStart();
-            simtime_t tmp_stop=  (*itv)->getStop();
-        }
-
-        // There was no space so simply append
-        if( ! space_found ){
-            agg[tmp_wl]= tmp_stop - simTime();
-        }
-
-        // Erase this wavelength from set of free ones
-        if( free_wl.find( tmp_wl  ) != free_wl.end() )
-            free_wl.erase( tmp_wl );
-    }
-
-    if( free_wl.size() > 0 ){
-        // There are some free wavelength that can be used for allocation
-        WL= 0;
-        if( !fifo ) WL = (int)uniform(0,free_wl.size());
-        wlit= free_wl.begin();
-        std::advance( wlit, WL );
-        WL= *wlit;
-
-        SOAEntry *se = new SOAEntry(outPort, WL, true);
-        se->setStart(simTime() + OT);
-        se->setStop(simTime() + OT + len);
-        soa->assignSwitchingTableEntry(se, OT - d_s, len);
-        addSwitchingTableEntry(se);
-
-        // Full-fill output text
-        EV << "#" << WL << " without waiting" << endl;
-        return 0.0;
-    }
-
-    // Find closest space
-    simtime_t shortest= 1e6;
-    for (it_agg=agg.begin(); it_agg!=agg.end(); ++it_agg){
-        if( shortest > it_agg->second ){
-            shortest= (it_agg->second);
-            WL= it_agg->first;
-        }
-    }
-
-    //EV << "Volim WL " << WL << " s cekanim "<< shortest-OT << endl;
-
-    simtime_t waiting= (shortest-OT<0)?0:shortest-OT+d_s;
-
-    SOAEntry *sew = new SOAEntry(outPort, WL, true);
-    sew->setStart(simTime() + OT + waiting);
-    sew->setStop(simTime() + OT + len + waiting);
-    soa->assignSwitchingTableEntry(sew, waiting + OT - d_s, len);
-    addSwitchingTableEntry(sew);
-
-    // Full-fill output text
-    EV << "#" << WL << " with waiting "<< waiting << endl;
-    return waiting;
-
-
-
-    /*
-    EV << "Setridene" << endl;
-    for (it2 = mapa.begin(); it2 != mapa.end(); ++it2) {
-        EV << it2->first << " => ";
-        for (std::vector<SOAEntry *>::iterator itv = (it2->second).begin();
-                itv != (it2->second).end(); ++itv)
-            EV << " " << (*itv)->info();
-        EV << endl;
-    }
-    */
-
-
-    // Make a map of spaces for all WLs
-    std::map<int, simtime_t> fitting;
-    for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
+    // Select only scheduling relevant for given path
+    std::vector<SOAEntry *> label_sched;
+    for (cQueue::Iterator iter(splitTable[outPort], 0); !iter.end(); iter++) {
         SOAEntry *tmp = (SOAEntry *) iter();
-
-        // Gather spaces before a burst is comming on a WL
-        simtime_t fitTime = tmp->getStart() - simTime();
-        if (fitting.find(tmp->getOutLambda()) == fitting.end()) {
-            // Empty, lets assign it
-            fitting[tmp->getOutLambda()] = fitTime;
-            if (fitTime < 0)
-                fitting[tmp->getOutLambda()] = 0;
-            continue;
-        }
-
-        // Update outputWL timing if it is not up-to-date
-        if (fitting[tmp->getOutLambda()] > fitTime) {
-            fitting[tmp->getOutLambda()] = fitTime;
-            if (fitTime < 0)
-                fitting[tmp->getOutLambda()] = 0;
-        }
+        if (tmp->getOutLambda() != WL) continue;
+        label_sched.push_back(tmp);
     }
 
-    //    // Prints out list of wavelengths and its leading space
-    //    // (time space before a burst caused by dissagreageted burst)
-    //    EV << "leading spaces::" << endl;
-    //    std::map<int, simtime_t>::iterator it;
-    //    for(it=fitting.begin(); it!=fitting.end();it++){
-    //        EV << "** WL "<<it->first<<" space="<< it->second << endl;
-    //    }
+    // Check length of vector
+    if( label_sched.size() == 0 ){
 
-    /* Random approach for aggreagation through MAC */
-    std::set<int> freeWLs;
-    std::set<int>::iterator it = freeWLs.begin();
-
-    // Map of used and unsed WLs
-    for (int i = 1; i <= maxWL; i++)
-        if (fitting.find(i) == fitting.end()) {
-            freeWLs.insert(i);
-            EV << i << " ";
-        }
-
-    // Test whether there are some unused WLs
-    if (freeWLs.size() > 0) {
-        it = freeWLs.begin();
-
-
-        if (fifo) {
-            // First unused wavelength is used
-            do{
-                WL = *it++;
-                // FIFO but also test if it is really empty
-            } while (!testOutputCombination(outPort,WL,simTime()+OT, simTime()+OT+len) );
-
-        } else {
-            // Randomly generate and test the generated WL
-            do {
-                int i = uniform(0, freeWLs.size());
-                std::advance(it, i);
-                WL = *it;
-            } while (!testOutputCombination(outPort,WL,simTime()+OT, simTime()+OT+len) );
-
-        }
-
-        // Create scheduling entry and assign it to the SOA
+        // Create aggreagation entry, that can be used right now!
         SOAEntry *se = new SOAEntry(outPort, WL, true);
         se->setStart(simTime() + OT);
         se->setStop(simTime() + OT + len);
@@ -883,101 +708,57 @@ simtime_t SOAManager::getAggregationWaitingTime(int destination, simtime_t OT, s
         // Full-fill output text
         EV << "#" << WL << " without waiting" << endl;
         return 0.0;
-    }
 
-    /*
-     * GROOMING .. using the time of disaggregated car
-     * Find WL that can accommodate CAR train in space which was created by car disaggregation
-     */
-    simtime_t t0 = 0;
-    bool fitted=false;
-    for(int i=1;i<=maxWL;i++){
-        if( fitting[i] >= OT+len+2*d_s and
-            testOutputCombination(outPort, WL, simTime()+OT, simTime()+OT+len)){
-            WL=i;
-            fitted=true;
-            EV << " - fitting "<< outPort;
-            break;
-        }
-    }
+    }else{
 
-//    //Print scheduling of designated wavelength
-//    EV << "DEBUG WL:" << endl;
-//    for (int i = 0; i < scheduling.size(); i++) {
-//            if( scheduling[i] == NULL ) { continue;}
-//            SOAEntry *tmp = (SOAEntry *) scheduling[i];
-//            // Do the find only for One output port OutPort
-//            if (tmp->getOutPort() == outPort and tmp->getOutLambda() == WL) {
-//                EV << "-- "<<tmp->info()<< " space="<< tmp->getStart()-simTime() <<endl;
-//            }
-//    }
+        // Sort schedulers related to the output port and wavelength
+        std::sort(label_sched.begin(), label_sched.end(), myfunction);
 
-    /* If there is no space for fitting cars must be appended */
-    if (not fitted) {
-        // Procedure of find less waiting egress port
-        std::map<int, simtime_t> times;
-        // table row: outputPort & outputWL -> time the outputWL is ready to be used again
-        for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
-            SOAEntry *tmp = (SOAEntry *) iter();
+        // Find space or LIFO
+        for (int i = 1; i < label_sched.size(); i++) {
 
-            // Do the find only for One output port OutPort
-            // test whether table times contains such outputWL .. unless fix it
-            simtime_t waitTime = tmp->getStop() - simTime();
-            if (times.find(tmp->getOutLambda()) == times.end()) {
-                // Empty, lets assign it
-                times[tmp->getOutLambda()] = waitTime;
-                continue;
+            // The end of i-1 scheduling is too soon
+            if( label_sched[i - 1]->getStop() - simTime() < OT ) continue;
+
+            // Count the space between two scheduling
+            simtime_t delta = label_sched[i]->getStart() - label_sched[i - 1]->getStop() - 2 * d_s;
+
+            // Is the space big enought?
+            if (delta >= len) {
+
+                // Space was found .. lets use it!!!
+                simtime_t waiting = label_sched[i - 1]->getStop() - simTime();
+                SOAEntry *sew = new SOAEntry(outPort, WL, true);
+                sew->setStart(simTime() + OT + waiting);
+                sew->setStop(simTime() + OT + len + waiting);
+                soa->assignSwitchingTableEntry(sew, waiting + OT - d_s, len);
+                addSwitchingTableEntry(sew);
+
+                // Full-fill output text
+                EV << "#" << WL << " with waiting " << waiting << endl;
+                return waiting;
             }
 
-            // Update outputWL timing if it is not up-to-date
-            if (times[tmp->getOutLambda()] < waitTime) {
-                times[tmp->getOutLambda()] = waitTime;
-            }
         }
 
-        // Append approach
-        simtime_t waiting = 1e6; // just a really high number
-        for (int i = 1; i <= maxWL; i++) {
-            // We have found unused wavelength.. lets use it!!!
-            if (times.find(i) == times.end()) {
-                WL = i;
-                t0 = 0;
-                break;
-            }
+        // So it is going to be LIFO ..
+        simtime_t waiting = label_sched[ label_sched.size()-1 ]->getStop() - simTime();
+        if( waiting - OT < 0 ) waiting=0.0;
 
-            // If the WL is blocked now but wont be blocked at the time of car arrival
-            if (times[i] < OT) {
-                t0 = 0;
-                WL = i;
-                //TODO: Mel by zde byt asi break
-                break;
-            }
+        // Entry itself
+        SOAEntry *sew = new SOAEntry(outPort, WL, true);
+        sew->setStart(simTime() + OT + waiting);
+        sew->setStop(simTime() + OT + len + waiting);
+        soa->assignSwitchingTableEntry(sew, waiting + OT - d_s, len);
+        addSwitchingTableEntry(sew);
 
-            // If the WL is blocked now but wont be blocked at the time of cat arrival
-            if (times[i] - OT >= 0 and times[i] < waiting) {
-                WL = i;
-                waiting = times[i];
-                t0 = waiting - OT;
-            }
-        }
-
+        // Return the waiting entry
+        EV << "#" << WL << " with waiting " << waiting << endl;
+        return waiting;
     }
 
-    // The necessary offset between two bursts
-    t0= t0 + d_s;
 
-    // Full-fill output text
-    EV << "#" << WL << " with waiting=" << t0 << endl;
-
-    // Create
-    SOAEntry *se = new SOAEntry(outPort, WL, true);
-    se->setStart(simTime()+t0+OT);
-    se->setStop( simTime()+t0+OT+len);
-    soa->assignSwitchingTableEntry(se,t0+OT-d_s, len);
-    addSwitchingTableEntry(se);
-
-    // Inform MAC how log mus wait before sending CAROBS Header and Cars after OT respectively
-    return t0;
+    opp_terminate("!!! Wrong aggregation scheduling !!!");
 }
 
 void SOAManager::finish(){

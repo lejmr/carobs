@@ -205,12 +205,12 @@ class SOAManager : public cSimpleModule
     /**
      *   Function getAggregationWaitingTime return waiting time of burst train such that
      *   SOA is not blocked by any other burst train
-     *   @param destination : Information about final distination of Car train
+     *   @param label : Label of selected path
      *   @param simtime_t:  Offset time betwean CAROBS header and Car train
      *   @param wl: pointer on WL variable which is to be used as wavelength
      *   @return    : Least waiting time when such car train can be send to SOA
      */
-    virtual simtime_t getAggregationWaitingTime(int destination, simtime_t OT, simtime_t len, int &WL, int &outPort);
+    virtual simtime_t getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, int &WL, int &outPort);
 };
 
 #endif
