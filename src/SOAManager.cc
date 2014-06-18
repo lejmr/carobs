@@ -78,7 +78,7 @@ void SOAManager::initialize() {
     WATCH_MAP(reg_max);
 }
 
-bool myfunction (SOAEntry *i, SOAEntry *j) { return (i->getStart()>j->getStart()); }
+bool myfunction (SOAEntry *i, SOAEntry *j) { return (i->getStart()<j->getStart()); }
 
 void SOAManager::countProbabilities(){
     /* Function that is used for evaluation of probabilities during the simulation */
@@ -706,13 +706,20 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         addSwitchingTableEntry(se);
 
         // Full-fill output text
-        EV << "#" << WL << " without waiting" << endl;
+        EV << "#" << WL << " without waiting";
+        EV << " ("<<se->info()<< ")" << endl;
         return 0.0;
 
     }else{
 
         // Sort schedulers related to the output port and wavelength
         std::sort(label_sched.begin(), label_sched.end(), myfunction);
+
+        EV << " Setridene routy:" << endl << endl;
+        int j=0;
+        for(std::vector<SOAEntry *>::iterator it=label_sched.begin(); it!=label_sched.end(); it++ ){
+            EV << j++ <<" " << (*it)->info() << endl;
+        }
 
         // Find space or LIFO
         for (int i = 1; i < label_sched.size(); i++) {
@@ -727,15 +734,16 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
             if (delta >= len) {
 
                 // Space was found .. lets use it!!!
-                simtime_t waiting = label_sched[i - 1]->getStop() - simTime();
+                simtime_t waiting = label_sched[i - 1]->getStop() - simTime() + d_s;
                 SOAEntry *sew = new SOAEntry(outPort, WL, true);
                 sew->setStart(simTime() + OT + waiting);
-                sew->setStop(simTime() + OT + len + waiting);
+                sew->setStop( simTime() + OT + waiting + len);
                 soa->assignSwitchingTableEntry(sew, waiting + OT - d_s, len);
                 addSwitchingTableEntry(sew);
 
                 // Full-fill output text
-                EV << "#" << WL << " with waiting " << waiting << endl;
+                EV << "#" << WL << " with waiting (fitted) " << waiting;
+                EV << " ("<<sew->info()<< ")" << endl;
                 return waiting;
             }
 
@@ -743,17 +751,18 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
 
         // So it is going to be LIFO ..
         simtime_t waiting = label_sched[ label_sched.size()-1 ]->getStop() - simTime();
-        if( waiting - OT < 0 ) waiting=0.0;
+        if( waiting < 0 ) waiting = 0.0;
 
         // Entry itself
         SOAEntry *sew = new SOAEntry(outPort, WL, true);
-        sew->setStart(simTime() + OT + waiting);
-        sew->setStop(simTime() + OT + len + waiting);
-        soa->assignSwitchingTableEntry(sew, waiting + OT - d_s, len);
+        sew->setStart( simTime() + waiting + OT );
+        sew->setStop(  simTime() + waiting + OT + len);
+        soa->assignSwitchingTableEntry(sew, waiting - d_s , len);
         addSwitchingTableEntry(sew);
 
         // Return the waiting entry
-        EV << "#" << WL << " with waiting " << waiting << endl;
+        EV << "#" << WL << " with waiting (LIFO) " << waiting;
+        EV << " ("<<sew->info()<< ")" << endl;
         return waiting;
     }
 
