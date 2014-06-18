@@ -496,6 +496,14 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
     // Sort them
     std::sort( label_sched.begin(), label_sched.end(), myfunction);
 
+    /*
+    EV << " Setridene routy:" << endl << endl;
+    int j = 0;
+    for (std::vector<SOAEntry *>::iterator it = label_sched.begin(); it != label_sched.end(); it++) {
+        EV << j++ << " " << (*it)->info() << endl;
+    }
+    */
+
     // Lets find a space between them or LIFO
     bool fits=false;
     simtime_t BT;
@@ -524,7 +532,8 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
         for(int i=0;i<label_sched.size();i++){
             EV << i << " - " << label_sched[i] << endl;
         }
-        BT=1e6;
+
+        BT= label_sched[ label_sched.size()-1 ]->getStop() - start + d_s;
     }
 
     // We will follow the routing
@@ -715,11 +724,13 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         // Sort schedulers related to the output port and wavelength
         std::sort(label_sched.begin(), label_sched.end(), myfunction);
 
+        /*
         EV << " Setridene routy:" << endl << endl;
         int j=0;
         for(std::vector<SOAEntry *>::iterator it=label_sched.begin(); it!=label_sched.end(); it++ ){
             EV << j++ <<" " << (*it)->info() << endl;
         }
+        */
 
         // Find space or LIFO
         for (int i = 1; i < label_sched.size(); i++) {
