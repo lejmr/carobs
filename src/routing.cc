@@ -236,10 +236,10 @@ simtime_t Routing::getNetworkOffsetTime(int dst) {
     return getOffsetTime(100+dst);
 }
 
-int Routing::getOutputPort(int destination) {
+int Routing::getOutputPort(int label) {
     // Check whether destination is in the DestMap, otherwise return -1.0
     // which means drop the burst, cause such destination doesn't exist
-    return outPort[destination];
+    return getRoutingEntry(label).getOutPort();
 }
 
 std::set<int> Routing::getTerminatingIDs() {
@@ -255,6 +255,8 @@ int Routing::getTerminationNodeAddress(int dst){
 }
 
 bool Routing::canForwardHeader(int destination){
+    return this->getParentModule()->par("address").longValue() - 100 != destination;
+
     int port= getOutputPort(destination);
 
     cGate *g= getParentModule()->gate("gate$o", port);
@@ -286,5 +288,6 @@ CplexRouteEntry Routing::getRoutingEntry(int label){
         }
     }
 
-    opp_terminate("!!! No routing for requested label!!! ");
+    EV << "Requested unknown pathID="<<label<<endl;
+    opp_terminate("!!! No routing for requested label !!! ");
 }

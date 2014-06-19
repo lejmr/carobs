@@ -122,10 +122,12 @@ void SOAManager::handleMessage(cMessage *msg) {
         CAROBSHeader *H = (CAROBSHeader *) ol->getEncapsulatedPacket();
 
         EV << " ! Aggregation process";
-        int dst = H->getDst();
+        int label = H->getLabel();
+
+        EV << " label=" << label;
 
         // Obtain output port
-        int outPort = R->getOutputPort(dst);
+        int outPort = R->getOutputPort(label);
 
         EV << " to " << outPort<<"#"<<H->getWL() << endl;
         EV << "cars we have with OT=" << H->getOT() << ": " << endl;
@@ -327,7 +329,7 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // Test whether this is last CoreNode on the path is so CAROBS Header is not passed towards
     if (R->canForwardHeader(H->getDst())) {
         // Resending CAROBS Header to next CoreNode
-        int outPort= R->getRoutingEntry( H->getLabel() ).getOutPort();
+        int outPort= sef->getOutPort();
         sendDelayed(ol, d_p+DELAY_extra, "control$o", outPort);
     }else
         delete msg;
@@ -347,9 +349,6 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
 
     // Obtaining information about Car train destination
     int dst = H->getDst();
-
-    // Resolving output port
-    int outPort = R->getRoutingEntry( H->getLabel() ).getOutPort();
 
     // Assign this SOAEntry to SOA
     SOAEntry *se = getOptimalOutput(H->getLabel(), inPort, inWl, simTime() + H->getOT(), simTime() + H->getOT() + H->getLength());
@@ -396,6 +395,7 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
     // Test whether this is last CoreNode on the path is so CAROBS Header is not passed towards
     if (R->canForwardHeader(H->getDst())) {
         // Resending CAROBS Header to next CoreNode
+        int outPort= se->getOutPort();
         sendDelayed(ol, d_p+d_w_extra, "control$o", outPort);
     }else
         delete msg;
@@ -407,7 +407,7 @@ void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, 
      *
      */
 
-    EV << "********** evaluateSecondaryContentionRatio ******************" << endl;
+    //EV << "********** evaluateSecondaryContentionRatio ******************" << endl;
     // Contention evaluation  primary vs secondary contention
     int contenting = 0;
     int buffering = 0;
@@ -421,10 +421,11 @@ void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, 
         contenting++;
         if (tmp->getBuffer() and !tmp->getBufferDirection() )
             buffering++;
-
+/*
         EV << start << " - " << stop;
         EV <<": "<<tmp->info()<<" "<<buffering<<"/"<<contenting;
         EV << endl;
+*/
     }
 
     if (contenting > 0)
@@ -724,13 +725,13 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         // Sort schedulers related to the output port and wavelength
         std::sort(label_sched.begin(), label_sched.end(), myfunction);
 
-        /*
-        EV << " Setridene routy:" << endl << endl;
+
+        EV << endl << " Setridene routy:" << endl << endl;
         int j=0;
         for(std::vector<SOAEntry *>::iterator it=label_sched.begin(); it!=label_sched.end(); it++ ){
             EV << j++ <<" " << (*it)->info() << endl;
         }
-        */
+
 
         // Find space or LIFO
         for (int i = 1; i < label_sched.size(); i++) {
@@ -761,7 +762,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         }
 
         // So it is going to be LIFO ..
-        simtime_t waiting = label_sched[ label_sched.size()-1 ]->getStop() - simTime();
+        simtime_t waiting = label_sched[ label_sched.size()-1 ]->getStop() - simTime() - OT + d_s;
         if( waiting < 0 ) waiting = 0.0;
 
         // Entry itself

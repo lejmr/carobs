@@ -54,7 +54,7 @@ class Routing : public cSimpleModule
      * @param destination - refers to address of destination node
      * @return number of output port
      */
-    virtual int getOutputPort(int destination);
+    virtual int getOutputPort(int label);
 
     /**
      *  Function sourceAddressUpdate is usd by PayloadInterface to inform Routing
