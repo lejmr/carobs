@@ -11,7 +11,7 @@ CplexRouteEntry::CplexRouteEntry(int pid, int s, int d, bool hops){
 	this->inLambda_var= -1;
 	this->outPort_var= -1;
 	this->outLambda_var= -1;
-	this->hops_var=-1;
+	this->hops_var=0;
 	this->vis_hops= hops;
 }
 
@@ -32,8 +32,7 @@ void CplexRouteEntry::countOT(simtime_t d_p, simtime_t d_s) {
 
     // There was only one routing rule .. one line, which means that destination is just next hop
     // Then we need to provide atleast one d_p!
-    if( hops_var <= 0 ) OT_var= d_s + d_p;
-    else OT_var= d_p * hops_var + d_s;
+    OT_var= d_p * hops_var + d_s;
 }
 
 
