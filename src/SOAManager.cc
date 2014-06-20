@@ -320,6 +320,8 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     // Update of OT for continuing car train
     H->setOT(H->getOT()-d_p+OT_extra);
 
+    sef->ot_var= H->getOT();
+
     // If there was changed wavelength of train Header must carry such information further
     H->setWL(sef->getOutLambda());
 
@@ -389,6 +391,9 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
     //  Update offset time in-order of processing time d_p
     H->setOT(H->getOT() - d_p);
 
+    // Update of additional variable for rescheduling
+    se->ot_var= H->getOT();
+
     // Put the headers  back to OpticalLayer E-O conversion
     ol->encapsulate(H);
 
@@ -432,6 +437,86 @@ void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, 
         SECRATIO.record((double) buffering / contenting);
 }
 
+void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
+
+    EV << endl;
+    // Remove from scheduling table
+    for(std::vector<SOAEntry *>::iterator it=toBeRescheduled.begin();it!=toBeRescheduled.end();++it){
+        //EV << "Reschedulling: " << (*it)->info() << endl;
+        splitTable[ (*it)->getOutPort() ].remove( *it );
+        scheduling.remove( *it );
+    }
+
+    // Sort
+    std::sort( toBeRescheduled.begin(), toBeRescheduled.end(), myfunction);
+
+    // Calculate new waiting times and inform SOA and MAC about delay
+    for(std::vector<SOAEntry *>::iterator it=toBeRescheduled.begin();it!=toBeRescheduled.end();++it){
+
+        EV << "Reschedulling: " << (*it)->info() ;
+
+        // A new start time
+        simtime_t t_start= 1e6;
+
+        // Find space or use LIFO
+        if( splitTable[ (*it)->getOutPort() ].length() >= 2 ){
+
+            EV << " DS";
+
+            // Sort the cQueue representig scheduling for outport
+            std::vector<SOAEntry *> sched;
+            for (cQueue::Iterator iter(splitTable[ (*it)->getOutPort() ], 0); !iter.end(); iter++) {
+                sched.push_back( (SOAEntry *) iter() );
+            }
+            std::sort( sched.begin(), sched.end(), myfunction);
+
+            // Scheduling length
+            simtime_t len= (*it)->getStop() - (*it)->getStart() - 2*d_s;
+
+            // Lets search for empty space
+            t_start= sched[ sched.size()-1 ]->getStop();
+            for(unsigned int i=1; i < sched.size(); i++ ){
+                simtime_t delta= sched[i]->getStart() - sched[i-1]->getStop();
+                if( delta >= len ){
+                    t_start= sched[i-1]->getStop();
+                    break;
+                }
+            }
+
+        }else{
+
+            EV << " SS";
+
+            // Just one SOAEntry.. which is the new switching rule, actually .. LIFO
+            cQueue::Iterator iter(splitTable[ (*it)->getOutPort() ], 1);
+            SOAEntry *last = (SOAEntry *) iter();
+            t_start= last->getStop();
+            EV << " " << last->info() << endl;
+
+        }
+
+        // So we have time when we can start sending ..
+        // 1. calculate a new delay,
+        simtime_t delay= t_start - (*it)->getStart();
+        EV << " extra delay="<<delay << endl;
+
+        // Update switching times
+        (*it)->setStart((*it)->getStart() + delay + d_s);
+        (*it)->setStop((*it)->getStop() + delay + d_s );
+        scheduling.insert((*it));
+        splitTable[(*it)->getOutPort()].insert((*it));
+
+        // 2. Inform SOA and MAC about delay
+        soa->delaySwitchingTableEntry( *it, delay );
+
+
+        EV << "Reschedulled: " << (*it)->info() << endl ;
+    }
+
+    //
+    EV<< endl;
+}
+
 SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_t start, simtime_t stop, int length) {
     EV << "Get scheduling for " << inPort << "#" << inWL << " label="
               << label << " for:" << start << "-" << stop;
@@ -446,8 +531,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
 
     if( inWL == r.getOutLambda() ){
 
-        if ( scheduling.length() == 0 or
-             testOutputCombination(outPort, r.getOutLambda(), start, stop) ) {
+        if ( scheduling.length() == 0  ) {
 
             // Output port#wavelength can be used withoud bufferinf
             SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
@@ -457,6 +541,70 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
             addSwitchingTableEntry(e);
             EV << " outWL=" << inWL << endl;
             return e;
+
+        }
+
+        if ( testOutputCombination(outPort, r.getOutLambda(), start, stop) ){
+
+            // Output port#wavelength can be used withoud bufferinf
+            SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
+            e->setStart(start);
+            e->setStop(stop);
+            // And add it to scheduling table
+            addSwitchingTableEntry(e);
+            EV << " outWL=" << inWL << endl;
+            return e;
+
+        }else{
+
+            // Initiate aggregation rescheduling in favor of the incoming burst in [start;stop]
+
+            std::vector<SOAEntry *> toBeRescheduled;
+
+            for (cQueue::Iterator iter(splitTable[outPort], 0); !iter.end(); iter++) {
+                SOAEntry *tmp = (SOAEntry *) iter();
+                if( tmp->isAggregation() or (tmp->getBuffer() and not tmp->getBufferDirection() )) {
+
+                    // Skip already scheduled paths
+                    if( tmp->getStop()+d_s <= start ) continue;
+
+                    EV << endl << tmp->info() << " ";
+                    EV << "casovka " << tmp->getStart() << "-" << tmp->ot_var << endl;
+                    EV << " ... " << tmp->getStop() << " " << start << endl;
+
+                    // Aggregation that is already used (CAROBSHeader is away)
+                    if( tmp->getStart()-tmp->ot_var < simTime() ){
+
+                        // It is already too late to reschedule because Header is on the way
+                        EV << "Unable to reschedule because of ("<<tmp->info() << ")" << endl;
+                        break;
+
+                    }else{
+
+                        toBeRescheduled.push_back(tmp);
+
+                    }
+                }
+            }
+
+            if( toBeRescheduled.size() > 0 ){
+                // There are schedullings to be rescheduled
+                // 1. Add the incoming burst scheduling
+
+                SOAEntry *e = new SOAEntry(inPort, inWL, outPort, inWL);
+                e->setStart(start);
+                e->setStop(stop);
+                // And add it to scheduling table
+                addSwitchingTableEntry(e);
+                EV << " outWL=" << inWL << endl;
+
+                // 2. Reschedule aggregation traffic
+                rescheduleAggregation( toBeRescheduled );
+
+                // Return the all-optical switching configuration
+                return e;
+            }
+
         }
 
         // Buffering is necessary !!!
@@ -579,7 +727,7 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
     std::set<bool>::iterator it;
     std::set<bool> tests;
 
-    EV << "Visualizce> "<< start<<" - "<< stop << "("<<start+d_s<<"-"<<stop+d_s<<") "<< endl;
+    EV << endl << "testOutputCombination> "<< start<<" - "<< stop << "("<<start+d_s<<"-"<<stop+d_s<<") "<< endl;
     for( cQueue::Iterator iter(splitTable[outPort],0); !iter.end(); iter++){
         SOAEntry *tmp = (SOAEntry *) iter();
 
@@ -712,6 +860,8 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         SOAEntry *se = new SOAEntry(outPort, WL, true);
         se->setStart(simTime() + OT);
         se->setStop(simTime() + OT + len);
+        se->ot_var= OT;
+        se->label_var= label;
         soa->assignSwitchingTableEntry(se, OT - d_s, len);
         addSwitchingTableEntry(se);
 
@@ -750,6 +900,8 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
                 SOAEntry *sew = new SOAEntry(outPort, WL, true);
                 sew->setStart(simTime() + OT + waiting);
                 sew->setStop( simTime() + OT + waiting + len);
+                sew->ot_var= OT;
+                sew->label_var= label;
                 soa->assignSwitchingTableEntry(sew, waiting + OT - d_s, len);
                 addSwitchingTableEntry(sew);
 
@@ -769,7 +921,9 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         SOAEntry *sew = new SOAEntry(outPort, WL, true);
         sew->setStart( simTime() + waiting + OT );
         sew->setStop(  simTime() + waiting + OT + len);
-        soa->assignSwitchingTableEntry(sew, waiting - d_s , len);
+        sew->ot_var= OT;
+        sew->label_var= label;
+        soa->assignSwitchingTableEntry(sew, waiting + OT - d_s , len);
         addSwitchingTableEntry(sew);
 
         // Return the waiting entry

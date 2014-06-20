@@ -77,6 +77,11 @@ class SOA : public cSimpleModule
      */
     cOutVector OE, EO;
 
+    /**
+     * Activation and deactivation planner manager
+     */
+    std::map<cObject *, cObject *> self_act, self_dea;
+
   public:
 
     /**
@@ -87,6 +92,10 @@ class SOA : public cSimpleModule
      */
     virtual void assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len);
 
+    /**
+     *  Public function called by SOA Manager in order to delay switching..
+     */
+    virtual void delaySwitchingTableEntry(cObject *e, simtime_t time);
 };
 
 #endif

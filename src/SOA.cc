@@ -58,6 +58,7 @@ void SOA::handleMessage(cMessage *msg) {
 
         // Add SwitchingTableEntry
         addpSwitchingTableEntry(tse);
+        self_act.erase( (cObject *) msg->par("ActivateSwitchingTableEntry").pointerValue() );
         delete msg; return;
     }
 
@@ -65,6 +66,7 @@ void SOA::handleMessage(cMessage *msg) {
         /*  Self-message for destruction of switching entry */
         SOAEntry *tse = (SOAEntry *) msg->par("DeactivateSwitchingTableEntry").pointerValue();
         dropSwitchingTableEntry(tse);
+        self_dea.erase( (cObject *) msg->par("DeactivateSwitchingTableEntry").pointerValue() );
         delete msg; return;
     }
 
@@ -184,6 +186,33 @@ void SOA::handleMessage(cMessage *msg) {
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
         int inPort = msg->getArrivalGate()->getIndex();
 
+        // Find the proper aggregation rule
+        bool found=false;
+        for (cQueue::Iterator iter(switchingTable, 0); !iter.end(); iter++) {
+            SOAEntry *se = (SOAEntry *) iter();
+
+            // It searches proper port#wl combination and the combination is not out-of-buffer records
+            if ( not se->getBuffer() and not se->isAggregation() ) continue;
+
+            // Skip the "to buffer"
+            if ( se->getBuffer() and se->getBufferDirection()  ) continue;
+
+            // Here we have only the rules that are either for Aggregation or withdrawing from MAC
+
+            EV << "Check: " << se->info() << endl;
+
+            if( se->getOutLambda() == ol->getWavelengthNo() and inPort == se->getOutPort() and
+                    ( se->getStart() >= simTime() and simTime() <= se->getStop() ) ){
+
+                found=true;
+                break;
+            }
+
+        }
+
+        if( not found ) opp_terminate("Aggregate without the rule is set !!! ");
+
+
         // Update ot of optical layer
         double ot = ol->par("ot").doubleValue();
         ol->par("ot").setDoubleValue(ot-getParentModule()->par("d_p").doubleValue());
@@ -255,18 +284,48 @@ void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
         return;
     }
 
+    EV << "Assign SOA: "<< ( (SOAEntry *) e )->info() << endl;
+
     Enter_Method("assignSwitchingTableEntry()");
     cMessage *amsg = new cMessage("ActivateSTE");
     amsg->addPar("ActivateSwitchingTableEntry");
     amsg->par("ActivateSwitchingTableEntry") = e;
     amsg->setSchedulingPriority(5);
-    scheduleAt(simTime() + d_s + ot, amsg);
+    scheduleAt(simTime() + ot, amsg);
+    self_act[ e ]= amsg;
 
     // Scheduling to drop SwitchingTableEntry
     cMessage *amsg2 = new cMessage("DeactivateSTE");
     amsg2->addPar("DeactivateSwitchingTableEntry");
     amsg2->par("DeactivateSwitchingTableEntry") = e;
     scheduleAt(((SOAEntry *)e)->getStop(), amsg2);
+    self_dea[ e ]= amsg;
+}
+
+void SOA::delaySwitchingTableEntry(cObject *e, simtime_t time){
+    Enter_Method("delaySwitchingTableEntry()");
+
+    if( self_act.find( e ) == self_act.end() ) opp_terminate("ACT: Switching entry already installed !!! ");
+    if( self_dea.find( e ) == self_dea.end() ) opp_terminate("DEA: Switching entry already installed !!! ");
+
+    // Delay it
+    cMessage *msg_act= (cMessage *) self_act[ e ];
+    cMessage *msg_dea= (cMessage *) self_dea[ e ];
+
+    simtime_t arr_act= ( msg_act )->getArrivalTime();
+    simtime_t arr_dea= ( msg_dea )->getArrivalTime();
+
+    msg_act->setArrivalTime( arr_act + time );
+    msg_dea->setArrivalTime( arr_dea + time );
+
+    /*
+    cancelEvent( msg_act );
+    cancelEvent( msg_dea );
+
+    scheduleAt(arr_act + time , msg_act);
+    scheduleAt(arr_dea + time , msg_dea);
+    */
+
 }
 
 void SOA::dropSwitchingTableEntry(SOAEntry *e) {

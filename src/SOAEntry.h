@@ -23,6 +23,8 @@ class SOAEntry : public cPolymorphic
 
   public:
       bool valid;
+      simtime_t ot_var = -1;   // only for aggregation schedulings
+      int label_var = -1;   // Assigns label that initiated the switching
 
       /*
        * only used with buffer mode of carobs

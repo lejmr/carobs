@@ -183,6 +183,12 @@ class SOAManager : public cSimpleModule
     virtual void addSwitchingTableEntry(SOAEntry *e);
 
     /**
+     *
+     */
+    virtual void rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled);
+
+
+    /**
      * Buffering probability counters
      */
     int64 bbp_switched, bbp_buffered, bbp_dropped, bbp_total, bbp_interval_max;
