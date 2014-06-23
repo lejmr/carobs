@@ -122,7 +122,11 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         scheduleAt(simTime() + waitings[olsw->bound], msg);
 
         // Put it to the planner
-        self_agg[olsw]= msg;
+        self_agg[olsw->bound]= msg;
+
+        EV << "Scheduling stack> " <<endl;
+            for(std::map<cObject *, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it )
+                EV << "SENDINGS"<< ((SOAEntry *)it->first)->info() << ": " << it->second << endl;
 
         // Finish buffering procedure
         return;
@@ -318,6 +322,34 @@ void CoreNodeMAC::removeCar( SOAEntry *e ){
     if( bufferedSOAqueue.contains(e) ) bufferedSOAqueue.remove( e );
     waitings.erase(e);
     usage.erase(e);
+}
+
+void CoreNodeMAC::delaySwitchingTableEntry(cObject *e, simtime_t time){
+    Enter_Method("delaySwitchingTableEntry()");
+    // EV << "Postponing "<< ((SOAEntry *) e)->info() << " about " << time << endl;
+
+    // Only for better readability
+    SOAEntry *sw= (SOAEntry *) e;
+
+    // Get self-message
+    cMessage *msg_agg= (cMessage *) self_agg[ sw ];
+
+    if( self_agg.find(sw) == self_agg.end()  )
+        opp_terminate("Rescheduling not existing scheduling");
+
+    if( msg_agg == NULL){
+
+        for(std::map<cObject *, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it )
+            EV << "SENDINGS"<< ((SOAEntry *)it->first)->info() << ": " << it->second << endl;
+
+        opp_terminate("Having null items!!!");
+
+    }
+
+    // It exists
+    simtime_t arr= ( msg_agg )->getArrivalTime();
+    msg_agg->setArrivalTime( arr + time );
+
 }
 
 void CoreNodeMAC::finish(){

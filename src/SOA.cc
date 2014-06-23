@@ -262,7 +262,7 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
                 EV << " already used time slot !!! ("<<se->info()<<")" << endl;
                 wrong_scheduling++;
                 EV << "****** Wrong scheduling" << endl;
-                EV << e->info() << endl << se->info() <<endl;
+                EV << "New: " << e->info() << endl << "Set: " << se->info() <<endl;
                 EV << "Output configuration " <<se->getOutPort() << "#" << se->getOutLambda() << endl;
                 opp_terminate("Wrong scheduling");
                 return;
@@ -299,7 +299,7 @@ void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {
     amsg2->addPar("DeactivateSwitchingTableEntry");
     amsg2->par("DeactivateSwitchingTableEntry") = e;
     scheduleAt(((SOAEntry *)e)->getStop(), amsg2);
-    self_dea[ e ]= amsg;
+    self_dea[ e ]= amsg2;
 }
 
 void SOA::delaySwitchingTableEntry(cObject *e, simtime_t time){

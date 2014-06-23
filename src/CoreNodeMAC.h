@@ -79,7 +79,7 @@ class CoreNodeMAC : public cSimpleModule
     /**
      * Scheduler
      */
-    std::map<cObject *, cObject *> self_agg;
+    std::map<cObject *, cObject *>   self_agg;
 
   public:
 
@@ -89,5 +89,10 @@ class CoreNodeMAC : public cSimpleModule
      */
     virtual void storeCar( SOAEntry *e, simtime_t wait );
     virtual void removeCar( SOAEntry *e );
+
+    /**
+     *  Public function called by SOA Manager in order to delay aggregation or re-buffering..
+     */
+    virtual void delaySwitchingTableEntry(cObject *e, simtime_t time);
 };
 #endif
