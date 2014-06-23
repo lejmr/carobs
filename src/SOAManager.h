@@ -216,7 +216,7 @@ class SOAManager : public cSimpleModule
      *   @param wl: pointer on WL variable which is to be used as wavelength
      *   @return    : Least waiting time when such car train can be send to SOA
      */
-    virtual simtime_t getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, int &WL, int &outPort);
+    virtual simtime_t getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, SOAEntry* &e);
 };
 
 #endif

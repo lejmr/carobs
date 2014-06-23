@@ -76,6 +76,11 @@ class CoreNodeMAC : public cSimpleModule
     // CoreNode address -- needs to be put to the Car for flow purporse of flow monitoring
     int address;
 
+    /**
+     * Scheduler
+     */
+    std::map<cObject *, cObject *> self_agg;
+
   public:
 
     /**

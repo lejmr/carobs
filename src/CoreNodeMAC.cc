@@ -121,6 +121,9 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         // Schedules out of buffer CAR release
         scheduleAt(simTime() + waitings[olsw->bound], msg);
 
+        // Put it to the planner
+        self_agg[olsw]= msg;
+
         // Finish buffering procedure
         return;
     }
@@ -167,6 +170,81 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         }
 
         // Drop the self-message since is not needed anymore
+        self_agg.erase(se);
+        delete msg; return;
+    }
+
+
+    if( msg->isSelfMessage() and msg->hasPar("StartAggregation")){
+
+        // Statistics
+        simtime_t delta= simTime() - (simtime_t)msg->par("StartAggregation_start").doubleValue();
+        vwaitingtime.record(delta);
+
+        // Sending ..
+        SOAEntry *e= (SOAEntry *)msg->par("StartAggregation_switching").pointerValue();
+        MACContainer *MAC= (MACContainer *)msg->par("StartAggregation").pointerValue();
+        int outPort= e->getOutPort();
+        int WL= e->getOutLambda();
+
+        // 1. Header
+        CAROBSHeader *H= (CAROBSHeader *)msg->par("StartAggregation_H").pointerValue();
+        int dst= H->getDst();
+
+        // Set wavelength of Car train to CAROBS header
+        H->setWL(WL);
+
+        // Console info
+        EV << "Sending CAROBS train to " << dst ;
+
+        // CAROBS Header
+        char buffer_name[50];
+        sprintf(buffer_name, "Header %d", dst);
+        OpticalLayer *OH = new OpticalLayer(buffer_name);
+        OH->setWavelengthNo(0); //Signalisation is always on the first channel
+        OH->encapsulate(H);
+        OH->setByteLength(50);
+        send(OH, "control");
+
+
+        // 2. Cars
+        EV << " OT= " << H->getOT() << endl;
+        // Schedule associate cars
+        while (!MAC->getCars().empty()) {
+            SchedulerUnit *su = (SchedulerUnit *) MAC->getCars().pop();
+            Car *tcar = (Car *) su->decapsulate();
+
+            // Encapsulate Car into OpticalLayer
+            char buffer_name[50];
+            sprintf(buffer_name, "Car %d", su->getDst());
+            OpticalLayer *OC = new OpticalLayer(buffer_name);
+            OC->setWavelengthNo(WL);
+            tcar->addPar("dst");
+            tcar->par("dst").setDoubleValue( su->getDst() );
+            tcar->addPar("src");
+            tcar->par("src").setDoubleValue( address );
+            OC->encapsulate(tcar);
+            OC->addPar("ot").setDoubleValue( su->getStart().dbl() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
+
+            // Car loading statistics
+            carMsgs.record(tcar->getPayload().length());
+            carLength.record(su->getLength());
+
+            // Console info
+            EV << " + Sending car to " << su->getDst() << " at " << simTime()+su->getStart() << " of length=" << su->getLength() << " == "<< tcar->getPayload().length() << " packets" << endl;
+
+            // Send the car onto proper wl at proper time
+            sendDelayed(OC, su->getStart(), "soa$o", outPort);
+
+            // Statistics
+            burst_send++;
+
+            // Drop the empty scheduler unit
+            delete su;
+        }
+
+        // Unset mapper
+        self_agg.erase(e);
         delete msg; return;
     }
 
@@ -188,9 +266,10 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     int dst = H->getDst();
 
     // Obtain waiting and wavelength
-    int WL = 0;
-    int outPort=0;
-    simtime_t t0 = SM->getAggregationWaitingTime(H->getLabel(), H->getOT(), H->getLength(), WL, outPort);
+    SOAEntry *e;
+    simtime_t t0 = SM->getAggregationWaitingTime(H->getLabel(), H->getOT(), H->getLength(), e);
+    int WL = e->getOutLambda();
+    int outPort=e->getOutPort();
 
     if( outPort < 0 ){
         EV << "Unable to find output path" << endl;
@@ -198,66 +277,21 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         return ;
     }
 
-    // Takes statistics of guard/waiting time - it is going to be averege value
-    if( avg_waitingtime == 0 ) avg_waitingtime= t0;
-    avg_waitingtime= (avg_waitingtime+t0)/2;
-    total_waitingtime += t0;
-    aggregated++;
-    vwaitingtime.record(t0);
+    // Schedule sending
+    cMessage *msg1 = new cMessage("StartAggregation");
+    msg1->addPar("StartAggregation");
+    msg1->par("StartAggregation").setPointerValue(MAC);
+    msg1->addPar("StartAggregation_H");
+    msg1->par("StartAggregation_H").setPointerValue(H);
+    msg1->addPar("StartAggregation_switching");
+    msg1->par("StartAggregation_switching").setPointerValue(e);
+    msg1->addPar("StartAggregation_start");
+    msg1->par("StartAggregation_start").setDoubleValue( simTime().dbl() );
 
-    // Set wavelength of Car train to CAROBS header
-    H->setWL(WL);
+    scheduleAt(simTime() + t0, msg1);
 
-    /*   Sending ....   */
-    EV << "CAROBS Train to " << dst << " will be send at " << simTime()+t0;
-
-    // CAROBS Header
-    char buffer_name[50];
-    sprintf(buffer_name, "Header %d", dst);
-    OpticalLayer *OH = new OpticalLayer(buffer_name);
-    OH->setWavelengthNo(0); //Signalisation is always on the first channel
-    OH->encapsulate(H);
-    OH->setByteLength(50);
-    sendDelayed(OH, t0, "control");
-
-    // Cars to the SOA
-    EV << " OT= " << H->getOT() << endl;
-    // Schedule associate cars
-    while (!MAC->getCars().empty()) {
-        SchedulerUnit *su = (SchedulerUnit *) MAC->getCars().pop();
-        Car *tcar = (Car *) su->decapsulate();
-
-        // Encapsulate Car into OpticalLayer
-        char buffer_name[50];
-        sprintf(buffer_name, "Car %d", su->getDst());
-        OpticalLayer *OC = new OpticalLayer(buffer_name);
-        OC->setWavelengthNo(WL);
-        tcar->addPar("dst");
-        tcar->par("dst").setDoubleValue( su->getDst() );
-        tcar->addPar("src");
-        tcar->par("src").setDoubleValue( address );
-        OC->encapsulate(tcar);
-        OC->addPar("ot").setDoubleValue( su->getStart().dbl() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
-
-        // Car loading statistics
-        carMsgs.record(tcar->getPayload().length());
-        carLength.record(su->getLength());
-
-        EV << " + Sending car to " << su->getDst() << " at " << simTime()+t0 + su->getStart() << " of length=" << su->getLength() << " == "<< tcar->getPayload().length() << " packets" << endl;
-        // Send the car onto proper wl at proper time
-        sendDelayed(OC, t0 + su->getStart(), "soa$o", outPort);
-
-        // Statistics
-        burst_send++;
-
-        // Drop the empty scheduler unit
-        delete su;
-    }
-
-
-    // Drop the container which is not further in use
-    delete MAC;
-
+    // Set mapper
+    self_agg[e]= msg1;
 }
 
 void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){

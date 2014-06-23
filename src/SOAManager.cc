@@ -509,6 +509,8 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
         // 2. Inform SOA and MAC about delay
         soa->delaySwitchingTableEntry( *it, delay );
 
+        opp_terminate("Preplanovani");
+
 
         EV << "Reschedulled: " << (*it)->info() << endl ;
     }
@@ -833,7 +835,7 @@ void SOAManager::addSwitchingTableEntry(SOAEntry *e){
 }
 
 
-simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, int &WL, int &outPort) {
+simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, SOAEntry* &e) {
     Enter_Method("getAggregationWaitingTime()");
 
     // Basic info
@@ -841,8 +843,8 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
 
     // Get path information
     CplexRouteEntry r= R->getRoutingEntry(label);
-    outPort= r.getOutPort();
-    WL= r.getOutLambda();
+    int outPort= r.getOutPort();
+    int WL= r.getOutLambda();
     EV << " outPort="<<outPort;
 
     // Select only scheduling relevant for given path
@@ -864,6 +866,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         se->label_var= label;
         soa->assignSwitchingTableEntry(se, OT - d_s, len);
         addSwitchingTableEntry(se);
+        e= se;
 
         // Full-fill output text
         EV << "#" << WL << " without waiting";
@@ -904,6 +907,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
                 sew->label_var= label;
                 soa->assignSwitchingTableEntry(sew, waiting + OT - d_s, len);
                 addSwitchingTableEntry(sew);
+                e= sew;
 
                 // Full-fill output text
                 EV << "#" << WL << " with waiting (fitted) " << waiting;
@@ -925,6 +929,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         sew->label_var= label;
         soa->assignSwitchingTableEntry(sew, waiting + OT - d_s , len);
         addSwitchingTableEntry(sew);
+        e= sew;
 
         // Return the waiting entry
         EV << "#" << WL << " with waiting (LIFO) " << waiting;
