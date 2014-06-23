@@ -442,7 +442,7 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
     EV << endl;
     // Remove from scheduling table
     for(std::vector<SOAEntry *>::iterator it=toBeRescheduled.begin();it!=toBeRescheduled.end();++it){
-        //EV << "Reschedulling: " << (*it)->info() << endl;
+        //EV << "SOAEntry: " << (*it)->info() << endl;
         splitTable[ (*it)->getOutPort() ].remove( *it );
         scheduling.remove( *it );
     }
@@ -509,7 +509,12 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
         // 2. Inform SOA and MAC about delay
         soa->delaySwitchingTableEntry( *it, delay );
 
-        opp_terminate("Preplanovani");
+        // Inform the MAC to store and restore Car in a given moment ... workaround
+        cModule *calleeModule = getParentModule()->getSubmodule("MAC");
+        CoreNodeMAC *mac = check_and_cast<CoreNodeMAC *>(calleeModule);
+        mac->delaySwitchingTableEntry( *it, delay );
+
+        //opp_terminate("Preplanovani");
 
 
         EV << "Reschedulled: " << (*it)->info() << endl ;
@@ -563,22 +568,23 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
 
             std::vector<SOAEntry *> toBeRescheduled;
 
+            EV << "Testing for collision:" << endl;
             for (cQueue::Iterator iter(splitTable[outPort], 0); !iter.end(); iter++) {
                 SOAEntry *tmp = (SOAEntry *) iter();
+                EV << tmp->info();
                 if( tmp->isAggregation() or (tmp->getBuffer() and not tmp->getBufferDirection() )) {
 
                     // Skip already scheduled paths
                     if( tmp->getStop()+d_s <= start ) continue;
 
-                    EV << endl << tmp->info() << " ";
-                    EV << "casovka " << tmp->getStart() << "-" << tmp->ot_var << endl;
-                    EV << " ... " << tmp->getStop() << " " << start << endl;
+
+                    EV << " reschedules"  << " OT=" << tmp->ot_var;
 
                     // Aggregation that is already used (CAROBSHeader is away)
                     if( tmp->getStart()-tmp->ot_var < simTime() ){
 
                         // It is already too late to reschedule because Header is on the way
-                        EV << "Unable to reschedule because of ("<<tmp->info() << ")" << endl;
+                        EV << " .. already send => buffering";
                         break;
 
                     }else{
@@ -587,6 +593,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
 
                     }
                 }
+                EV << endl;
             }
 
             if( toBeRescheduled.size() > 0 ){
