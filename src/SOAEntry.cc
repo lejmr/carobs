@@ -12,6 +12,8 @@ SOAEntry::SOAEntry(int ip, int il, int op, int ol){
 	this->aggregation_var = false;
 	this->disaggregation_var= false;
 	this->buffer_var = false;
+	this->identifier = -1;
+	this->H_sent=false;
 }
 
 
@@ -39,6 +41,8 @@ SOAEntry::SOAEntry(int port, int wl, bool aggregation){
     this->aggregation_var = aggregation;
     this->disaggregation_var= not aggregation;
     this->buffer_var = false;
+    this->identifier = -1;
+    this->H_sent=false;
 }
 
 std::string SOAEntry::info() const

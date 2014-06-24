@@ -138,7 +138,7 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Statisticis
             buff++;
-            OE.record(oe);
+            //OE.record(oe);
             return;
         }
 
@@ -170,7 +170,7 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Sending to output port
             send(ol, "gate$o", sw->getOutPort());
-            OE.record(0);
+            //OE.record(0);
         }else{
             EV << "Burst at "<<inPort<<"#"<<inWl<<" is to be dropped !!!" << endl;
             drpd++;
@@ -186,24 +186,21 @@ void SOA::handleMessage(cMessage *msg) {
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
         int inPort = msg->getArrivalGate()->getIndex();
 
+        // Check whether it is proper re-buffering or aggreagation traffic
+        if( !ol->hasPar("SOAEntry_identifier") )
+            opp_terminate("Packet is missing SOAEntry identifier.. there is no way how to switch it!!!");
+
+        // Get the identifier
+        int ident= ol->par("SOAEntry_identifier").longValue();
+        if( ident < 100 ) opp_terminate("Wrong SOAEntry identifier");
+
         // Find the proper aggregation rule
         bool found=false;
         for (cQueue::Iterator iter(switchingTable, 0); !iter.end(); iter++) {
             SOAEntry *se = (SOAEntry *) iter();
+            EV << "SOA: " << se->info() << endl;
 
-            // It searches proper port#wl combination and the combination is not out-of-buffer records
-            if ( not se->getBuffer() and not se->isAggregation() ) continue;
-
-            // Skip the "to buffer"
-            if ( se->getBuffer() and se->getBufferDirection()  ) continue;
-
-            // Here we have only the rules that are either for Aggregation or withdrawing from MAC
-
-            EV << "Check: " << se->info() << endl;
-
-            if( se->getOutLambda() == ol->getWavelengthNo() and inPort == se->getOutPort() and
-                    ( se->getStart() >= simTime() and simTime() <= se->getStop() ) ){
-
+            if( se->identifier == ident ){
                 found=true;
                 break;
             }

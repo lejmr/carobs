@@ -72,6 +72,7 @@ void SOAManager::initialize() {
     BOKP.setName("Burst cut-throught probability");
     BTOTAL.setName("Number of bursts in statistics");
     SECRATIO.setName("Secondary contention ratio");
+    last_r= simTime();
 
     WATCH(OBS);
     WATCH_MAP(mf_max);
@@ -82,6 +83,9 @@ bool myfunction (SOAEntry *i, SOAEntry *j) { return (i->getStart()<j->getStart()
 
 void SOAManager::countProbabilities(){
     /* Function that is used for evaluation of probabilities during the simulation */
+    return;
+
+    if( last_r >= simTime() ) return;
 
     if(bbp_total > 0){
         // BLP
@@ -102,9 +106,27 @@ void SOAManager::countProbabilities(){
     bbp_buffered= 0;
     bbp_dropped=0;
     bbp_total=0;
+    last_r= simTime();
 }
 
 void SOAManager::handleMessage(cMessage *msg) {
+
+
+    if( msg->isSelfMessage() and msg->hasPar("CAROBSHeader") ){
+        OpticalLayer *ol =  (OpticalLayer *)msg->par("CAROBSHeader").pointerValue();
+        int outPort= msg->par("CAROBSHeader_outport").longValue();
+        send(ol, "control$o", outPort);
+
+        // Label SOAentry as not re-schedullable
+        SOAEntry *e= (SOAEntry *) msg->par("CAROBSHeader_SOAEntry").pointerValue();
+        e->H_sent= true;
+
+        // Erase from scheduler
+        sched_header.erase(e);
+
+        delete msg; return;
+    }
+
     // Obtaining information about source port
     int inPort = msg->getArrivalGate()->getIndex();
 
@@ -145,8 +167,10 @@ void SOAManager::handleMessage(cMessage *msg) {
 
         H->setOT(H->getOT() - d_p);
         if (R->canForwardHeader(H->getDst())) {
-            // Resending CAROBS Header to next CoreNode
+
+            // Sending CAROBS Header to next CoreNode
             sendDelayed(ol, d_p, "control$o", outPort);
+
         }
 
         return;
@@ -332,7 +356,14 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
     if (R->canForwardHeader(H->getDst())) {
         // Resending CAROBS Header to next CoreNode
         int outPort= sef->getOutPort();
-        sendDelayed(ol, d_p+DELAY_extra, "control$o", outPort);
+        //sendDelayed(ol, d_p+DELAY_extra, "control$o", outPort);
+
+        cMessage *msg = new cMessage("SendCAROBSHeader");
+        msg->addPar("CAROBSHeader").setPointerValue( ol );
+        msg->addPar("CAROBSHeader_outport").setLongValue( outPort );
+        msg->addPar("CAROBSHeader_SOAEntry").setPointerValue(sef);
+        scheduleAt( simTime() + d_p+DELAY_extra, msg );
+        sched_header[sef]= msg;
     }else
         delete msg;
 
@@ -401,12 +432,21 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
     if (R->canForwardHeader(H->getDst())) {
         // Resending CAROBS Header to next CoreNode
         int outPort= se->getOutPort();
-        sendDelayed(ol, d_p+d_w_extra, "control$o", outPort);
+        //sendDelayed(ol, d_p+d_w_extra, "control$o", outPort);
+
+        cMessage *msg = new cMessage("SendCAROBSHeader");
+        msg->addPar("CAROBSHeader").setPointerValue(ol);
+        msg->addPar("CAROBSHeader_outport").setLongValue(outPort);
+        msg->addPar("CAROBSHeader_SOAEntry").setPointerValue(se);
+        scheduleAt(simTime() + d_p + d_w_extra, msg);
+        sched_header[se]= msg;
+
     }else
         delete msg;
 }
 
 void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, simtime_t stop) {
+    return;
     /**
      *  This function simply calculates how much the reagregated burst cause buffering of new comming bursts.
      *
@@ -431,6 +471,12 @@ void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, 
         EV <<": "<<tmp->info()<<" "<<buffering<<"/"<<contenting;
         EV << endl;
 */
+    }
+
+
+    if( simTime() < last_r ){
+        EV << "Last measurement was at "<< last_r << endl;
+        opp_terminate("How is that possible? Back in time?");
     }
 
     if (contenting > 0)
@@ -507,12 +553,32 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
         splitTable[(*it)->getOutPort()].insert((*it));
 
         // 2. Inform SOA and MAC about delay
+        //** Inform SOA
         soa->delaySwitchingTableEntry( *it, delay );
 
-        // Inform the MAC to store and restore Car in a given moment ... workaround
+        //** Inform the MAC to store and restore Car in a given moment ... workaround
         cModule *calleeModule = getParentModule()->getSubmodule("MAC");
         CoreNodeMAC *mac = check_and_cast<CoreNodeMAC *>(calleeModule);
         mac->delaySwitchingTableEntry( *it, delay );
+
+        //** Delay CAROBSHeader sending for buffering SOAEntry
+        if( (*it)->getBuffer() ){
+            if (sched_header.find(*it) == sched_header.end()) {
+
+                EV << "Delaying header of: " << (*it)->info() << endl << "Scheduling:" << endl;
+                for(std::map<cObject *, cObject *>::iterator it=sched_header.begin(); it!=sched_header.end();++it) {
+                    EV << ((SOAEntry *)it->first)->info() << " : " << it->second << endl;
+                }
+                opp_terminate("Rescheduling not existing scheduling");
+
+            }
+
+            // Get self-message and delay it
+            cMessage *msg_agg = (cMessage *) sched_header[*it];
+            simtime_t arr = (msg_agg)->getArrivalTime();
+            msg_agg->setArrivalTime(arr + delay);
+        }
+
 
         //opp_terminate("Preplanovani");
 
@@ -581,10 +647,11 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
                     EV << " reschedules"  << " OT=" << tmp->ot_var;
 
                     // Aggregation that is already used (CAROBSHeader is away)
-                    if( tmp->getStart()-tmp->ot_var < simTime() ){
+                    if( tmp->getStart()-tmp->ot_var <= simTime() ){
+                    //if( ! tmp->H_sent ){
 
                         // It is already too late to reschedule because Header is on the way
-                        EV << " .. already send => buffering";
+                        EV << " .. already send => buffering" << endl;
                         break;
 
                     }else{
@@ -594,6 +661,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
                     }
                 }
                 EV << endl;
+
             }
 
             if( toBeRescheduled.size() > 0 ){
@@ -748,7 +816,7 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
                 //   in table:           |-------|
                 //the new one:    |----|
                 tests.insert(true);
-                EV << " start " << endl;
+                EV << " OK (start) " << endl;
                 continue;
             }
 
@@ -757,11 +825,11 @@ bool SOAManager::testOutputCombination(int outPort, int outWL, simtime_t start, 
                 //   in table:   |-------|
                 //the new one:             |----|
                 tests.insert(true);
-                EV << " stop " << endl;
+                EV << " OK (stop) " << endl;
                 continue;
             }
 
-            EV << " both " << endl;
+            EV << " collision " << endl;
             tests.insert(false);
         }
     }
@@ -866,18 +934,17 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
     if( label_sched.size() == 0 ){
 
         // Create aggreagation entry, that can be used right now!
-        SOAEntry *se = new SOAEntry(outPort, WL, true);
-        se->setStart(simTime() + OT);
-        se->setStop(simTime() + OT + len);
-        se->ot_var= OT;
-        se->label_var= label;
-        soa->assignSwitchingTableEntry(se, OT - d_s, len);
-        addSwitchingTableEntry(se);
-        e= se;
+        e = new SOAEntry(outPort, WL, true);
+        e->setStart(simTime() + OT);
+        e->setStop(simTime() + OT + len);
+        e->ot_var= OT;
+        e->label_var= label;
+        addSwitchingTableEntry(e);
 
         // Full-fill output text
         EV << "#" << WL << " without waiting";
-        EV << " ("<<se->info()<< ")" << endl;
+        EV << " ("<<e->info()<< ")" << endl;
+        soa->assignSwitchingTableEntry(e, OT - d_s, len);
         return 0.0;
 
     }else{
@@ -907,18 +974,17 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
 
                 // Space was found .. lets use it!!!
                 simtime_t waiting = label_sched[i - 1]->getStop() - simTime() + d_s;
-                SOAEntry *sew = new SOAEntry(outPort, WL, true);
-                sew->setStart(simTime() + OT + waiting);
-                sew->setStop( simTime() + OT + waiting + len);
-                sew->ot_var= OT;
-                sew->label_var= label;
-                soa->assignSwitchingTableEntry(sew, waiting + OT - d_s, len);
-                addSwitchingTableEntry(sew);
-                e= sew;
+                e = new SOAEntry(outPort, WL, true);
+                e->setStart(simTime() + OT + waiting);
+                e->setStop( simTime() + OT + waiting + len);
+                e->ot_var= OT;
+                e->label_var= label;
+                addSwitchingTableEntry(e);
 
                 // Full-fill output text
                 EV << "#" << WL << " with waiting (fitted) " << waiting;
-                EV << " ("<<sew->info()<< ")" << endl;
+                EV << " ("<<e->info()<< ")" << endl;
+                soa->assignSwitchingTableEntry(e, waiting + OT - d_s, len);
                 return waiting;
             }
 
@@ -929,18 +995,17 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         if( waiting < 0 ) waiting = 0.0;
 
         // Entry itself
-        SOAEntry *sew = new SOAEntry(outPort, WL, true);
-        sew->setStart( simTime() + waiting + OT );
-        sew->setStop(  simTime() + waiting + OT + len);
-        sew->ot_var= OT;
-        sew->label_var= label;
-        soa->assignSwitchingTableEntry(sew, waiting + OT - d_s , len);
-        addSwitchingTableEntry(sew);
-        e= sew;
+        e = new SOAEntry(outPort, WL, true);
+        e->setStart( simTime() + waiting + OT );
+        e->setStop(  simTime() + waiting + OT + len);
+        e->ot_var= OT;
+        e->label_var= label;
+        addSwitchingTableEntry(e);
 
         // Return the waiting entry
         EV << "#" << WL << " with waiting (LIFO) " << waiting;
-        EV << " ("<<sew->info()<< ")" << endl;
+        EV << " ("<<e->info()<< ")" << endl;
+        soa->assignSwitchingTableEntry(e, waiting + OT - d_s , len);
         return waiting;
     }
 

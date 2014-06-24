@@ -23,8 +23,10 @@ class SOAEntry : public cPolymorphic
 
   public:
       bool valid;
-      simtime_t ot_var = -1;   // only for aggregation schedulings
-      int label_var = -1;   // Assigns label that initiated the switching
+      simtime_t ot_var;   // only for aggregation schedulings
+      int label_var;   // Assigns label that initiated the switching
+      int identifier;
+      bool H_sent;    // Identifies that CAROBSHeader related to this SOAEntry is away
 
       /*
        * only used with buffer mode of carobs
@@ -39,7 +41,7 @@ class SOAEntry : public cPolymorphic
       SOAEntry *bound;
 
   public:
-    SOAEntry(){this->valid=false;}
+    SOAEntry(){this->valid=false; this->ot_var=-1;this->label_var=-1;}
     SOAEntry(int ip, int il, int op, int ol);
     SOAEntry(int op, int ol, bool aggregation);
     virtual ~SOAEntry() {}

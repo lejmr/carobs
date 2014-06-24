@@ -139,7 +139,7 @@ class AggregationQueues : public cSimpleModule
     /**
      * Enabling mechanism of aggregation pools
      */
-    bool AP_ON = true;
+    bool AP_ON;
 
   public:
 

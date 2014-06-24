@@ -29,6 +29,7 @@ void AggregationQueues::initialize()
     // Connect with routing module
     cModule *calleeModule = getParentModule()->getSubmodule("routing");
     R = check_and_cast<Routing *>(calleeModule);
+    AP_ON = true;
 
     bufferLengthT = par("bufferLengthT").doubleValue();
     poolTreshold = par("poolTreshold").doubleValue();

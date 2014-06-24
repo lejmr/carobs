@@ -23,7 +23,7 @@ void CoreNodeMAC::initialize() {
     cModule *calleeModule = getParentModule()->getSubmodule("soaManager");
     SM = check_and_cast<SOAManager *>(calleeModule);
 
-    bufferedSOAqueue.setName("Buffered trains");
+    //bufferedSOAqueue.setName("Buffered trains");
     // Statistics and Watchers
     burst_send = 0;
     capacity = 0;
@@ -123,6 +123,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
         // Put it to the planner
         self_agg[olsw->bound]= msg;
+        printScheduler();
 
         EV << "Scheduling stack> " <<endl;
             for(std::map<cObject *, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it )
@@ -136,7 +137,9 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     if( msg->isSelfMessage() and msg->hasPar("RelaseStoredCar")){
         SOAEntry *se=(SOAEntry *) msg->par("RelaseStoredCar").pointerValue();
         Car *car= (Car *) msg->par("RelaseStoredCar_CAR").pointerValue();
+        int ident= (int)uniform(100, 1e9);
 
+        /*
         if( !bufferedSOAqueue.contains(se) ){
             // This might happend when is there a problem with timing. se is deleted
             // from bufferedSOAqueue and after the scheduler wants to release car
@@ -146,6 +149,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
             opp_terminate("Jdeme zkoumat kde je problem");
             return;
         }
+        */
 
         EV << "The car "<< car->getName() << "is to be released to SOA";
         EV << " based on " << se->info() << endl;
@@ -155,6 +159,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         ol->setWavelengthNo( se->getOutLambda() );
         ol->encapsulate( car );
         ol->addPar("ot").setDoubleValue( msg->par("ot").doubleValue() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
+        ol->addPar("SOAEntry_identifier").setLongValue( ident );
 
         // Calculate buffer usage and create record for statistics
         capacity -= car->getByteLength();
@@ -174,7 +179,9 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         }
 
         // Drop the self-message since is not needed anymore
+        se->identifier= ident;
         self_agg.erase(se);
+        printScheduler();
         delete msg; return;
     }
 
@@ -190,6 +197,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         MACContainer *MAC= (MACContainer *)msg->par("StartAggregation").pointerValue();
         int outPort= e->getOutPort();
         int WL= e->getOutLambda();
+        int ident= (int)uniform(100, 1e9);
 
         // 1. Header
         CAROBSHeader *H= (CAROBSHeader *)msg->par("StartAggregation_H").pointerValue();
@@ -208,6 +216,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         OH->setWavelengthNo(0); //Signalisation is always on the first channel
         OH->encapsulate(H);
         OH->setByteLength(50);
+        OH->addPar("SOAEntry_identifier").setLongValue(ident);
         send(OH, "control");
 
 
@@ -229,6 +238,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
             tcar->par("src").setDoubleValue( address );
             OC->encapsulate(tcar);
             OC->addPar("ot").setDoubleValue( su->getStart().dbl() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
+            OC->addPar("SOAEntry_identifier").setLongValue(ident);
 
             // Car loading statistics
             carMsgs.record(tcar->getPayload().length());
@@ -249,6 +259,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
         // Unset mapper
         self_agg.erase(e);
+        e->identifier= ident;
+        printScheduler();
         delete msg; return;
     }
 
@@ -291,17 +303,19 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     msg1->par("StartAggregation_switching").setPointerValue(e);
     msg1->addPar("StartAggregation_start");
     msg1->par("StartAggregation_start").setDoubleValue( simTime().dbl() );
+    //msg1->setSchedulingPriority(5);
 
     scheduleAt(simTime() + t0, msg1);
 
     // Set mapper
     self_agg[e]= msg1;
+    printScheduler();
 }
 
 void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
     Enter_Method("storeCar()");
     EV << "Adding scheduler " << e->info() << "with waiting=" << wait << endl;
-    bufferedSOAqueue.insert(e);
+    //bufferedSOAqueue.insert(e);
     waitings[e]= wait;
     usage[e]= 0;
 
@@ -319,7 +333,7 @@ void CoreNodeMAC::storeCar( SOAEntry *e, simtime_t wait ){
 void CoreNodeMAC::removeCar( SOAEntry *e ){
     Enter_Method("removeCar()");
     EV << "Removing scheduler at " << simTime() << " for release="<<e->getStart()<<endl;
-    if( bufferedSOAqueue.contains(e) ) bufferedSOAqueue.remove( e );
+    //if( bufferedSOAqueue.contains(e) ) bufferedSOAqueue.remove( e );
     waitings.erase(e);
     usage.erase(e);
 }
@@ -331,26 +345,31 @@ void CoreNodeMAC::delaySwitchingTableEntry(cObject *e, simtime_t time){
     // Only for better readability
     SOAEntry *sw= (SOAEntry *) e;
 
-    // Get self-message
-    cMessage *msg_agg= (cMessage *) self_agg[ sw ];
+    if( self_agg.find(sw) == self_agg.end()  ){
 
-    if( self_agg.find(sw) == self_agg.end()  )
+        EV << "Delaying: "<< sw->info() << endl;
+        printScheduler();
         opp_terminate("Rescheduling not existing scheduling");
 
-    if( msg_agg == NULL){
-
-        for(std::map<cObject *, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it )
-            EV << "SENDINGS"<< ((SOAEntry *)it->first)->info() << ": " << it->second << endl;
-
-        opp_terminate("Having null items!!!");
-
     }
+
+    // Get self-message
+    cMessage *msg_agg= (cMessage *) self_agg[ sw ];
 
     // It exists
     simtime_t arr= ( msg_agg )->getArrivalTime();
     msg_agg->setArrivalTime( arr + time );
 
 }
+
+void CoreNodeMAC::printScheduler(){
+
+    EV << "Scheduling: " <<endl;
+    for(std::map<cObject *, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it ){
+        EV << ( (SOAEntry *)it->first )->info() << " : " << it->second << endl;
+    }
+}
+
 
 void CoreNodeMAC::finish(){
 
