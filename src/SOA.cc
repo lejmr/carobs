@@ -323,16 +323,11 @@ void SOA::delaySwitchingTableEntry(cObject *e, simtime_t time){
     simtime_t arr_act= ( msg_act )->getArrivalTime();
     simtime_t arr_dea= ( msg_dea )->getArrivalTime();
 
-    msg_act->setArrivalTime( arr_act + time );
-    msg_dea->setArrivalTime( arr_dea + time );
-
-    /*
     cancelEvent( msg_act );
     cancelEvent( msg_dea );
 
     scheduleAt(arr_act + time , msg_act);
     scheduleAt(arr_dea + time , msg_dea);
-    */
 
 }
 

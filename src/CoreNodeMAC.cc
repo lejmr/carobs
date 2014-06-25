@@ -337,7 +337,8 @@ void CoreNodeMAC::delaySwitchingTableEntry(cObject *e, simtime_t time){
 
     // It exists
     simtime_t arr= ( msg_agg )->getArrivalTime();
-    msg_agg->setArrivalTime( arr + time );
+    cancelEvent(msg_agg);
+    scheduleAt( arr + time, msg_agg);
 
 }
 

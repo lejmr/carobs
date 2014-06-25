@@ -72,7 +72,6 @@ void SOAManager::initialize() {
     BOKP.setName("Burst cut-throught probability");
     BTOTAL.setName("Number of bursts in statistics");
     SECRATIO.setName("Secondary contention ratio");
-    last_r= simTime();
 
     WATCH(OBS);
     WATCH_MAP(mf_max);
@@ -83,9 +82,6 @@ bool myfunction (SOAEntry *i, SOAEntry *j) { return (i->getStart()<j->getStart()
 
 void SOAManager::countProbabilities(){
     /* Function that is used for evaluation of probabilities during the simulation */
-    return;
-
-    if( last_r >= simTime() ) return;
 
     if(bbp_total > 0){
         // BLP
@@ -106,7 +102,6 @@ void SOAManager::countProbabilities(){
     bbp_buffered= 0;
     bbp_dropped=0;
     bbp_total=0;
-    last_r= simTime();
 }
 
 void SOAManager::handleMessage(cMessage *msg) {
@@ -446,7 +441,6 @@ void SOAManager::obsBehaviour(cMessage *msg, int inPort) {
 }
 
 void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, simtime_t stop) {
-    return;
     /**
      *  This function simply calculates how much the reagregated burst cause buffering of new comming bursts.
      *
@@ -466,17 +460,7 @@ void SOAManager::evaluateSecondaryContentionRatio(int outPort, simtime_t start, 
         contenting++;
         if (tmp->getBuffer() and !tmp->getBufferDirection() )
             buffering++;
-/*
-        EV << start << " - " << stop;
-        EV <<": "<<tmp->info()<<" "<<buffering<<"/"<<contenting;
-        EV << endl;
-*/
-    }
 
-
-    if( simTime() < last_r ){
-        EV << "Last measurement was at "<< last_r << endl;
-        opp_terminate("How is that possible? Back in time?");
     }
 
     if (contenting > 0)
@@ -576,7 +560,9 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
             // Get self-message and delay it
             cMessage *msg_agg = (cMessage *) sched_header[*it];
             simtime_t arr = (msg_agg)->getArrivalTime();
-            msg_agg->setArrivalTime(arr + delay);
+            cancelEvent(msg_agg);
+            scheduleAt( arr + delay, msg_agg);
+
         }
 
 
