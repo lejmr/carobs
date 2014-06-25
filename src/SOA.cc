@@ -186,41 +186,52 @@ void SOA::handleMessage(cMessage *msg) {
         OpticalLayer *ol = dynamic_cast<OpticalLayer *>(msg);
         int inPort = msg->getArrivalGate()->getIndex();
 
-        // Check whether it is proper re-buffering or aggreagation traffic
-        if( !ol->hasPar("SOAEntry_identifier") )
-            opp_terminate("Packet is missing SOAEntry identifier.. there is no way how to switch it!!!");
 
-        // Get the identifier
-        int ident= ol->par("SOAEntry_identifier").longValue();
-        if( ident < 100 ) opp_terminate("Wrong SOAEntry identifier");
+        if( ol->hasPar("marker") ){
+            /** Car that was buffered and now is put back onto the optical network */
 
-        // Find the proper aggregation rule
-        bool found=false;
-        for (cQueue::Iterator iter(switchingTable, 0); !iter.end(); iter++) {
-            SOAEntry *se = (SOAEntry *) iter();
-            EV << "SOA: " << se->info() << endl;
-
-            if( se->identifier == ident ){
-                found=true;
-                break;
+            // Check correctness of the un-buffering scheduling
+            SOAEntry *se = (SOAEntry *) ol->par("marker").pointerValue();
+            if( not switchingTable.contains( se )  ){
+                EV << "NOT IN: " << se->info() << endl;
+                opp_terminate("Un-buffering SOAEntry is missing !!! ");
             }
 
-        }
-
-        if( not found ) opp_terminate("Aggregate without the rule is set !!! ");
-
-
-        // Update ot of optical layer
-        double ot = ol->par("ot").doubleValue();
-        ol->par("ot").setDoubleValue(ot-getParentModule()->par("d_p").doubleValue());
-
-        if (ot < 0)
-            opp_terminate("ASi tu mame smycku v agregovani");
-
-        EV << "Agreguji pres port " << inPort << endl;
-        if (inPort >= 0 ) {
+            // Send to the next node
+            EV << "Un-buffered through port " << inPort << endl;
             send(ol, "gate$o", inPort );
+
+        } else {
+            /** Just and aggregation from adjacent network */
+
+            // Get the identifier
+            int ident = ol->par("SOAEntry_identifier").longValue();
+            if (ident < 100) opp_terminate("Wrong SOAEntry identifier");
+
+            // Verify it is correct scheduling
+            bool found = false;
+            for (cQueue::Iterator iter(switchingTable, 0); !iter.end(); iter++) {
+                SOAEntry *se = (SOAEntry *) iter();
+                EV << "SOA: " << se->info() << endl;
+
+                if (se->identifier == ident) {
+                    found = true;
+                    break;
+                }
+            }
+            if (not found) opp_terminate("Aggregate without the rule is set !!! ");
+
+            // It is correct so it can be forwarded
+            double ot = ol->par("ot").doubleValue();
+            ol->par("ot").setDoubleValue(ot-getParentModule()->par("d_p").doubleValue());
+            if (ot < 0) opp_terminate("ASi tu mame smycku v agregovani");
+
+            // Send to the next node
+            EV << "Aggreagating traffic through port" << inPort << endl;
+            send(ol, "gate$o", inPort );
+
         }
+
     }
 
 }

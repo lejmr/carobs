@@ -79,7 +79,7 @@ class CoreNodeMAC : public cSimpleModule
     /**
      * Scheduler
      */
-    std::map<cObject *, cObject *>   self_agg;
+    std::map<int, cObject *>   self_agg;
     virtual void printScheduler();
 
   public:

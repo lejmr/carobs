@@ -119,10 +119,10 @@ void SOAManager::handleMessage(cMessage *msg) {
 
         // Label SOAentry as not re-schedullable
         SOAEntry *e= (SOAEntry *) msg->par("CAROBSHeader_SOAEntry").pointerValue();
-        e->H_sent= true;
 
         // Erase from scheduler
         sched_header.erase(e);
+        carobsHeaderSent(e);
 
         delete msg; return;
     }
@@ -358,12 +358,12 @@ void SOAManager::carobsBehaviour(cMessage *msg, int inPort) {
         int outPort= sef->getOutPort();
         //sendDelayed(ol, d_p+DELAY_extra, "control$o", outPort);
 
-        cMessage *msg = new cMessage("SendCAROBSHeader");
-        msg->addPar("CAROBSHeader").setPointerValue( ol );
-        msg->addPar("CAROBSHeader_outport").setLongValue( outPort );
-        msg->addPar("CAROBSHeader_SOAEntry").setPointerValue(sef);
-        scheduleAt( simTime() + d_p+DELAY_extra, msg );
-        sched_header[sef]= msg;
+        cMessage *msg1 = new cMessage("SendCAROBSHeader");
+        msg1->addPar("CAROBSHeader").setPointerValue( ol );
+        msg1->addPar("CAROBSHeader_outport").setLongValue( outPort );
+        msg1->addPar("CAROBSHeader_SOAEntry").setPointerValue(sef);
+        scheduleAt( simTime() + d_p+DELAY_extra, msg1 );
+        sched_header[sef]= msg1;
     }else
         delete msg;
 
@@ -590,6 +590,28 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
     EV<< endl;
 }
 
+void SOAManager::carobsHeaderSent(int identifier){
+    Enter_Method("carobsHeaderSent()");
+
+    for (cQueue::Iterator iter(scheduling, 0); !iter.end(); iter++) {
+        SOAEntry *se = (SOAEntry *) iter();
+        if( se->identifier == identifier ){
+            se->H_sent = true;
+            return;
+        }
+    }
+
+    EV << "Looking for SOAEntry with identifier="<<identifier<<endl;
+    opp_terminate("Could not find routing to address");
+
+}
+
+void SOAManager::carobsHeaderSent(SOAEntry *se){
+    Enter_Method("carobsHeaderSent()");
+    se->H_sent= true;
+}
+
+
 SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_t start, simtime_t stop, int length) {
     EV << "Get scheduling for " << inPort << "#" << inWL << " label="
               << label << " for:" << start << "-" << stop;
@@ -647,8 +669,8 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
                     EV << " reschedules"  << " OT=" << tmp->ot_var;
 
                     // Aggregation that is already used (CAROBSHeader is away)
-                    if( tmp->getStart()-tmp->ot_var <= simTime() ){
-                    //if( ! tmp->H_sent ){
+                    //if( tmp->getStart()-tmp->ot_var <= simTime() ){
+                    if( tmp->H_sent ){
 
                         // It is already too late to reschedule because Header is on the way
                         EV << " .. already send => buffering" << endl;
@@ -785,6 +807,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
     e_out->setStop(stop + BT);
     e_out->setBuffer(true);
     e_out->setOutBuffer();
+    e_out->identifier= uniform(100,1e9);
     addSwitchingTableEntry(e_out);
 
     // Bond this two together
@@ -910,7 +933,7 @@ void SOAManager::addSwitchingTableEntry(SOAEntry *e){
 }
 
 
-simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, SOAEntry* &e) {
+simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, int &outPort, int &WL, int &ident) {
     Enter_Method("getAggregationWaitingTime()");
 
     // Basic info
@@ -918,8 +941,10 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
 
     // Get path information
     CplexRouteEntry r= R->getRoutingEntry(label);
-    int outPort= r.getOutPort();
-    int WL= r.getOutLambda();
+    outPort= r.getOutPort();
+    WL= r.getOutLambda();
+    ident= uniform(100, 1e8);
+
     EV << " outPort="<<outPort;
 
     // Select only scheduling relevant for given path
@@ -934,11 +959,12 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
     if( label_sched.size() == 0 ){
 
         // Create aggreagation entry, that can be used right now!
-        e = new SOAEntry(outPort, WL, true);
+        SOAEntry *e = new SOAEntry(outPort, WL, true);
         e->setStart(simTime() + OT);
         e->setStop(simTime() + OT + len);
         e->ot_var= OT;
         e->label_var= label;
+        e->identifier= ident;
         addSwitchingTableEntry(e);
 
         // Full-fill output text
@@ -974,11 +1000,12 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
 
                 // Space was found .. lets use it!!!
                 simtime_t waiting = label_sched[i - 1]->getStop() - simTime() + d_s;
-                e = new SOAEntry(outPort, WL, true);
+                SOAEntry *e = new SOAEntry(outPort, WL, true);
                 e->setStart(simTime() + OT + waiting);
                 e->setStop( simTime() + OT + waiting + len);
                 e->ot_var= OT;
                 e->label_var= label;
+                e->identifier= ident;
                 addSwitchingTableEntry(e);
 
                 // Full-fill output text
@@ -995,11 +1022,12 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         if( waiting < 0 ) waiting = 0.0;
 
         // Entry itself
-        e = new SOAEntry(outPort, WL, true);
+        SOAEntry *e = new SOAEntry(outPort, WL, true);
         e->setStart( simTime() + waiting + OT );
         e->setStop(  simTime() + waiting + OT + len);
         e->ot_var= OT;
         e->label_var= label;
+        e->identifier= ident;
         addSwitchingTableEntry(e);
 
         // Return the waiting entry

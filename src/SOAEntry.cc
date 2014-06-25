@@ -48,6 +48,7 @@ SOAEntry::SOAEntry(int port, int wl, bool aggregation){
 std::string SOAEntry::info() const
 {
     std::stringstream out;
+    out << "("<<identifier<<") ";
 
     if( buffer_var and not buffer_in_var ){
             out << "In>> Buffer ";

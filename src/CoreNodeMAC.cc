@@ -108,6 +108,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         msg->par("RelaseStoredCar_CAR").setPointerValue(car);
         msg->setSchedulingPriority(1);
         msg->addPar("ot").setDoubleValue( ot );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
+        msg->addPar("RelaseStoredCar_ident").setLongValue( olsw->bound->identifier );
 
         usage[olsw->bound]++;
         EV << " and released in: " << (simtime_t) waitings[olsw->bound];
@@ -122,12 +123,12 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         scheduleAt(simTime() + waitings[olsw->bound], msg);
 
         // Put it to the planner
-        self_agg[olsw->bound]= msg;
+        self_agg[ olsw->bound->identifier ]= msg;
         printScheduler();
 
         EV << "Scheduling stack> " <<endl;
-            for(std::map<cObject *, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it )
-                EV << "SENDINGS"<< ((SOAEntry *)it->first)->info() << ": " << it->second << endl;
+            for(std::map<int, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it )
+                EV << "SENDINGS"<<  it->first << ": " << it->second << endl;
 
         // Finish buffering procedure
         return;
@@ -137,19 +138,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     if( msg->isSelfMessage() and msg->hasPar("RelaseStoredCar")){
         SOAEntry *se=(SOAEntry *) msg->par("RelaseStoredCar").pointerValue();
         Car *car= (Car *) msg->par("RelaseStoredCar_CAR").pointerValue();
-        int ident= (int)uniform(100, 1e9);
-
-        /*
-        if( !bufferedSOAqueue.contains(se) ){
-            // This might happend when is there a problem with timing. se is deleted
-            // from bufferedSOAqueue and after the scheduler wants to release car
-            EV << "Takova volba neexistuje - cotains ";
-            EV << car->getName() << endl;
-            outAged++;
-            opp_terminate("Jdeme zkoumat kde je problem");
-            return;
-        }
-        */
+        int ident= msg->par("RelaseStoredCar_ident").longValue();
 
         EV << "The car "<< car->getName() << "is to be released to SOA";
         EV << " based on " << se->info() << endl;
@@ -159,13 +148,11 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         ol->setWavelengthNo( se->getOutLambda() );
         ol->encapsulate( car );
         ol->addPar("ot").setDoubleValue( msg->par("ot").doubleValue() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
-        ol->addPar("SOAEntry_identifier").setLongValue( ident );
+        ol->addPar("marker").setPointerValue( se );
 
         // Calculate buffer usage and create record for statistics
         capacity -= car->getByteLength();
         if( capacity > max_buffersize )max_buffersize= capacity;
-        if( avg_buffersize == 0 ) avg_buffersize= capacity;
-        avg_buffersize= (avg_buffersize+capacity)/2;
 
         // Send the OL to SOA
         send(ol, "soa$o", se->getOutPort() );
@@ -179,8 +166,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         }
 
         // Drop the self-message since is not needed anymore
-        se->identifier= ident;
-        self_agg.erase(se);
+        self_agg.erase(ident);
         printScheduler();
         delete msg; return;
     }
@@ -193,11 +179,10 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         vwaitingtime.record(delta);
 
         // Sending ..
-        SOAEntry *e= (SOAEntry *)msg->par("StartAggregation_switching").pointerValue();
+        int SOAEntry_indentifier= msg->par("StartAggregation_SOAEntry_indentifier").longValue();
         MACContainer *MAC= (MACContainer *)msg->par("StartAggregation").pointerValue();
-        int outPort= e->getOutPort();
-        int WL= e->getOutLambda();
-        int ident= (int)uniform(100, 1e9);
+        int outPort= msg->par("StartAggregation_outPort").longValue();
+        int WL= msg->par("StartAggregation_WL").longValue();
 
         // 1. Header
         CAROBSHeader *H= (CAROBSHeader *)msg->par("StartAggregation_H").pointerValue();
@@ -216,8 +201,9 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         OH->setWavelengthNo(0); //Signalisation is always on the first channel
         OH->encapsulate(H);
         OH->setByteLength(50);
-        OH->addPar("SOAEntry_identifier").setLongValue(ident);
+        OH->addPar("SOAEntry_identifier").setLongValue(SOAEntry_indentifier);
         send(OH, "control");
+        SM->carobsHeaderSent(SOAEntry_indentifier);
 
 
         // 2. Cars
@@ -238,7 +224,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
             tcar->par("src").setDoubleValue( address );
             OC->encapsulate(tcar);
             OC->addPar("ot").setDoubleValue( su->getStart().dbl() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
-            OC->addPar("SOAEntry_identifier").setLongValue(ident);
+            OC->addPar("SOAEntry_identifier").setLongValue(SOAEntry_indentifier);
 
             // Car loading statistics
             carMsgs.record(tcar->getPayload().length());
@@ -258,8 +244,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         }
 
         // Unset mapper
-        self_agg.erase(e);
-        e->identifier= ident;
+        self_agg.erase(SOAEntry_indentifier);
         printScheduler();
         delete msg; return;
     }
@@ -282,10 +267,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     int dst = H->getDst();
 
     // Obtain waiting and wavelength
-    SOAEntry *e;
-    simtime_t t0 = SM->getAggregationWaitingTime(H->getLabel(), H->getOT(), H->getLength(), e);
-    int WL = e->getOutLambda();
-    int outPort=e->getOutPort();
+    int SOAEntry_indentifier, outPort, WL;
+    simtime_t t0 = SM->getAggregationWaitingTime(H->getLabel(), H->getOT(), H->getLength(), outPort, WL, SOAEntry_indentifier);
 
     if( outPort < 0 ){
         EV << "Unable to find output path" << endl;
@@ -295,20 +278,16 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
     // Schedule sending
     cMessage *msg1 = new cMessage("StartAggregation");
-    msg1->addPar("StartAggregation");
-    msg1->par("StartAggregation").setPointerValue(MAC);
-    msg1->addPar("StartAggregation_H");
-    msg1->par("StartAggregation_H").setPointerValue(H);
-    msg1->addPar("StartAggregation_switching");
-    msg1->par("StartAggregation_switching").setPointerValue(e);
-    msg1->addPar("StartAggregation_start");
-    msg1->par("StartAggregation_start").setDoubleValue( simTime().dbl() );
-    //msg1->setSchedulingPriority(5);
-
+    msg1->addPar("StartAggregation").setPointerValue(MAC);
+    msg1->addPar("StartAggregation_H").setPointerValue(H);
+    msg1->addPar("StartAggregation_SOAEntry_indentifier").setLongValue(SOAEntry_indentifier);
+    msg1->addPar("StartAggregation_start").setDoubleValue( simTime().dbl() );
+    msg1->addPar("StartAggregation_outPort").setLongValue(outPort);
+    msg1->addPar("StartAggregation_WL").setLongValue(WL);
     scheduleAt(simTime() + t0, msg1);
 
     // Set mapper
-    self_agg[e]= msg1;
+    self_agg[SOAEntry_indentifier]= msg1;
     printScheduler();
 }
 
@@ -345,7 +324,7 @@ void CoreNodeMAC::delaySwitchingTableEntry(cObject *e, simtime_t time){
     // Only for better readability
     SOAEntry *sw= (SOAEntry *) e;
 
-    if( self_agg.find(sw) == self_agg.end()  ){
+    if( self_agg.find(sw->identifier) == self_agg.end()  ){
 
         EV << "Delaying: "<< sw->info() << endl;
         printScheduler();
@@ -354,7 +333,7 @@ void CoreNodeMAC::delaySwitchingTableEntry(cObject *e, simtime_t time){
     }
 
     // Get self-message
-    cMessage *msg_agg= (cMessage *) self_agg[ sw ];
+    cMessage *msg_agg= (cMessage *) self_agg[ sw->identifier ];
 
     // It exists
     simtime_t arr= ( msg_agg )->getArrivalTime();
@@ -365,8 +344,8 @@ void CoreNodeMAC::delaySwitchingTableEntry(cObject *e, simtime_t time){
 void CoreNodeMAC::printScheduler(){
 
     EV << "Scheduling: " <<endl;
-    for(std::map<cObject *, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it ){
-        EV << ( (SOAEntry *)it->first )->info() << " : " << it->second << endl;
+    for(std::map<int, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it ){
+        EV << it->first << " : " << it->second << endl;
     }
 }
 

@@ -189,7 +189,6 @@ class SOAManager : public cSimpleModule
     virtual void rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled);
 
 
-
     /**
      * Buffering probability counters
      */
@@ -209,7 +208,11 @@ class SOAManager : public cSimpleModule
      */
     virtual void dropSwitchingTableEntry(SOAEntry *e);
 
-
+    /**
+     *  Rescheduling related functions .. markers
+     */
+    virtual void carobsHeaderSent(int identifier);
+    virtual void carobsHeaderSent(SOAEntry *se);
 
     /**
      *   Function getAggregationWaitingTime return waiting time of burst train such that
@@ -219,7 +222,7 @@ class SOAManager : public cSimpleModule
      *   @param wl: pointer on WL variable which is to be used as wavelength
      *   @return    : Least waiting time when such car train can be send to SOA
      */
-    virtual simtime_t getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, SOAEntry* &e);
+    virtual simtime_t getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, int &outPort, int &WL, int &ident);
 };
 
 #endif
