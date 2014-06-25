@@ -138,7 +138,7 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Statisticis
             buff++;
-            //OE.record(oe);
+            OE.record(oe);
             return;
         }
 
@@ -170,7 +170,7 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Sending to output port
             send(ol, "gate$o", sw->getOutPort());
-            //OE.record(0);
+            OE.record(0);
         }else{
             EV << "Burst at "<<inPort<<"#"<<inWl<<" is to be dropped !!!" << endl;
             drpd++;
