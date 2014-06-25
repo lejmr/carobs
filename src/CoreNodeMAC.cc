@@ -246,7 +246,11 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         // Unset mapper
         self_agg.erase(SOAEntry_indentifier);
         printScheduler();
-        delete msg; return;
+
+        // Free memory
+        delete msg;
+        delete MAC;
+        return;
     }
 
 
