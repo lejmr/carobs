@@ -527,12 +527,12 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
 
         // So we have time when we can start sending ..
         // 1. calculate a new delay,
-        simtime_t delay= t_start - (*it)->getStart();
+        simtime_t delay= t_start - (*it)->getStart() + d_s;
         EV << " extra delay="<<delay << endl;
 
         // Update switching times
-        (*it)->setStart((*it)->getStart() + delay + d_s);
-        (*it)->setStop((*it)->getStop() + delay + d_s );
+        (*it)->setStart((*it)->getStart() + delay);
+        (*it)->setStop((*it)->getStop() + delay );
         scheduling.insert((*it));
         splitTable[(*it)->getOutPort()].insert((*it));
 
