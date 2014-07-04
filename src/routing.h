@@ -41,7 +41,7 @@ class Routing : public cSimpleModule
      * @param destination - refers to address of destination node
      * @return offset time ot^c - which stands for processing time of all intermediate nodes ot^c=l^c*d^H [8.2.3 - Coutelen DT]
      */
-    virtual simtime_t getOffsetTime(int destination);
+    virtual simtime_t getOffsetTime(int destination, bool aggregation=false);
 
     /**
      *

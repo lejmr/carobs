@@ -215,13 +215,21 @@ void Routing::handleMessage(cMessage *msg) {
 }
 
 
-simtime_t Routing::getOffsetTime(int destination) {
+simtime_t Routing::getOffsetTime(int destination, bool aggregation) {
+    Enter_Method("getOffsetTime()");
     // Check whether destination is in the network, otherwise return -1.0
     // which means drop the burst, cause such destination doesn't exist
+    int address = this->getParentModule()->par("address").longValue() - 100;
 
     for (cQueue::Iterator iter(RoutingTable, 0); !iter.end(); iter++){
         CplexRouteEntry *r = (CplexRouteEntry *) iter();
         if( r->getdest() == destination ){
+
+            if( aggregation and r->getSource() != address ){
+                continue;
+            }
+
+            EV << "Selecting" << r->info() << endl;
             return r->getOT();
         }
     }

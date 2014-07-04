@@ -52,7 +52,7 @@ void TrainAssembler::handleMessage(cMessage *msg) {
 
         EV << "A new car has arrived" << " with random ID=" << TSId << " and AQ=" << AQ;
 
-        simtime_t ot = R->getOffsetTime(AQ);
+        simtime_t ot = R->getOffsetTime(AQ,true);
         EV << " with distance ot=" << ot;
 
         /**
