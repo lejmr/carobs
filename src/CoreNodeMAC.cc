@@ -125,12 +125,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         scheduleAt(simTime() + waitings[olsw->bound], msg);
 
         // Put it to the planner
-        self_agg[ olsw->bound->identifier ]= msg;
+        self_agg[ olsw->bound->identifier ].insert(msg);
         printScheduler();
-
-        EV << "Scheduling stack> " <<endl;
-            for(std::map<int, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it )
-                EV << "SENDINGS"<<  it->first << ": " << it->second << endl;
 
         // Finish buffering procedure
         return;
@@ -168,7 +164,9 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         }
 
         // Drop the self-message since is not needed anymore
-        self_agg.erase(ident);
+        self_agg[ident].erase(msg);
+        if( self_agg[ident].size() <= 0 ) self_agg.erase(ident);
+
         printScheduler();
         delete msg; return;
     }
@@ -293,7 +291,7 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
     scheduleAt(simTime() + t0, msg1);
 
     // Set mapper
-    self_agg[SOAEntry_indentifier]= msg1;
+    self_agg[SOAEntry_indentifier].insert(msg1);
     printScheduler();
 }
 
@@ -347,21 +345,28 @@ void CoreNodeMAC::delaySwitchingTableEntry(cObject *e, simtime_t time){
     }
 
     // Get self-message
-    cMessage *msg_agg= (cMessage *) self_agg[ sw->identifier ];
+    for(std::set<cObject *>::iterator cmsg=self_agg[sw->identifier].begin(); cmsg!=self_agg[sw->identifier].end(); ++cmsg ){
+        cMessage *msg= (cMessage *) *cmsg;
+        simtime_t arr= msg->getArrivalTime();
+        cancelEvent(msg);
+        scheduleAt( arr + time , msg);
 
-    // It exists
-    simtime_t arr= ( msg_agg )->getArrivalTime();
-    cancelEvent(msg_agg);
-    scheduleAt( arr + time, msg_agg);
+        EV << "New aggregation/un-buffering is going to happen at="<<arr + time;
+        EV << " according to "<< sw->info() << endl;
+    }
 
 }
 
 void CoreNodeMAC::printScheduler(){
 
     EV << "Scheduling: " <<endl;
-    for(std::map<int, cObject *>::iterator it=self_agg.begin(); it!=self_agg.end(); ++it ){
-        EV << it->first << " : " << it->second << endl;
+    for(std::map<int, std::set<cObject *> >::iterator it=self_agg.begin(); it!=self_agg.end(); ++it ){
+        EV << it->first << " : ";
+        for(std::set<cObject *>::iterator msg=it->second.begin(); msg!=it->second.end(); msg++ )
+            EV << (cMessage *) *msg << " ";
+        EV << endl;
     }
+
 }
 
 
