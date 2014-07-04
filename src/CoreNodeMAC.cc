@@ -113,6 +113,8 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
         usage[olsw->bound]++;
         EV << " and released in: " << (simtime_t) waitings[olsw->bound];
         EV << " at=" << simTime() + waitings[olsw->bound] << endl;
+        EV << "INPUT: " << olsw->info() <<endl;
+        EV << "OUTPUT: " << olsw->bound->info() <<endl;
 
         // Security test of waiting assignment for the SOAEntry
         if (waitings.find(olsw->bound) == waitings.end()) {
@@ -328,12 +330,20 @@ void CoreNodeMAC::delaySwitchingTableEntry(cObject *e, simtime_t time){
     // Only for better readability
     SOAEntry *sw= (SOAEntry *) e;
 
+    // Update waiting
+    waitings[sw]+= time;
+
     if( self_agg.find(sw->identifier) == self_agg.end()  ){
 
         EV << "Delaying: "<< sw->info() << endl;
         printScheduler();
-        opp_terminate("Rescheduling not existing scheduling");
 
+        if( sw->getBuffer() and sw->getStart() > simTime() ){
+            EV << "** MAC says: None burst has arrived, so there is no scheduling to be shifted.." << endl;
+            return;
+        }
+
+        opp_terminate("Rescheduling not existing scheduling");
     }
 
     // Get self-message
