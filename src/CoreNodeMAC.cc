@@ -323,7 +323,9 @@ void CoreNodeMAC::removeCar( SOAEntry *e ){
 
 void CoreNodeMAC::delaySwitchingTableEntry(cObject *e, simtime_t time){
     Enter_Method("delaySwitchingTableEntry()");
-    // EV << "Postponing "<< ((SOAEntry *) e)->info() << " about " << time << endl;
+
+    // If there is no delay dont do anything
+    if( time <= 0 ) return;
 
     // Only for better readability
     SOAEntry *sw= (SOAEntry *) e;

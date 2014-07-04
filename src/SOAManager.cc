@@ -501,12 +501,12 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
             std::sort( sched.begin(), sched.end(), myfunction);
 
             // Scheduling length
-            simtime_t len= (*it)->getStop() - (*it)->getStart() - 2*d_s;
+            simtime_t len= (*it)->getStop() - (*it)->getStart();
 
             // Lets search for empty space
             t_start= sched[ sched.size()-1 ]->getStop();
             for(unsigned int i=1; i < sched.size(); i++ ){
-                simtime_t delta= sched[i]->getStart() - sched[i-1]->getStop();
+                simtime_t delta= sched[i]->getStart() - sched[i-1]->getStop() - 2*d_s;
                 if( delta >= len ){
                     t_start= sched[i-1]->getStop();
                     break;
@@ -649,10 +649,13 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
                 if( tmp->isAggregation() or (tmp->getBuffer() and not tmp->getBufferDirection() )) {
 
                     // Skip already scheduled paths
-                    if( tmp->getStop()+d_s <= start ) continue;
+                    if( tmp->getStop()+d_s <= start ){
+                        EV << " OK" << endl;
+                        continue;
+                    }
 
 
-                    EV << " reschedules"  << " OT=" << tmp->ot_var;
+                    EV << "reschedules with OT=" << tmp->ot_var;
 
                     // Aggregation that is already used (CAROBSHeader is away)
                     //if( tmp->getStart()-tmp->ot_var <= simTime() ){
