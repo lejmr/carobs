@@ -520,7 +520,7 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
                 if( (*it)->isAggregation() and sched[i-1]->getStop()+d_s-(*it)->ot_var < simTime() ) continue;
 
                 // CAROBSHeader needs to be send OT time before the scheduling it-self
-                if( (*it)->getBuffer() and !(*it)->getBufferDirection() and sched[i-1]->getStop()+d_p-(*it)->ot_var < simTime() ) continue;
+                if( (*it)->getBuffer() and !(*it)->getBufferDirection() and sched[i-1]->getStop()-(*it)->ot_var < simTime() ) continue;
 
                 // Fit to the space
                 if( delta >= len ){
