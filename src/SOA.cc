@@ -198,7 +198,7 @@ void SOA::handleMessage(cMessage *msg) {
             }
 
             // Send to the next node
-            EV << "Un-buffered through port " << inPort << endl;
+            EV << "Un-buffered through port " << inPort << ": "<< se->info() << endl;
             send(ol, "gate$o", inPort );
 
         } else {
@@ -210,8 +210,9 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Verify it is correct scheduling
             bool found = false;
+            SOAEntry *se;
             for (cQueue::Iterator iter(switchingTable, 0); !iter.end(); iter++) {
-                SOAEntry *se = (SOAEntry *) iter();
+                se = (SOAEntry *) iter();
                 EV << "SOA: " << se->info() << endl;
 
                 if (se->identifier == ident) {
@@ -227,7 +228,7 @@ void SOA::handleMessage(cMessage *msg) {
             if (ot < 0) opp_terminate("ASi tu mame smycku v agregovani");
 
             // Send to the next node
-            EV << "Aggreagating traffic through port" << inPort << endl;
+            EV << "Aggreagating traffic through port" << inPort << ": "<< se->info() << endl;
             send(ol, "gate$o", inPort );
 
         }
