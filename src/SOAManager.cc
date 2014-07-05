@@ -519,6 +519,9 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
                 // For aggregation SOAEntries we must remember of OT because of CAROBSHeader
                 if( (*it)->isAggregation() and sched[i-1]->getStop()+d_s-(*it)->ot_var < simTime() ) continue;
 
+                // CAROBSHeader needs to be send OT time before the scheduling it-self
+                if( (*it)->getBuffer() and !(*it)->getBufferDirection() and sched[i-1]->getStop()+d_p-(*it)->ot_var < simTime() ) continue;
+
                 // Fit to the space
                 if( delta >= len ){
                     t_start= sched[i-1]->getStop();
@@ -788,8 +791,10 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
         //BT= label_sched[ label_sched.size()-1 ]->getStop() - start;
         EV << "Delka> "<< label_sched.size() << endl;
         for(int i=0;i<label_sched.size();i++){
-            EV << i << " - " << label_sched[i] << endl;
+            EV << i << " - " << label_sched[i]->info() << endl;
         }
+
+        EV << " LIFO: " << label_sched[ label_sched.size()-1 ]->info() << endl;
 
         BT= label_sched[ label_sched.size()-1 ]->getStop() - start + d_s;
     }
@@ -991,11 +996,14 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
 
         EV << endl << " Setridene routy:" << endl << endl;
         int j=0;
+        simtime_t last_t=0;
         for(std::vector<SOAEntry *>::iterator it=label_sched.begin(); it!=label_sched.end(); it++ ){
+            if( j>0 ) EV << "GAP="<<(*it)->getStop()-last_t << endl;
             EV << j++ <<" " << (*it)->info() << endl;
+            last_t= (*it)->getStop();
         }
 
-
+        bool fit=false;
         // Find space or LIFO
         for (int i = 1; i < label_sched.size(); i++) {
 
@@ -1007,6 +1015,20 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
 
             // Is the space big enought?
             if (delta >= len) {
+
+                // There is not enough of space to fit burst train because of OT..
+                if( label_sched[i - 1]->getStop()+d_s-OT < simTime() ) continue;
+
+                // DEBUG:
+                EV<< "Fit between LEFT="<< label_sched[i - 1]->info() << endl << "RIGHT="<<label_sched[i]->info();
+                EV<< " GAP="<< label_sched[i]->getStart()-label_sched[i-1]->getStop();
+                EV<< " LEN=" << len <<endl;
+
+                fit=true;
+                last_t= label_sched[i - 1]->getStop();
+                break;
+
+                /*
 
                 // Space was found .. lets use it!!!
                 simtime_t waiting = label_sched[i - 1]->getStop() - simTime() + d_s;
@@ -1023,13 +1045,19 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
                 EV << " ("<<e->info()<< ")" << endl;
                 soa->assignSwitchingTableEntry(e, waiting + OT - d_s, len);
                 return waiting;
+
+                */
             }
 
         }
 
-        // So it is going to be LIFO ..
-        simtime_t waiting = label_sched[ label_sched.size()-1 ]->getStop() - simTime() - OT + d_s;
-        if( waiting < 0 ) waiting = 0.0;
+        // Convert the time to waiting notation and do check!!!
+        simtime_t waiting = last_t - simTime() - OT + d_s;
+        if( waiting < 0 ){
+            waiting = 0.0;
+            if(fit) opp_terminate("Aggregation with invalid FIT.");
+        }
+
 
         // Entry itself
         SOAEntry *e = new SOAEntry(outPort, WL, true);
@@ -1041,7 +1069,9 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
         addSwitchingTableEntry(e);
 
         // Return the waiting entry
-        EV << "#" << WL << " with waiting (LIFO) " << waiting;
+        EV << "#" << WL << " with waiting (";
+        if(fit) EV << "fitted"; else EV<<"LIFO";
+        EV << ") " << waiting;
         EV << " ("<<e->info()<< ")" << endl;
         soa->assignSwitchingTableEntry(e, waiting + OT - d_s , len);
         return waiting;
