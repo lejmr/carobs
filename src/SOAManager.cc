@@ -78,7 +78,7 @@ void SOAManager::initialize() {
     WATCH_MAP(reg_max);
 }
 
-bool myfunction (SOAEntry *i, SOAEntry *j) { return (i->getStart()<j->getStart()); }
+bool startSortFunction (SOAEntry *i, SOAEntry *j) { return (i->getStart()<j->getStart()); }
 
 void SOAManager::countProbabilities(){
     /* Function that is used for evaluation of probabilities during the simulation */
@@ -475,10 +475,11 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
         //EV << "SOAEntry: " << (*it)->info() << endl;
         splitTable[ (*it)->getOutPort() ].remove( *it );
         scheduling.remove( *it );
+        //EV << "TEST " << (*it)->info() << " OT="<<(*it)->ot_var<< " START="<< (*it)->getRealStart() << endl;
     }
 
     // Sort
-    std::sort( toBeRescheduled.begin(), toBeRescheduled.end(), myfunction);
+    std::sort( toBeRescheduled.begin(), toBeRescheduled.end(), startSortFunction);
 
     // Calculate new waiting times and inform SOA and MAC about delay
     for(std::vector<SOAEntry *>::iterator it=toBeRescheduled.begin();it!=toBeRescheduled.end();++it){
@@ -498,7 +499,7 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
             for (cQueue::Iterator iter(splitTable[ (*it)->getOutPort() ], 0); !iter.end(); iter++) {
                 sched.push_back( (SOAEntry *) iter() );
             }
-            std::sort( sched.begin(), sched.end(), myfunction);
+            std::sort( sched.begin(), sched.end(), startSortFunction );
 
             // Scheduling length
             simtime_t len= (*it)->getStop() - (*it)->getStart();
@@ -507,6 +508,10 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
             t_start= sched[ sched.size()-1 ]->getStop();
             for(unsigned int i=1; i < sched.size(); i++ ){
                 simtime_t delta= sched[i]->getStart() - sched[i-1]->getStop() - 2*d_s;
+
+                // For aggregation SOAEntries we must remember of OT because of CAROBSHeader
+                if( (*it)->isAggregation() and sched[i-1]->getStop()+d_s-(*it)->ot_var < simTime() ) continue;
+
                 if( delta >= len ){
                     t_start= sched[i-1]->getStop();
                     break;
@@ -524,6 +529,10 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
             EV << " " << last->info() << endl;
 
         }
+
+        // Test that even the last one does not violate the Aggragation OT constraint
+        if( (*it)->isAggregation() and t_start+d_s-(*it)->ot_var < simTime() )
+            t_start= simTime()+(*it)->ot_var;
 
         // So we have time when we can start sending ..
         // 1. calculate a new delay,
@@ -731,7 +740,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
     }
 
     // Sort them
-    std::sort( label_sched.begin(), label_sched.end(), myfunction);
+    std::sort( label_sched.begin(), label_sched.end(), startSortFunction );
 
     /*
     EV << " Setridene routy:" << endl << endl;
@@ -965,7 +974,7 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
     }else{
 
         // Sort schedulers related to the output port and wavelength
-        std::sort(label_sched.begin(), label_sched.end(), myfunction);
+        std::sort(label_sched.begin(), label_sched.end(), startSortFunction);
 
 
         EV << endl << " Setridene routy:" << endl << endl;
