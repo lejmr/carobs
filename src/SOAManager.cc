@@ -664,6 +664,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
             // Initiate aggregation rescheduling in favor of the incoming burst in [start;stop]
 
             std::vector<SOAEntry *> toBeRescheduled;
+            bool toBeBuffered= false;
 
             EV << "Testing for collision:" << endl;
             for (cQueue::Iterator iter(splitTable[outPort], 0); !iter.end(); iter++) {
@@ -687,6 +688,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
 
                         // It is already too late to reschedule because Header is on the way
                         EV << " .. already send => buffering" << endl;
+                        toBeBuffered= true;
                         break;
 
                     }else{
@@ -699,7 +701,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
 
             }
 
-            if( toBeRescheduled.size() > 0 ){
+            if( !toBeBuffered and toBeRescheduled.size() > 0 ){
                 // There are schedullings to be rescheduled
                 // 1. Add the incoming burst scheduling
 
