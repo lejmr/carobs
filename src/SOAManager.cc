@@ -497,7 +497,14 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
             // Sort the cQueue representig scheduling for outport
             std::vector<SOAEntry *> sched;
             for (cQueue::Iterator iter(splitTable[ (*it)->getOutPort() ], 0); !iter.end(); iter++) {
-                sched.push_back( (SOAEntry *) iter() );
+
+                // Use only SOAentries on the same output port and wavelength!!!
+                SOAEntry *tmp= (SOAEntry *) iter();
+                if( tmp->getOutLambda() != (*it)->getOutLambda() ) continue;
+
+                // Put to the scheduler
+                sched.push_back( tmp );
+
             }
             std::sort( sched.begin(), sched.end(), startSortFunction );
 
@@ -512,8 +519,12 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
                 // For aggregation SOAEntries we must remember of OT because of CAROBSHeader
                 if( (*it)->isAggregation() and sched[i-1]->getStop()+d_s-(*it)->ot_var < simTime() ) continue;
 
+                // Fit to the space
                 if( delta >= len ){
                     t_start= sched[i-1]->getStop();
+                    EV << "-FIT delta="<<delta<< " len="<< len << " ";
+                    //EV << endl << "Left: "<< sched[i-1]->info() << endl;
+                    //EV << "Right:" <<  sched[i]->info() << endl;
                     break;
                 }
             }
