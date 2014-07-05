@@ -665,6 +665,10 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
             EV << "Testing for collision:" << endl;
             for (cQueue::Iterator iter(splitTable[outPort], 0); !iter.end(); iter++) {
                 SOAEntry *tmp = (SOAEntry *) iter();
+
+                // Test only on my wavelength
+                if( tmp->getOutLambda() != inWL) continue;
+
                 EV << tmp->info();
                 if( tmp->isAggregation() or (tmp->getBuffer() and not tmp->getBufferDirection() )) {
 
@@ -673,9 +677,6 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
                         EV << " OK" << endl;
                         continue;
                     }
-
-
-                    EV << "reschedules with OT=" << tmp->ot_var;
 
                     // Aggregation that is already used (CAROBSHeader is away)
                     //if( tmp->getStart()-tmp->ot_var <= simTime() ){
@@ -686,7 +687,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
                         break;
 
                     }else{
-
+                        EV << "reschedules with OT=" << tmp->ot_var;
                         toBeRescheduled.push_back(tmp);
 
                     }
