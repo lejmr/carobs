@@ -778,6 +778,12 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
         // Count the space between two schedulings
         simtime_t delta= label_sched[i]->getStart() - label_sched[i-1]->getStop() - 2*d_s;
 
+        // There is some minimal buffering time ...
+        if( label_sched[i-1]->getStop() - start < min_buffer ) continue;
+
+        // Is there enough time to configure OXC?
+        if( label_sched[i-1]->getStop() - simTime() < d_s ) continue;
+
         // Is the space big enought?
         if( delta >= (stop-start) ){
             // Space was found .. lets use it!!!
@@ -799,6 +805,10 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
         EV << " LIFO: " << label_sched[ label_sched.size()-1 ]->info() << endl;
 
         BT= label_sched[ label_sched.size()-1 ]->getStop() - start + d_s;
+
+        // Check that BT is big enough
+        if( BT < min_buffer ) BT= min_buffer;
+
     }
 
     // We will follow the routing
