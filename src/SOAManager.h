@@ -221,6 +221,11 @@ class SOAManager : public cSimpleModule
      *   @return    : Least waiting time when such car train can be send to SOA
      */
     virtual simtime_t getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, int &outPort, int &WL, int &ident);
+
+    /**
+     *  Function generating SOAEntry unique identifier that is used for delaying scheduling
+     */
+    virtual int getUniqueLocalIdentifier();
 };
 
 #endif

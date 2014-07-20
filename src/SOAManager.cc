@@ -674,6 +674,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
                 if( tmp->getOutLambda() != inWL) continue;
 
                 EV << tmp->info();
+                EV << " OtSent=" << tmp->H_sent;
                 if( tmp->isAggregation() or (tmp->getBuffer() and not tmp->getBufferDirection() )) {
 
                     // Skip already scheduled paths
@@ -834,7 +835,7 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
     e_out->setStop(stop + BT);
     e_out->setBuffer(true);
     e_out->setOutBuffer();
-    e_out->identifier= uniform(100,1e9);
+    e_out->identifier= getUniqueLocalIdentifier();
     addSwitchingTableEntry(e_out);
 
     // Bond this two together
@@ -960,6 +961,34 @@ void SOAManager::addSwitchingTableEntry(SOAEntry *e){
 }
 
 
+int SOAManager::getUniqueLocalIdentifier() {
+    Enter_Method("getUniqueLocalIdentifier()");
+
+    int ident;
+    bool unique_ident = false;
+    while (!unique_ident) {
+
+        // Generate identifier
+        ident = uniform(100, 1e8);
+
+        // Test its occurance
+        unique_ident = true;
+        for (cQueue::Iterator iter(scheduling, 0); !iter.end(); iter++) {
+            SOAEntry *tmp = (SOAEntry *) iter();
+            if (tmp->identifier == ident) {
+                unique_ident = false;
+                break;
+            }
+        }
+
+        //EV << "Testuji " << ident << " : " << ++i << "unique=" << unique_ident << endl;
+    }
+
+    //if( i > 1) opp_terminate("unikat");
+
+    return ident;
+}
+
 simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime_t len, int &outPort, int &WL, int &ident) {
     Enter_Method("getAggregationWaitingTime()");
 
@@ -970,7 +999,9 @@ simtime_t SOAManager::getAggregationWaitingTime(int label, simtime_t OT, simtime
     CplexRouteEntry r= R->getRoutingEntry(label);
     outPort= r.getOutPort();
     WL= r.getOutLambda();
-    ident= uniform(100, 1e8);
+    ident= getUniqueLocalIdentifier();
+
+
 
     EV << " outPort="<<outPort;
 
