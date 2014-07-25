@@ -223,7 +223,7 @@ simtime_t Routing::getOffsetTime(int destination, bool aggregation) {
 
     for (cQueue::Iterator iter(RoutingTable, 0); !iter.end(); iter++){
         CplexRouteEntry *r = (CplexRouteEntry *) iter();
-        if( r->getdest() == destination ){
+        if( r->getLabel() == destination ){
 
             if( aggregation and r->getSource() != address ){
                 continue;
