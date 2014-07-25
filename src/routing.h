@@ -81,6 +81,11 @@ class Routing : public cSimpleModule
     /**
      *
      */
+    virtual int getDstFromLabel(int label);
+
+    /**
+     *
+     */
     virtual CplexRouteEntry getRoutingEntry(int label);
 
     /**

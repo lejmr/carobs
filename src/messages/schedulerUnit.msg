@@ -16,6 +16,7 @@
 packet SchedulerUnit
 {
     int dst;			// Car destination
+    int label;
     simtime_t ot;		// Minumum offset time that must have been sattisfied
  	simtime_t start;	// car's time of the start
     simtime_t end; 		// car's time of the end

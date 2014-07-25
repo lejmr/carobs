@@ -299,3 +299,19 @@ CplexRouteEntry Routing::getRoutingEntry(int label){
     EV << "Requested unknown pathID="<<label<<endl;
     opp_terminate("!!! No routing for requested label !!! ");
 }
+
+
+int Routing::getDstFromLabel(int label){
+    Enter_Method("getDstFromLabel()");
+
+        for (cQueue::Iterator iter(RoutingTable, 0); !iter.end(); iter++){
+            CplexRouteEntry *r = (CplexRouteEntry *) iter();
+            if( r->getLabel() == label ){
+
+                EV << "Selecting" << r->info() << endl;
+                return r->getdest();
+            }
+        }
+
+        return -1;
+    }

@@ -222,10 +222,10 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
             sprintf(buffer_name, "Car %d", su->getDst());
             OpticalLayer *OC = new OpticalLayer(buffer_name);
             OC->setWavelengthNo(WL);
-            tcar->addPar("dst");
-            tcar->par("dst").setDoubleValue( su->getDst() );
-            tcar->addPar("src");
-            tcar->par("src").setDoubleValue( address );
+            tcar->addPar("dst").setDoubleValue( su->getDst() );
+            tcar->addPar("src").setDoubleValue( address );
+            tcar->addPar("label").setDoubleValue( su->getLabel() );
+
             OC->encapsulate(tcar);
             OC->addPar("ot").setDoubleValue( su->getStart().dbl() );  // Testing purpose.. a car can pass as many CoreNodes as its OT supports
             OC->addPar("SOAEntry_identifier").setLongValue(SOAEntry_indentifier);

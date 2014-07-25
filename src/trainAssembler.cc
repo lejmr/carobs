@@ -61,6 +61,7 @@ void TrainAssembler::handleMessage(cMessage *msg) {
          */
         SchedulerUnit *su = new SchedulerUnit();
         su->setDst(AQ);
+        su->setLabel(label);
         su->setOt(ot);
 
         // In the first step (definition) Start, End, Length are
@@ -119,7 +120,7 @@ void TrainAssembler::prepareTrain(int TSId) {
     if( N == 0) return;
 
     simtime_t OT = dst[0]->getStart();
-    int dt = dst[dst.size() - 1]->getDst();
+    int dt = R->getDstFromLabel( dst[dst.size() - 1]->getDst() );
     simtime_t len= dst[N-1]->getEnd() - dst[0]->getStart();
 
     EV << "Burst train length="<<len << endl;
@@ -135,7 +136,7 @@ void TrainAssembler::prepareTrain(int TSId) {
     // Car section
     for (int i = 0; i < dst.size(); i++) {
         CAROBSCarHeader *ch = new CAROBSCarHeader();
-        ch->setDst(dst[i]->getDst());
+        ch->setDst(R->getDstFromLabel( dst[i]->getDst() ) );
         ch->setSize(dst[i]->getLengthB());
         ch->setD_c(dst[i]->getStart() - OT);
         H->getCars().insert(ch);
