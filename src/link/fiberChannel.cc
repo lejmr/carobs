@@ -115,8 +115,9 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
      * Throughput estimation - per destination
      * Countin
      */
-        int dst= ol->getEncapsulatedPacket()->par("dst").doubleValue()-100;
+        int dst= ol->getEncapsulatedPacket()->par("dst").doubleValue();
         int src= ol->getEncapsulatedPacket()->par("src").doubleValue()-100;
+        int label= ol->getEncapsulatedPacket()->par("AQ").doubleValue();
         int ident= src*10000+dst;
 
         if( thr_start.find(ident) == thr_start.end() ){
@@ -124,7 +125,8 @@ void FiberChannel::processMessage(cMessage *msg, simtime_t t, result_t& result){
             thr_usage[ident]= 0;
 
             std::stringstream out;
-            out << "Throughput of " << src <<"-"<< dst << " [bps]";
+            //out << "Throughput of " << src <<"-"<< dst << " [bps]";
+            out << "Throughput of " << label << " [bps]";
             throughput[ident] = new cOutVector(out.str().c_str());
         }
 
