@@ -55,16 +55,18 @@ void CplexGenerator::initialize()
         if( (int)tmp[1] == src and (int)tmp[3] == src  ){
 
             // Initialize request to
-            if( demands.find( (int)tmp[2] ) == demands.end() ) demands[ (int)tmp[2] ]=0;
+            if( demands.find( (int)tmp[0] ) == demands.end() ) demands[ (int)tmp[0] ]=0;
+            if( label_dst.find( (int)tmp[0] ) == label_dst.end() ) label_dst[ (int)tmp[0] ]=(int)tmp[2];
 
             // Add requests
-            demands[ (int)tmp[2] ]+= tmp[6];
+            demands[ (int)tmp[0] ]+= tmp[6];
 
         }
     }
 
     // Visualize traffic matrix
     WATCH_MAP(demands);
+    WATCH_MAP(label_dst);
 
 
     // Initialise sending
@@ -102,7 +104,8 @@ void CplexGenerator::handleMessage(cMessage *msg)
 
         for (std::map<int, double>::iterator it=demands.begin(); it!=demands.end(); ++it){
             //EV << it->first << " => " << it->second << endl;
-            dst= it->first;
+            int label= it->first;
+            int dst= label_dst[ label ];
             double demand= alpha * it->second;
 
             //for (it = demands.begin(); it < demads.end(); it++) {
@@ -110,9 +113,9 @@ void CplexGenerator::handleMessage(cMessage *msg)
             if( demand <= 0 ) continue;
 
             // First arrival time
-            arrivals[dst]=simTime();
+            arrivals[label]=simTime();
 
-            EV << "Preparing "<<n<<" payload packets to " << dst << " with demand "<<demand <<"Mbps";
+            EV << "Preparing "<<n<<" payload packets to " << dst <<"@" << label << " with demand "<<demand <<"Mbps";
             // Mean time between incomes of the demands .. based on A= lambda*tos
             // tos = lenght / C  - Where lengthB is mean value of length and C is bitrate in bps
             // demand/C - in conversion of traffic matrix into Erlang notation
@@ -125,6 +128,7 @@ void CplexGenerator::handleMessage(cMessage *msg)
             t->addPar("lambda").setDoubleValue(lambda);
             t->addPar("src").setDoubleValue(src);
             t->addPar("dst").setDoubleValue(dst);
+            t->addPar("label").setDoubleValue(label);
             t->addPar("sent").setLongValue(0);
             t->addPar("scheduling");
             scheduleAt(simTime(), t);
@@ -152,7 +156,7 @@ void CplexGenerator::handleMessage(cMessage *msg)
 
         // Send these packets
         simtime_t next = sendAmount( tosend,
-                            msg->par("src").doubleValue(), msg->par("dst").doubleValue(),
+                            msg->par("src").doubleValue(), msg->par("dst").doubleValue(),msg->par("label").doubleValue(),
                             msg->par("lambda").doubleValue(), length);
 
 
@@ -161,6 +165,7 @@ void CplexGenerator::handleMessage(cMessage *msg)
         t->addPar("lambda").setDoubleValue( msg->par("lambda").doubleValue() );
         t->addPar("src").setDoubleValue(src);
         t->addPar("dst").setDoubleValue( msg->par("dst").doubleValue() );
+        t->addPar("label").setDoubleValue( msg->par("label").doubleValue() );
         t->addPar("sent").setLongValue( msg->par("sent").longValue()+tosend );
         t->addPar("scheduling");
         scheduleAt( next , t);
@@ -176,7 +181,7 @@ void CplexGenerator::handleMessage(cMessage *msg)
     }
 }
 
-simtime_t CplexGenerator::sendAmount(int amount, int src, int dst, double lambda, int length){
+simtime_t CplexGenerator::sendAmount(int amount, int src, int dst, int label, double lambda, int length){
     for (int i = 0; i < amount; i++) {
         // E[t]=int(t*lambda*exp(-lambda*t),t=0..oo)=1/lambda
         simtime_t gap = exponential(1/lambda);
@@ -184,16 +189,17 @@ simtime_t CplexGenerator::sendAmount(int amount, int src, int dst, double lambda
         pl->setBitLength(length);
         pl->setDst(dst);
         pl->setSrc(src);
-        pl->setT0(arrivals[dst]);
+        pl->setLabel(label);
+        pl->setT0(arrivals[label]);
         pl->setSchedulingPriority(10); // Gives way to the autoconfiguration of CoreNode
-        scheduleAt(arrivals[dst], pl);
-        EV << " + " << src << "->" << dst << " (" << length / 8 << "B): " << arrivals[dst] << endl;
-        arrivals[dst]+=gap;
+        scheduleAt(arrivals[label], pl);
+        EV << " + Path: "<< label << " - " << src << "->" << dst << " (" << length / 8 << "B): " << arrivals[label] << endl;
+        arrivals[label]+=gap;
         psend++;
     }
 
-    EV << "Next sending is planned at " << arrivals[dst] << endl;
-    return arrivals[dst];
+    EV << "Next sending is planned at " << arrivals[label] << endl;
+    return arrivals[label];
 }
 
 void CplexGenerator::finish(){

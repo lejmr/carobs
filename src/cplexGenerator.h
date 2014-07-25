@@ -30,6 +30,7 @@ class CplexGenerator : public cSimpleModule
     int src;
     int64_t n;
     std::map<int, double> demands;
+    std::map<int, int> label_dst;
     int64_t psend;
 
     std::map<int,int> counts;
@@ -41,7 +42,7 @@ class CplexGenerator : public cSimpleModule
      *  number generator.
      *  Returns time for next sending.
      */
-    virtual simtime_t sendAmount(int amount, int src, int dst, double lambda, int length);
+    virtual simtime_t sendAmount(int amount, int src, int dst, int label, double lambda, int length);
     std::map<int,simtime_t> arrivals;
 
 };

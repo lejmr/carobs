@@ -19,5 +19,6 @@
 packet Payload {
     int src;
     int dst;
+    int label;
     simtime_t t0;
 }
