@@ -64,9 +64,9 @@ void AggregationQueues::handleMessage(cMessage *msg)
 void AggregationQueues::handlePayload(cMessage *msg){
     Payload *pmsg = dynamic_cast<Payload *>(msg);
 
-    int AQdst =  pmsg->getDst(); // TODO: Need to be fixed;
+    int AQdst =  pmsg->getLabel(); // TODO: Need to be fixed;
     if( AQdst == -1 ){
-        EV << "Wrong paring for dst address " << pmsg->getDst() << " !!!"<<endl;
+        EV << "Wrong paring for dst address " << pmsg->getLabel() << " !!!"<<endl;
         return;
     }
 
@@ -220,13 +220,13 @@ void AggregationQueues::initiateAggregationPools() {
 
             if( match) {
                 //EV << iter->first << " ";
-                if( AP_ON ) AP[ ost[2] ].insert( ist[1] );
+                if( AP_ON ) AP[ ost[2] ].insert( ist[2] );
             }
 
         }
         //EV << endl;
 
-        AP[ ost[2] ].insert( ost[1] );
+        AP[ ost[2] ].insert( ost[2] );
 
     }
 
