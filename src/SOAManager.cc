@@ -522,6 +522,9 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
                 // CAROBSHeader needs to be send OT time before the scheduling it-self
                 if( (*it)->getBuffer() and !(*it)->getBufferDirection() and sched[i-1]->getStop()-(*it)->ot_var < simTime() ) continue;
 
+                // Check that the potential start is not earlier than finish of arrival
+                if( (*it)->getBuffer() and !(*it)->getBufferDirection() and sched[i-1]->getStop()+d_s < (*it)->bound->getStop() ) continue;
+
                 // Fit to the space
                 if( delta >= len ){
                     t_start= sched[i-1]->getStop();
