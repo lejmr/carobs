@@ -693,10 +693,32 @@ SOAEntry* SOAManager::getOptimalOutput(int label, int inPort, int inWL, simtime_
                         break;
 
                     }else{
-                        EV << "reschedules with OT=" << tmp->ot_var;
+                        EV << " reschedules with OT=" << tmp->ot_var;
                         toBeRescheduled.push_back(tmp);
 
                     }
+                }else{
+
+                    /*  Regular contention because of merging */
+
+                    if( tmp->getOutLambda() == inWL ){
+                        // The same output port and wavelength ..
+
+                        if( stop <= tmp->getStart()-d_s or start >= tmp->getStop()+d_s ){
+
+                            // Time non overlapping
+                            EV << " non-overlapping => OK" << endl;
+                            continue;
+
+                        }
+
+                        // Requested time overlaps with this scheduling;
+                        EV << " .. overlapping => buffering" << endl;
+                        toBeBuffered= true;
+                        break;
+
+                    }
+
                 }
                 EV << endl;
 
