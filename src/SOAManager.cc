@@ -545,8 +545,8 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
         }
 
         // Test that even the last one does not violate the Aggragation OT constraint
-        if( (*it)->isAggregation() and t_start+d_s-(*it)->ot_var < simTime() )
-            t_start= simTime()+(*it)->ot_var;
+        if( t_start+d_s-(*it)->ot_var < simTime() )
+            t_start= simTime()+(*it)->ot_var-d_s;
 
         // So we have time when we can start sending ..
         // 1. calculate a new delay,
@@ -592,7 +592,7 @@ void SOAManager::rescheduleAggregation(std::vector<SOAEntry *> toBeRescheduled){
         //opp_terminate("Preplanovani");
 
 
-        EV << "Reschedulled: " << (*it)->info() << endl ;
+        EV << "Reschedulled: " << (*it)->info() << endl << endl ;
     }
 
     //
