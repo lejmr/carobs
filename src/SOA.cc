@@ -94,6 +94,19 @@ void SOA::handleMessage(cMessage *msg) {
             return ;
         }
 
+        /*      Buffering to MAC    */
+        if (sw->getBuffer() and sw->getBufferDirection()) {
+            EV << "Buffering based on: " << sw->info() << endl;
+
+            // Marking the buffered OpticalLayer in order of easier SOAEntry resolution
+            ol->addPar("marker");
+            ol->par("marker").setPointerValue(sw);
+
+            //
+            send(ol, "aggregation$o", inPort);
+            return;
+        }
+
         /*      All-optical Bypass    */
         int outPort = sw->getOutPort();
         int outWl = sw->getOutLambda();
