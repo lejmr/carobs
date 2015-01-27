@@ -75,7 +75,7 @@ class SOA : public cSimpleModule
     /**
      * RRPD statistics
      */
-    cOutVector OE, EO;
+    cOutVector OE, EO, OEbuf, OEdis;
 
     /**
      * Activation and deactivation planner manager

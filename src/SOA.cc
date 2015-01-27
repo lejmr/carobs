@@ -41,8 +41,10 @@ void SOA::initialize() {
     blpevo.setName("Evolution of BLP");
 
     // RRPD
-    OE.setName("Number of O/E blocks used [-]");
-    EO.setName("Number of E/O blocks used [-]");
+    OE.setName("Number of O/E blocks [-]");
+    OEbuf.setName("Number of O/E blocks used for buffering [-]");
+    OEdis.setName("Number of O/E blocks used for disaggregation [-]");
+    EO.setName("Number of used E/O blocks [-]");
 
 }
 
@@ -92,56 +94,6 @@ void SOA::handleMessage(cMessage *msg) {
             return ;
         }
 
-        /*      Buffering to MAC    */
-        if (sw->getBuffer() and sw->getBufferDirection() ) {
-            EV << "Buffering based on: " << sw->info() << endl;
-
-            // Marking the buffered OpticalLayer in order of easier SOAEntry resolution
-            ol->addPar("marker");
-            ol->par("marker").setPointerValue(sw);
-
-            //
-            send(ol, "aggregation$o",inPort);
-
-            // Check how many buffering instructions are assigned
-            int oe=0, mf=0;
-            for (cQueue::Iterator iter(switchingTable, 0); !iter.end();
-                    iter++) {
-                SOAEntry *se = (SOAEntry *) iter();
-
-                // Check buffering instructions only
-                if ( not (se->getBuffer() and se->getBufferDirection()) ) continue;
-
-
-                // Check whether instructions overlap in time
-                if (se->getStart() < sw->getStart() and se->getStop() + d_s < sw->getStart() ) {
-                    // 1.
-                    //  ........|----|..... sw
-                    //  .|----|............ se
-                    continue;
-                }
-
-                if (se->getStop() > sw->getStop() and se->getStart() - d_s >= sw->getStop()) {
-                    // 2.
-                    //  .|----|............ sw
-                    //  ........|----|..... se
-                    continue;
-                }
-
-                // Overlapping SE
-                oe++;
-
-                // Number of merging flows at one wavelength specified by the input wavelength of sw
-                if( sw->getInLambda() == se->getInLambda() and sw->getInPort() == sw->getInPort() )
-                    mf++;
-            }
-
-            // Statisticis
-            buff++;
-            OE.record(oe);
-            return;
-        }
-
         /*      All-optical Bypass    */
         int outPort = sw->getOutPort();
         int outWl = sw->getOutLambda();
@@ -170,7 +122,6 @@ void SOA::handleMessage(cMessage *msg) {
 
             // Sending to output port
             send(ol, "gate$o", sw->getOutPort());
-            OE.record(0);
         }else{
             EV << "Burst at "<<inPort<<"#"<<inWl<<" is to be dropped !!!" << endl;
             drpd++;
@@ -282,6 +233,31 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
 
     // Reserve WL if it is not to buffer direction
     switchingTable.insert(e);
+
+    // Count the number of O/E blocks that are necessary
+    int oe_total = 0;
+    int oe_disagg = 0;
+    int oe_buffer = 0;
+
+    for( cQueue::Iterator iter(switchingTable,0); !iter.end(); iter++){
+        SOAEntry *se = (SOAEntry *) iter();
+
+        // Count dissaggregation
+        if( se->isDisaggregation() ){
+            oe_total++;
+            oe_disagg++;
+        }
+
+        // Count buffering
+        if( se->getBuffer() and se->getBufferDirection() ){
+            oe_total++;
+            oe_buffer++;
+        }
+    }
+
+    OEbuf.record(oe_buffer);
+    OEdis.record(oe_disagg);
+    OE.record(oe_total);
 }
 
 void SOA::assignSwitchingTableEntry(cObject *e, simtime_t ot, simtime_t len) {

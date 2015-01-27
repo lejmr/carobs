@@ -87,7 +87,11 @@ void CoreNodeMAC::handleMessage(cMessage *msg) {
 
         // Buffering checker
         if( ! olsw->getBuffer() ) opp_terminate("Buffering burst that was not supposed to be buffered, why?");
-        if( ! olsw->bound->getBuffer() ) opp_terminate("Buffering burst with wrong un-buffering SOAEntry, why?");
+        if( ! olsw->bound->getBuffer() ){
+            EV << "INPUT: "<< olsw->info() << endl;
+            //EV << "OUTPUT: "<< olsw->bound->info() << endl;
+            opp_terminate("Buffering burst with wrong un-buffering SOAEntry, why?");
+        }
 
         // Drop OL, cause all data are already in electrical domain
         delete ol;

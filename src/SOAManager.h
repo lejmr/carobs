@@ -194,6 +194,7 @@ class SOAManager : public cSimpleModule
      */
     int64 bbp_switched, bbp_buffered, bbp_dropped, bbp_total, bbp_interval_max;
     cOutVector BBP, BLP, BOKP, BTOTAL, SECRATIO;
+    std::map<int, cOutVector *> BBP_port;
 
     // Count function
     virtual void countProbabilities();
