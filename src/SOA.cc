@@ -16,6 +16,8 @@
 #include "SOA.h"
 #include "SOAManager.h"
 #include "CoreNodeMAC.h"
+#include <iostream>
+#include <set>
 
 Define_Module(SOA);
 
@@ -252,21 +254,51 @@ void SOA::addpSwitchingTableEntry(SOAEntry *e){
     int oe_disagg = 0;
     int oe_buffer = 0;
 
+
+    std::set<std::string> inport_buf, inport_dis;
+
+    //EV << "Debug: " << endl;
     for( cQueue::Iterator iter(switchingTable,0); !iter.end(); iter++){
         SOAEntry *se = (SOAEntry *) iter();
 
+        //EV << se->info();
         // Count dissaggregation
         if( se->isDisaggregation() ){
-            oe_total++;
-            oe_disagg++;
+            //EV << " Disaggregation";
+
+            std::ostringstream os;
+            os << se->getInPort() << ";" << se->getInLambda();
+
+            if( inport_dis.find(os.str()) == inport_dis.end() ){
+                oe_total++;
+                oe_disagg++;
+                //EV << " count";
+            }
+            else opp_terminate("Overlapping in disaggregation?");
+            //EV << " -- " << os.str();
+            inport_dis.insert(os.str());
         }
 
         // Count buffering
-        if( se->getBuffer() and se->getBufferDirection() ){
-            oe_total++;
-            oe_buffer++;
+        if (se->getBuffer() and se->getBufferDirection()) {
+            //EV << " Buffering";
+
+            std::ostringstream os ;
+            os << se->getInPort() << ";" << se->getInLambda();
+
+            if( inport_buf.find(os.str()) == inport_buf.end() ){
+                oe_total++;
+                oe_buffer++;
+                //EV << " count";
+            }
+            else opp_terminate("Overlapping in buffering?");
+            //EV << " -- " << os.str();
+            inport_buf.insert(os.str());
         }
+
+        //EV << endl;
     }
+    //EV << "OE dis="<<oe_disagg << " buf="<<oe_buffer<<endl;
 
     OEbuf.record(oe_buffer);
     OEdis.record(oe_disagg);

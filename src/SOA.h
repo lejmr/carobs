@@ -20,6 +20,8 @@
 #include <SOAEntry.h>
 #include <messages/OpticalLayer_m.h>
 //#include <messages/swe_m.h>
+#include <iostream>
+#include <string>
 
 /**
  *  All optical space switching matrix
